@@ -1,0 +1,505 @@
+package com.osrssync;
+
+import static com.osrssync.Ui.*;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.osrssync.ChatComponents.Align;
+import com.osrssync.ChatComponents.Bubble;
+import com.osrssync.ChatComponents.MessageList;
+import com.osrssync.ChatComponents.ProgressBar;
+import com.osrssync.ChatComponents.Surface;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
+import net.runelite.api.Skill;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
+
+/**
+ * The Progress page: the rank card, then a summary card per area (skills, quests, combat achievements,
+ * diaries, collection log) and the top kill counts with each boss's picture. Same card style as Home.
+ */
+class ProgressView extends JPanel
+{
+	// The in-game skills tab, read row by row
+	private static final Skill[] SKILL_ORDER = {
+		Skill.ATTACK, Skill.HITPOINTS, Skill.MINING,
+		Skill.STRENGTH, Skill.AGILITY, Skill.SMITHING,
+		Skill.DEFENCE, Skill.HERBLORE, Skill.FISHING,
+		Skill.RANGED, Skill.THIEVING, Skill.COOKING,
+		Skill.PRAYER, Skill.CRAFTING, Skill.FIREMAKING,
+		Skill.MAGIC, Skill.FLETCHING, Skill.WOODCUTTING,
+		Skill.RUNECRAFT, Skill.SLAYER, Skill.FARMING,
+		Skill.CONSTRUCTION, Skill.HUNTER, Skill.SAILING,
+	};
+	private static final Color DONE = new Color(0x3FA33F);
+
+	private final Function<Skill, BufferedImage> skillIcons;
+	private final WikiImages images;
+	private final MessageList list = new MessageList(null, 0);
+
+	ProgressView(Function<Skill, BufferedImage> skillIcons, WikiImages images)
+	{
+		this.skillIcons = skillIcons;
+		this.images = images;
+		setLayout(new BorderLayout());
+		setOpaque(false);
+		// Cards straight on the panel background, like Home; 1px in so their outline shows
+		// Room at the bottom to scroll clear of the floating composer
+		list.setBorder(BorderFactory.createEmptyBorder(1, 1, FloatingAsk.CLEARANCE, 1));
+		JScrollPane scroll = new JScrollPane(list);
+		scroll.setOpaque(false);
+		scroll.getViewport().setOpaque(false);
+		scroll.setBorder(BorderFactory.createEmptyBorder());
+		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+		add(scroll, BorderLayout.CENTER);
+		showMessage("Loading your progress...");
+	}
+
+	void showMessage(String markdown)
+	{
+		list.removeAll();
+		Bubble b = new Bubble(ChatComponents.CARD_BG, ColorScheme.LIGHT_GRAY_COLOR, false, true);
+		b.setHtml(MarkdownLite.toHtml(markdown));
+		list.add(ChatComponents.place(b, Align.FILL, 0));
+		relayout();
+	}
+
+	void show(JsonObject o)
+	{
+		list.removeAll();
+		int gap = 0;
+		for (JComponent card : new JComponent[]{
+			rankCard(o), skillsCard(o), questsCard(o), combatAchievementsCard(o), diariesCard(o), collectionLogCard(o), killCountsCard(o)})
+		{
+			if (card != null)
+			{
+				list.add(ChatComponents.place(card, Align.FILL, gap));
+				gap = 4;
+			}
+		}
+		relayout();
+	}
+
+	// ---- Cards
+
+	/** The rank: tier crest in the score ring, points to the next tier, the tier ladder and what the score is made of. */
+	private JComponent rankCard(JsonObject o)
+	{
+		JsonObject score = obj(o, "score");
+		if (score == null)
+		{
+			return null;
+		}
+		Surface c = HomeView.homeCard();
+		c.add(sectionHeader("Rank"));
+		c.add(Box.createVerticalStrut(12));
+
+		List<ScoreChart.Segment> segments = new ArrayList<>();
+		JsonArray parts = score.getAsJsonArray("parts");
+		for (JsonElement e : parts)
+		{
+			JsonObject part = e.getAsJsonObject();
+			segments.add(new ScoreChart.Segment(num(part, "points"), ScoreChart.partColor(str(part, "key"))));
+		}
+		List<Integer> ticks = new ArrayList<>();
+		for (JsonElement e : score.getAsJsonArray("checkpoints"))
+		{
+			int at = (int) num(e.getAsJsonObject(), "at");
+			if (at > 0)
+			{
+				ticks.add(at);
+			}
+		}
+		double value = num(score, "score");
+		ScoreChart.Donut donut = new ScoreChart.Donut(value, segments, ticks);
+		JsonObject tier = obj(score, "tier");
+		if (tier != null)
+		{
+			donut.withCrest((int) num(tier, "itemId"), HomeView.tierColor(tier));
+		}
+		donut.setToolTipText("Account score: " + oneDecimal(value) + " / 100 (100 = completionist)");
+
+		JPanel side = new JPanel();
+		side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
+		side.setOpaque(false);
+		JLabel stage = bold(str(score, "stage"));
+		stage.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
+		side.add(row(stage, null));
+		JsonObject next = obj(score, "next");
+		side.add(row(text(next == null ? "Top tier reached" : oneDecimal(num(next, "pointsToGo")) + " pts to " + str(next, "name"), ChatComponents.MUTED), null));
+		side.add(Box.createVerticalStrut(4));
+		side.add(row(small("Score " + oneDecimal(value) + " / 100"), null));
+
+		JPanel hero = new JPanel(new BorderLayout(16, 0));
+		hero.setOpaque(false);
+		hero.add(donut, BorderLayout.WEST);
+		hero.add(centred(side), BorderLayout.CENTER);
+		hero.setAlignmentX(LEFT_ALIGNMENT);
+		hero.setMaximumSize(new Dimension(Integer.MAX_VALUE, hero.getPreferredSize().height));
+		c.add(hero);
+
+		if (score.has("tiers"))
+		{
+			c.add(Box.createVerticalStrut(14));
+			List<ScoreChart.Tier> tiers = new ArrayList<>();
+			for (JsonElement e : score.getAsJsonArray("tiers"))
+			{
+				JsonObject t = e.getAsJsonObject();
+				tiers.add(new ScoreChart.Tier(str(t, "name"), (int) num(t, "at"), (int) num(t, "itemId"), HomeView.tierColor(t), t.get("reached").getAsBoolean()));
+			}
+			ScoreChart.Ladder ladder = new ScoreChart.Ladder(tiers);
+			ladder.setAlignmentX(LEFT_ALIGNMENT);
+			c.add(ladder);
+		}
+
+		c.add(Box.createVerticalStrut(14));
+		for (int i = 0; i < parts.size(); i++)
+		{
+			JsonObject part = parts.get(i).getAsJsonObject();
+			if (i > 0)
+			{
+				c.add(Box.createVerticalStrut(4));
+			}
+			JLabel label = text(str(part, "label"), ColorScheme.LIGHT_GRAY_COLOR);
+			label.setIcon(swatch(ScoreChart.partColor(str(part, "key"))));
+			label.setIconTextGap(8);
+			String tip = Math.round(num(part, "fraction") * 100) + "% complete";
+			if (str(part, "key").equals("collectionLog") && score.has("clogTotalEstimated") && score.get("clogTotalEstimated").getAsBoolean())
+			{
+				tip += " (total slots estimated until you open the collection log)";
+			}
+			label.setToolTipText(tip);
+			c.add(row(label, pair(oneDecimal(num(part, "points")), " / " + (int) num(part, "weight"))));
+		}
+		return c;
+	}
+
+	private JComponent skillsCard(JsonObject o)
+	{
+		JsonArray skills = o.getAsJsonArray("skills");
+		if (skills == null || skills.size() == 0)
+		{
+			return null;
+		}
+		Surface c = HomeView.homeCard();
+		c.add(sectionHeader("Skills"));
+		c.add(Box.createVerticalStrut(10));
+		c.add(totals(fmt(num(o, "totalLevel")), "total level", shortNumber(num(o, "totalXp")), "total XP"));
+		c.add(Box.createVerticalStrut(10));
+		JComponent grid = skillGrid(skills);
+		grid.setAlignmentX(LEFT_ALIGNMENT);
+		c.add(grid);
+		return c;
+	}
+
+	private JComponent questsCard(JsonObject o)
+	{
+		JsonObject q = obj(o, "quests");
+		if (q == null || num(q, "total") == 0)
+		{
+			return null;
+		}
+		double done = num(q, "finished"), total = num(q, "total"), inProgress = num(q, "inProgress");
+		Surface c = HomeView.listCard();
+		c.add(top("Quests", fmt(done) + " / " + fmt(total), "quests done", fmt(num(q, "questPoints")), "quest points", done / total));
+		c.add(HomeView.divider());
+		c.add(HomeView.listRow(HomeView.dotIcon(ChatComponents.ACCENT), "In progress", value(fmt(inProgress)), null));
+		c.add(HomeView.divider());
+		c.add(HomeView.listRow(HomeView.dotIcon(ChatComponents.BORDER), "Not started", value(fmt(Math.max(0, total - done - inProgress))), null));
+		return c;
+	}
+
+	private JComponent combatAchievementsCard(JsonObject o)
+	{
+		JsonObject ca = obj(o, "combatAchievements");
+		if (ca == null || num(ca, "total") == 0)
+		{
+			return null;
+		}
+		String points = ca.has("points") && !ca.get("points").isJsonNull() ? fmt(num(ca, "points")) : null;
+		Surface c = HomeView.listCard();
+		c.add(top("Combat achievements", fmt(num(ca, "done")) + " / " + fmt(num(ca, "total")), "tasks done", points, "points", num(ca, "done") / num(ca, "total")));
+		java.util.Set<String> unlocked = new java.util.HashSet<>();
+		JsonArray tiersComplete = ca.getAsJsonArray("tiersComplete");
+		if (tiersComplete != null)
+		{
+			tiersComplete.forEach(e -> unlocked.add(e.getAsString().toLowerCase(Locale.ROOT)));
+		}
+		addTierRows(c, ca.getAsJsonArray("tiers"), unlocked);
+		return c;
+	}
+
+	private JComponent diariesCard(JsonObject o)
+	{
+		JsonObject d = obj(o, "diaries");
+		if (d == null || num(d, "total") == 0)
+		{
+			return null;
+		}
+		Surface c = HomeView.listCard();
+		c.add(top("Achievement diaries", fmt(num(d, "done")) + " / " + fmt(num(d, "total")), "tiers done", null, null, num(d, "done") / num(d, "total")));
+		addTierRows(c, d.getAsJsonArray("tiers"), java.util.Collections.emptySet());
+		return c;
+	}
+
+	private JComponent collectionLogCard(JsonObject o)
+	{
+		JsonObject clog = obj(o, "collectionLog");
+		if (clog == null)
+		{
+			return null;
+		}
+		double obtained = num(clog, "obtained");
+		boolean hasTotal = clog.has("total") && !clog.get("total").isJsonNull();
+		Surface c = HomeView.listCard();
+		c.add(top("Collection log", fmt(obtained) + (hasTotal ? " / " + fmt(num(clog, "total")) : ""), "slots filled", null, null,
+			hasTotal ? obtained / Math.max(1, num(clog, "total")) : -1));
+		if (!hasTotal)
+		{
+			c.add(HomeView.divider());
+			c.add(HomeView.listRow(null, "Open the log in game to see the total", null, null));
+		}
+		return c;
+	}
+
+	/** Top bosses by kill count: the boss's picture, the count, the name; three to a row. */
+	private JComponent killCountsCard(JsonObject o)
+	{
+		JsonArray kcs = o.getAsJsonArray("topKillCounts");
+		if (kcs == null || kcs.size() == 0)
+		{
+			return null;
+		}
+		Surface c = HomeView.homeCard();
+		c.add(sectionHeader("Top kill counts"));
+		c.add(Box.createVerticalStrut(12));
+		JPanel grid = new JPanel(new GridLayout(0, 3, 12, 14));
+		grid.setOpaque(false);
+		for (JsonElement e : kcs)
+		{
+			JsonObject k = e.getAsJsonObject();
+			JPanel cell = new JPanel();
+			cell.setLayout(new BoxLayout(cell, BoxLayout.Y_AXIS));
+			cell.setOpaque(false);
+			BossPicture pic = new BossPicture();
+			pic.setAlignmentX(LEFT_ALIGNMENT);
+			if (images != null)
+			{
+				images.load(str(k, "image"), pic::setImage);
+			}
+			cell.add(pic);
+			cell.add(Box.createVerticalStrut(6));
+			JLabel count = bold(fmt(num(k, "count")));
+			count.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
+			count.setAlignmentX(LEFT_ALIGNMENT);
+			cell.add(count);
+			JLabel name = text(str(k, "boss"), ChatComponents.MUTED);
+			name.setToolTipText(str(k, "boss") + ": " + fmt(num(k, "count")) + " kills");
+			name.setAlignmentX(LEFT_ALIGNMENT);
+			cell.add(name);
+			grid.add(cell);
+		}
+		grid.setAlignmentX(LEFT_ALIGNMENT);
+		c.add(grid);
+		return c;
+	}
+
+	// ---- Pieces
+
+	/** A card title without a chevron (these cards don't open anything). */
+	private static JComponent sectionHeader(String title)
+	{
+		return row(bold(title), null);
+	}
+
+	/** The top of a list card: title, the headline numbers, and a progress bar (skipped when fraction < 0). */
+	private static JComponent top(String title, String big, String bigCaption, String side, String sideCaption, double fraction)
+	{
+		JPanel p = new JPanel();
+		p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+		p.setOpaque(false);
+		p.setBorder(BorderFactory.createEmptyBorder(10, 12, 12, 12));
+		p.add(sectionHeader(title));
+		p.add(Box.createVerticalStrut(10));
+		p.add(totals(big, bigCaption, side, sideCaption));
+		if (fraction >= 0)
+		{
+			p.add(Box.createVerticalStrut(10));
+			ProgressBar bar = new ProgressBar(fraction);
+			bar.setAlignmentX(LEFT_ALIGNMENT);
+			bar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 6));
+			p.add(bar);
+		}
+		p.setAlignmentX(LEFT_ALIGNMENT);
+		return p;
+	}
+
+	/** Big number with a caption; optionally a second one on the right (like Home's time and XP). */
+	private static JComponent totals(String big, String bigCaption, String side, String sideCaption)
+	{
+		JPanel p = new JPanel();
+		p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+		p.setOpaque(false);
+		JLabel b = bold(big);
+		b.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
+		JLabel s = null;
+		if (side != null)
+		{
+			s = bold(side);
+			s.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
+			s.setForeground(ChatComponents.ACCENT);
+		}
+		p.add(row(b, s));
+		p.add(row(text(bigCaption, ChatComponents.MUTED), side == null || sideCaption == null ? null : text(sideCaption, ChatComponents.MUTED)));
+		p.setAlignmentX(LEFT_ALIGNMENT);
+		p.setMaximumSize(new Dimension(Integer.MAX_VALUE, p.getPreferredSize().height));
+		return p;
+	}
+
+	/** One row per tier: dot, name, "done / total"; green once every task in the tier is done. Hover says if its reward is unlocked. */
+	private static void addTierRows(Surface c, JsonArray tiers, java.util.Set<String> unlocked)
+	{
+		if (tiers == null)
+		{
+			return;
+		}
+		for (JsonElement e : tiers)
+		{
+			JsonObject t = e.getAsJsonObject();
+			String tier = str(t, "tier");
+			double done = num(t, "done"), total = num(t, "total");
+			boolean finished = done >= total;
+			c.add(HomeView.divider());
+			JLabel v = text(fmt(done) + " / " + fmt(total), finished ? DONE : Color.WHITE);
+			if (unlocked.contains(tier))
+			{
+				v.setToolTipText(title(tier) + " reward unlocked");
+			}
+			c.add(HomeView.listRow(HomeView.dotIcon(finished ? DONE : ChatComponents.BORDER), title(tier), v, null));
+		}
+	}
+
+	private static JLabel value(String s)
+	{
+		return text(s, Color.WHITE);
+	}
+
+	private static JComponent pair(String strong, String faint)
+	{
+		JPanel right = new JPanel(new BorderLayout());
+		right.setOpaque(false);
+		right.add(text(strong, Color.WHITE), BorderLayout.WEST);
+		right.add(small(faint), BorderLayout.EAST);
+		return right;
+	}
+
+	private static JComponent centred(JComponent c)
+	{
+		JPanel p = new JPanel(new GridBagLayout());
+		p.setOpaque(false);
+		GridBagConstraints gbc = new GridBagConstraints();
+		gbc.weightx = 1;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		p.add(c, gbc);
+		return p;
+	}
+
+	private JComponent skillGrid(JsonArray skills)
+	{
+		Map<String, JsonObject> byName = new HashMap<>();
+		for (JsonElement e : skills)
+		{
+			JsonObject s = e.getAsJsonObject();
+			byName.put(str(s, "skill").toUpperCase(Locale.ROOT), s);
+		}
+		JPanel grid = new JPanel(new GridLayout(0, 3, 4, 4));
+		grid.setOpaque(false);
+		for (Skill skill : SKILL_ORDER)
+		{
+			JsonObject s = byName.get(skill.name());
+			if (s == null)
+			{
+				continue;
+			}
+			int level = (int) num(s, "level");
+			Surface cell = new Surface(ChatComponents.PANEL_BG, 4, true);
+			cell.setLayout(new BorderLayout());
+			cell.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 8));
+			cell.setPreferredSize(new Dimension(60, 28));
+			cell.setToolTipText(skill.getName() + ": " + fmt(num(s, "xp")) + " XP");
+			cell.add(new JLabel(Ui.skillIcon(skillIcons, skill)), BorderLayout.WEST);
+			JLabel lvl = new JLabel(String.valueOf(level), SwingConstants.RIGHT);
+			lvl.setFont(FontManager.getRunescapeBoldFont());
+			lvl.setForeground(level >= 99 ? ChatComponents.ACCENT : Color.WHITE);
+			cell.add(lvl, BorderLayout.CENTER);
+			grid.add(cell);
+		}
+		return grid;
+	}
+
+	/** A boss picture from the wiki, fitted into its box without stretching; blank until it downloads. */
+	private static final class BossPicture extends JComponent
+	{
+		private static final int HEIGHT = 56;
+		private BufferedImage image;
+
+		BossPicture()
+		{
+			setPreferredSize(new Dimension(72, HEIGHT));
+			setMaximumSize(new Dimension(Integer.MAX_VALUE, HEIGHT));
+		}
+
+		void setImage(BufferedImage image)
+		{
+			this.image = image;
+			repaint();
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			if (image == null)
+			{
+				return;
+			}
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+			g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+			double scale = Math.min(getWidth() / (double) image.getWidth(), getHeight() / (double) image.getHeight());
+			int w = (int) (image.getWidth() * scale), h = (int) (image.getHeight() * scale);
+			g2.drawImage(image, 0, (getHeight() - h) / 2, w, h, null);
+			g2.dispose();
+		}
+	}
+
+	private void relayout()
+	{
+		list.revalidate();
+		list.repaint();
+	}
+}
