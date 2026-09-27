@@ -1075,6 +1075,7 @@ public class AccountSyncPlugin extends Plugin
 		WorldPoint wp = WorldPoint.fromLocalInstance(client, local.getLocalLocation());
 		Map<String, Object> c = new LinkedHashMap<>();
 		c.put("character", local.getName());
+		c.put("date", java.time.LocalDate.now().toString());
 		c.put("world", client.getWorld());
 		c.put("location", Map.of("x", wp.getX(), "y", wp.getY(), "plane", wp.getPlane(), "regionId", wp.getRegionID()));
 		c.put("hitpoints", client.getBoostedSkillLevel(Skill.HITPOINTS) + "/" + client.getRealSkillLevel(Skill.HITPOINTS));

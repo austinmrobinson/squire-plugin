@@ -429,6 +429,8 @@ class ChatTrace
 				return "Checked GE price history";
 			case "hiscores_lookup":
 				return "Looked up the hiscores";
+			case "check_requirements":
+				return "Checked the requirements";
 			case "create_inventory_setup":
 				return "Made an inventory setup";
 			case "create_bank_tag":
