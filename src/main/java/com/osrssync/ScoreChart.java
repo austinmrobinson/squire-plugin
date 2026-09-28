@@ -106,33 +106,18 @@ final class ScoreChart
 			double d = size - inset * 2;
 			double cx = size / 2.0, cy = size / 2.0;
 
-			g2.setStroke(new BasicStroke(thickness, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
-			g2.setColor(ChatComponents.BASE_BG);
-			g2.draw(new Ellipse2D.Double(inset, inset, d, d));
-
-			// Clockwise from 12 o'clock
-			double start = 90;
-			for (Segment s : segments)
-			{
-				double extent = s.points / 100.0 * 360;
-				if (extent <= 0)
-				{
-					continue;
-				}
-				g2.setColor(s.color);
-				g2.draw(new Arc2D.Double(inset, inset, d, d, start, -extent, Arc2D.OPEN));
-				start -= extent;
-			}
-
-			// Checkpoint ticks cut across the ring
-			g2.setStroke(new BasicStroke(2f));
-			g2.setColor(ChatComponents.PANEL_BG);
-			double rIn = d / 2 - thickness / 2 - 1, rOut = d / 2 + thickness / 2 + 1;
-			for (int at : ticks)
-			{
-				double a = Math.toRadians(90 - at / 100.0 * 360);
-				g2.draw(new Line2D.Double(cx + Math.cos(a) * rIn, cy - Math.sin(a) * rIn, cx + Math.cos(a) * rOut, cy - Math.sin(a) * rOut));
-			}
+			// The ring is drawn at half resolution without smoothing, then doubled: chunky 2px pixels that match
+			// the panel's stepped corners
+			int px = 2, lo = (size + px - 1) / px;
+			java.awt.image.BufferedImage ringImage = new java.awt.image.BufferedImage(lo, lo, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+			Graphics2D r = ringImage.createGraphics();
+			r.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+			r.scale(1.0 / px, 1.0 / px);
+			paintRing(r, inset, d, cx, cy);
+			r.dispose();
+			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+			g2.drawImage(ringImage, 0, 0, lo * px, lo * px, null);
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
 			if (crestColor != null)
 			{
@@ -163,6 +148,37 @@ final class ScoreChart
 			String of = "of 100";
 			g2.drawString(of, (int) (cx - sm.stringWidth(of) / 2.0), top + bm.getAscent() - 4 + sm.getAscent());
 			g2.dispose();
+		}
+
+		private void paintRing(Graphics2D g2, double inset, double d, double cx, double cy)
+		{
+			g2.setStroke(new BasicStroke(thickness, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
+			g2.setColor(ChatComponents.BASE_BG);
+			g2.draw(new Ellipse2D.Double(inset, inset, d, d));
+
+			// Clockwise from 12 o'clock
+			double start = 90;
+			for (Segment s : segments)
+			{
+				double extent = s.points / 100.0 * 360;
+				if (extent <= 0)
+				{
+					continue;
+				}
+				g2.setColor(s.color);
+				g2.draw(new Arc2D.Double(inset, inset, d, d, start, -extent, Arc2D.OPEN));
+				start -= extent;
+			}
+
+			// Checkpoint ticks cut across the ring
+			g2.setStroke(new BasicStroke(2f));
+			g2.setColor(ChatComponents.PANEL_BG);
+			double rIn = d / 2 - thickness / 2 - 1, rOut = d / 2 + thickness / 2 + 1;
+			for (int at : ticks)
+			{
+				double a = Math.toRadians(90 - at / 100.0 * 360);
+				g2.draw(new Line2D.Double(cx + Math.cos(a) * rIn, cy - Math.sin(a) * rIn, cx + Math.cos(a) * rOut, cy - Math.sin(a) * rOut));
+			}
 		}
 	}
 

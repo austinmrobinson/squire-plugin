@@ -54,6 +54,11 @@ final class ChatComponents
 	private static final java.net.URL BULLET = ChatComponents.class.getResource("bullet.png");
 	static final Color OUTLINE = new Color(0, 0, 0, 128);
 	static final Color HAIRLINE = new Color(255, 255, 255, 13);
+	// The game's bevel: light top/left, dark bottom/right (raised); swapped when pressed
+	static final Color BEVEL_LIGHT = new Color(255, 255, 255, 56);
+	static final Color BEVEL_DARK = new Color(0, 0, 0, 90);
+	static final Color CARD_LIGHT = new Color(255, 255, 255, 18);
+	static final Color CARD_DARK = new Color(0, 0, 0, 60);
 
 	enum Align
 	{
@@ -137,11 +142,14 @@ final class ChatComponents
 				g2.setColor(fill);
 				Pixel.fill(g2, inset, inset, w - 2 * inset, h - 2 * inset - lip, arc / 2.0);
 			}
-			Color line = border != null ? border : framed ? HAIRLINE : null;
-			if (line != null)
+			if (border != null)
 			{
-				g2.setColor(line);
+				g2.setColor(border);
 				Pixel.draw(g2, inset, inset, w - 2 * inset, h - 2 * inset - lip, arc / 2.0);
+			}
+			else if (framed)
+			{
+				Pixel.bevel(g2, inset, inset, w - 2 * inset, h - 2 * inset - lip, arc / 2.0, CARD_LIGHT, CARD_DARK);
 			}
 			g2.dispose();
 			super.paintComponent(g);
@@ -517,17 +525,17 @@ final class ChatComponents
 			}
 			else
 			{
-				g2.setColor(hover ? ACCENT.brighter() : ACCENT);
+				boolean down = getModel().isPressed();
+				g2.setColor(hover && !down ? ACCENT.brighter() : ACCENT);
 				g2.fill(shape);
-				// Bevel: light top edge, dark bottom edge
-				g2.setClip(shape);
-				g2.setColor(new Color(255, 255, 255, 64));
-				g2.fillRect(0, 0, w, 2);
-				g2.setColor(ACCENT_DARK);
-				g2.fillRect(0, h - 2, w, 2);
-				g2.setClip(null);
 				g2.setColor(ACCENT_DARK);
 				Pixel.draw(g2, 0, 0, w, h, 4);
+				Pixel.bevel(g2, 1, 1, w - 2, h - 2, 3, down ? BEVEL_DARK : BEVEL_LIGHT, down ? BEVEL_LIGHT : BEVEL_DARK);
+			}
+			// Pressed buttons sink a pixel, like the game's
+			if (getModel().isPressed())
+			{
+				g2.translate(0, 1);
 			}
 			if (stop)
 			{
@@ -582,19 +590,21 @@ final class ChatComponents
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			int w = getWidth(), h = getHeight();
-			java.awt.Shape shape = Pixel.shape(0, 0, w, h, 4);
-			g2.setColor(getModel().isPressed() ? ACCENT_DARK : hover ? ACCENT.brighter() : ACCENT);
-			g2.fill(shape);
-			g2.setClip(shape);
-			g2.setColor(new Color(255, 255, 255, 64));
-			g2.fillRect(0, 0, w, 2);
-			g2.setColor(ACCENT_DARK);
-			g2.fillRect(0, h - 2, w, 2);
-			g2.setClip(null);
+			boolean down = getModel().isPressed();
+			g2.setColor(!isEnabled() ? ACCENT_DARK : hover && !down ? ACCENT.brighter() : ACCENT);
+			Pixel.fill(g2, 0, 0, w, h, 4);
 			g2.setColor(ACCENT_DARK);
 			Pixel.draw(g2, 0, 0, w, h, 4);
+			Pixel.bevel(g2, 1, 1, w - 2, h - 2, 3, down ? BEVEL_DARK : BEVEL_LIGHT, down ? BEVEL_LIGHT : BEVEL_DARK);
 			g2.dispose();
-			super.paintComponent(g);
+			// The label sinks a pixel while pressed, like the game's buttons
+			Graphics label = g.create();
+			if (down)
+			{
+				label.translate(0, 1);
+			}
+			super.paintComponent(label);
+			label.dispose();
 		}
 	}
 

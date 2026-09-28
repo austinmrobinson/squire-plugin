@@ -495,8 +495,17 @@ final class ExportCards
 		{
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g2.setColor(hover ? ChatComponents.HOVER_BG : ChatComponents.USER_BG);
+			boolean down = getModel().isPressed();
+			g2.setColor(hover && !down ? ChatComponents.USER_BG.brighter() : ChatComponents.USER_BG);
 			Pixel.fill(g2, 0, 0, getWidth(), getHeight(), 4);
+			g2.setColor(ChatComponents.OUTLINE);
+			Pixel.draw(g2, 0, 0, getWidth(), getHeight(), 4);
+			Pixel.bevel(g2, 1, 1, getWidth() - 2, getHeight() - 2, 3,
+				down ? ChatComponents.BEVEL_DARK : ChatComponents.BEVEL_LIGHT, down ? ChatComponents.BEVEL_LIGHT : ChatComponents.BEVEL_DARK);
+			if (down)
+			{
+				g2.translate(0, 1);
+			}
 			g2.setFont(getFont());
 			g2.setColor(getForeground());
 			FontMetrics fm = g2.getFontMetrics();

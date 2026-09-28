@@ -103,6 +103,39 @@ final class Pixel
 		}
 	}
 
+	/**
+	 * The game's bevel: a 1px ring inside the shape, light along the top and left and dark along the bottom and
+	 * right (swap them for a pressed or sunken look). Corner steps take the colour of the edge they belong to.
+	 */
+	static void bevel(Graphics2D g, double x, double y, double w, double h, double radius, java.awt.Color light, java.awt.Color dark)
+	{
+		int ix = (int) Math.round(x), iy = (int) Math.round(y), iw = (int) Math.round(w), ih = (int) Math.round(h);
+		if (iw <= 2 || ih <= 2)
+		{
+			return;
+		}
+		int[] cut = corner((int) Math.min(Math.round(radius), Math.min(iw, ih) / 2));
+		int n = Math.min(cut.length, ih / 2);
+		for (int r = 0; r < ih; r++)
+		{
+			int outer = cutAt(cut, n, ih, r);
+			if (r == 0 || r == ih - 1)
+			{
+				g.setColor(r == 0 ? light : dark);
+				g.fillRect(ix + outer, iy + r, iw - 2 * outer, 1);
+				continue;
+			}
+			int inner = Math.max(outer, Math.max(cutAt(cut, n, ih, r - 1), cutAt(cut, n, ih, r + 1))) + 1;
+			int run = Math.min(inner - outer, iw / 2);
+			boolean topCorner = r < n, bottomCorner = r >= ih - n;
+			// Left edge is light except the bottom-left steps (part of the bottom edge); right is dark except top-right
+			g.setColor(bottomCorner ? dark : light);
+			g.fillRect(ix + outer, iy + r, run, 1);
+			g.setColor(topCorner ? light : dark);
+			g.fillRect(ix + iw - outer - run, iy + r, run, 1);
+		}
+	}
+
 	private static int cutAt(int[] cut, int n, int h, int r)
 	{
 		if (r < n)
