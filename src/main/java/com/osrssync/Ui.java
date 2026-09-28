@@ -105,50 +105,40 @@ final class Ui
 	static java.util.function.Consumer<String> askSquire = q -> {};
 
 	/**
-	 * "Ask Squire" lines at the bottom of a card: a pre-written question about what the card shows, in the accent
-	 * colour with Squire's helm, that opens a chat with it.
+	 * A card with a small chat-plus button in its top-right corner that asks Squire a question about it (the
+	 * question shows as the button's tooltip). The card keeps its own size and layout underneath.
 	 */
-	static JComponent askLines(String... questions)
+	static JComponent withAsk(JComponent card, String question)
 	{
-		JPanel p = new JPanel();
-		p.setOpaque(false);
-		p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-		p.setAlignmentX(Component.LEFT_ALIGNMENT);
-		ImageIcon helm = new ImageIcon(SquireIcon.create(13));
-		for (String q : questions)
+		javax.swing.JButton ask = ChatComponents.iconButton("chat-plus", "Ask Squire: " + question);
+		ask.addActionListener(e -> askSquire.accept(question));
+		JPanel wrap = new JPanel(null)
 		{
-			JLabel l = new JLabel(q, helm, JLabel.LEFT);
-			l.setFont(FontManager.getRunescapeSmallFont());
-			l.setForeground(ChatComponents.ACCENT.brighter());
-			l.setIconTextGap(6);
-			l.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
-			l.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
-			l.setToolTipText("Ask Squire");
-			l.setAlignmentX(Component.LEFT_ALIGNMENT);
-			l.addMouseListener(new java.awt.event.MouseAdapter()
+			@Override
+			public Dimension getPreferredSize()
 			{
-				@Override
-				public void mouseClicked(java.awt.event.MouseEvent e)
-				{
-					askSquire.accept(q);
-				}
+				return card.getPreferredSize();
+			}
 
-				@Override
-				public void mouseEntered(java.awt.event.MouseEvent e)
-				{
-					l.setText("<html><u>" + MarkdownLite.escape(q) + "</u></html>");
-				}
+			@Override
+			public Dimension getMaximumSize()
+			{
+				return new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height);
+			}
 
-				@Override
-				public void mouseExited(java.awt.event.MouseEvent e)
-				{
-					l.setText(q);
-				}
-			});
-			p.add(l);
-		}
-		p.setMaximumSize(new Dimension(Integer.MAX_VALUE, p.getPreferredSize().height));
-		return p;
+			@Override
+			public void doLayout()
+			{
+				card.setBounds(0, 0, getWidth(), getHeight());
+				Dimension b = ask.getPreferredSize();
+				ask.setBounds(getWidth() - b.width - 6, 5, b.width, b.height);
+			}
+		};
+		wrap.setOpaque(false);
+		wrap.add(ask);
+		wrap.add(card);
+		wrap.setAlignmentX(Component.LEFT_ALIGNMENT);
+		return wrap;
 	}
 
 	// ---- JSON and formatting

@@ -170,7 +170,7 @@ class ActivityView extends JPanel
 		list.add(ChatComponents.place(chartCard(a, colors, names), Align.FILL, 8));
 		if (num(a, "totalMinutes") > 0)
 		{
-			list.add(ChatComponents.place(breakdownCard(a, colors), Align.FILL, 8));
+			list.add(ChatComponents.place(Ui.withAsk(breakdownCard(a, colors), "Review my playtime " + (range == 0 ? "today" : "this " + RANGES[range])), Align.FILL, 8));
 		}
 		else if (offset == 0)
 		{
@@ -333,8 +333,6 @@ class ActivityView extends JPanel
 			right.add(pct, BorderLayout.EAST);
 			c.add(row(name, right));
 		}
-		c.add(Box.createVerticalStrut(10));
-		c.add(Ui.askLines("Review my playtime " + (range == 0 ? "today" : "this " + RANGES[range]), "How can I make my playtime count for more?"));
 		return c;
 	}
 

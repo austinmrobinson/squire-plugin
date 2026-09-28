@@ -390,7 +390,7 @@ class SquireChatTab
 			return;
 		}
 		java.util.Map<Integer, net.runelite.api.SpritePixels> overrides = client.getSpriteOverrides();
-		overrides.put(READY, net.runelite.client.util.ImageUtil.getImageSpritePixels(SquireIcon.create(ICON), client));
+		overrides.put(READY, net.runelite.client.util.ImageUtil.getImageSpritePixels(chatBubble(), client));
 		overrides.put(THINKING, net.runelite.client.util.ImageUtil.getImageSpritePixels(dots(), client));
 		overrides.put(OBSERVING, net.runelite.client.util.ImageUtil.getImageSpritePixels(redDot(), client));
 		overrides.put(NEW, net.runelite.client.util.ImageUtil.getImageSpritePixels(helmWithBadge(), client));
@@ -447,10 +447,43 @@ class SquireChatTab
 		return img;
 	}
 
-	/** New reply: the helm with an orange badge in the corner. */
+	/** Ready: a light chat bubble with a dark outline and three dots, with a tail at the bottom left. */
+	private static java.awt.image.BufferedImage chatBubble()
+	{
+		String[] art = {
+			".............",
+			".###########.",
+			"#WWWWWWWWWWW#",
+			"#WWWWWWWWWWW#",
+			"#WWKWWKWWKWW#",
+			"#WWKWWKWWKWW#",
+			"#WWWWWWWWWWW#",
+			"#WWWWWWWWWWW#",
+			".###WW######.",
+			"..#WW#.......",
+			"..#W#........",
+			"..##.........",
+			".............",
+		};
+		java.awt.image.BufferedImage img = canvas();
+		for (int y = 0; y < art.length; y++)
+		{
+			for (int x = 0; x < art[y].length(); x++)
+			{
+				char c = art[y].charAt(x);
+				if (c != '.')
+				{
+					img.setRGB(x, y, c == '#' ? 0xFF000000 : c == 'K' ? 0xFF3A3A3A : 0xFFE6E6E6);
+				}
+			}
+		}
+		return img;
+	}
+
+	/** New reply: the chat bubble with an orange badge in the corner. */
 	private static java.awt.image.BufferedImage helmWithBadge()
 	{
-		java.awt.image.BufferedImage img = SquireIcon.create(ICON);
+		java.awt.image.BufferedImage img = chatBubble();
 		java.awt.Graphics2D g = img.createGraphics();
 		g.setColor(java.awt.Color.BLACK);
 		g.fillRect(8, 0, 5, 5);
