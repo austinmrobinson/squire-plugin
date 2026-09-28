@@ -41,6 +41,9 @@ class SquireChatTab
 	private Widget parent;
 	/** The tabs' own positions, to put back when the tab is turned off. */
 	private final Map<Integer, int[]> original = new HashMap<>();
+	/** The game's own tab row: {left, right, y, height}, and the bar width it was measured at. */
+	private int[] natural;
+	private int naturalBarWidth = -1;
 	private boolean focused;
 	private int unread;
 
@@ -94,14 +97,8 @@ class SquireChatTab
 	void remove()
 	{
 		setFocused(false);
-		for (Map.Entry<Integer, int[]> e : original.entrySet())
-		{
-			Widget w = client.getWidget(e.getKey());
-			if (w != null)
-			{
-				place(w, e.getValue()[0], e.getValue()[1]);
-			}
-		}
+		restoreGameTabs();
+		natural = null;
 		for (Widget w : new Widget[]{graphic, name, status})
 		{
 			if (w != null)
@@ -226,15 +223,36 @@ class SquireChatTab
 	{
 		Widget all = client.getWidget(TABS[0]);
 		Widget report = client.getWidget(REPORT);
+		// Where the game itself puts the tabs (captured before we move anything, per bar width)
+		if (natural == null || naturalBarWidth != bar.getWidth())
+		{
+			restoreGameTabs();
+			natural = new int[]{all.getRelativeX(), report.getRelativeX() + report.getWidth(), all.getRelativeY(), all.getHeight()};
+			naturalBarWidth = bar.getWidth();
+			org.slf4j.LoggerFactory.getLogger(SquireChatTab.class).info("Squire chat tab: bar width {}, tabs from {} to {}, y {}, height {}, report x {} w {} (xMode {})",
+				bar.getWidth(), natural[0], natural[1], natural[2], natural[3], report.getRelativeX(), report.getWidth(), report.getXPositionMode());
+		}
+		int left = natural[0], right = natural[1];
+		int slots = TABS.length + 2;
+		int w = (right - left) / slots;
+		// Never make things worse: if the numbers look wrong, leave the game's tabs alone and hide ours
+		if (w < 30 || w > 120 || natural[3] <= 0)
+		{
+			restoreGameTabs();
+			for (Widget x : new Widget[]{graphic, name, status})
+			{
+				if (x != null)
+				{
+					x.setHidden(true);
+				}
+			}
+			return;
+		}
 		for (int id : TABS)
 		{
 			remember(id);
 		}
 		remember(REPORT);
-		int left = original.get(TABS[0])[0];
-		int right = original.get(REPORT)[0] + original.get(REPORT)[1];
-		int slots = TABS.length + 2;
-		int w = (right - left) / slots;
 		for (int i = 0; i < TABS.length; i++)
 		{
 			Widget tab = client.getWidget(TABS[i]);
@@ -247,12 +265,12 @@ class SquireChatTab
 		place(report, squireX + w, right - (squireX + w));
 
 		// Squire's pieces sit where a tab's graphic and two text lines would
-		int y = all.getOriginalY(), h = all.getOriginalHeight();
+		int y = natural[2], h = natural[3];
 		Widget sampleName = client.getWidget(InterfaceID.Chatbox.CHAT_TRADE_TEXT);
 		Widget sampleFilter = client.getWidget(InterfaceID.Chatbox.CHAT_TRADE_FILTER);
 		put(graphic, squireX, y, w, h);
-		put(name, squireX, y + (sampleName != null ? sampleName.getOriginalY() : 0), w, sampleName != null ? sampleName.getOriginalHeight() : h / 2);
-		put(status, squireX, y + (sampleFilter != null ? sampleFilter.getOriginalY() : h / 2), w, sampleFilter != null ? sampleFilter.getOriginalHeight() : h / 2);
+		put(name, squireX, y + (sampleName != null ? sampleName.getRelativeY() : 0), w, sampleName != null ? sampleName.getHeight() : h / 2);
+		put(status, squireX, y + (sampleFilter != null ? sampleFilter.getRelativeY() : h / 2), w, sampleFilter != null ? sampleFilter.getHeight() : h / 2);
 
 		// While focused, no game tab looks selected: the Squire stone is
 		Widget normal = child(TABS[TABS.length - 1], 0);
@@ -301,40 +319,102 @@ class SquireChatTab
 		name.setTextColor(focused ? YELLOW : WHITE);
 	}
 
+	/** The game's own geometry for a tab and its children: {xMode, x, widthMode, width} each. */
 	private void remember(int id)
 	{
-		if (!original.containsKey(id))
+		if (original.containsKey(id))
 		{
-			Widget w = client.getWidget(id);
-			if (w != null)
-			{
-				original.put(id, new int[]{w.getOriginalX(), w.getOriginalWidth()});
-			}
+			return;
 		}
+		Widget w = client.getWidget(id);
+		if (w == null)
+		{
+			return;
+		}
+		Widget[] kids = w.getStaticChildren();
+		int n = kids == null ? 0 : kids.length;
+		int[] g = new int[4 + n * 4];
+		store(g, 0, w);
+		for (int i = 0; i < n; i++)
+		{
+			store(g, 4 + i * 4, kids[i]);
+		}
+		original.put(id, g);
 	}
 
-	/** Move a tab and stretch its graphic and text lines to the new width. */
-	private static void place(Widget tab, int x, int w)
+	private static void store(int[] g, int at, Widget w)
 	{
-		if (tab.getOriginalX() != x || tab.getOriginalWidth() != w)
+		g[at] = w.getXPositionMode();
+		g[at + 1] = w.getOriginalX();
+		g[at + 2] = w.getWidthMode();
+		g[at + 3] = w.getOriginalWidth();
+	}
+
+	private static void apply(int[] g, int at, Widget w)
+	{
+		w.setXPositionMode(g[at]);
+		w.setOriginalX(g[at + 1]);
+		w.setWidthMode(g[at + 2]);
+		w.setOriginalWidth(g[at + 3]);
+		w.revalidate();
+	}
+
+	/** Put the game's tabs back exactly as the game had them. */
+	private void restoreGameTabs()
+	{
+		for (Map.Entry<Integer, int[]> e : original.entrySet())
 		{
-			tab.setXPositionMode(WidgetPositionMode.ABSOLUTE_LEFT);
-			tab.setWidthMode(WidgetSizeMode.ABSOLUTE);
-			tab.setOriginalX(x);
-			tab.setOriginalWidth(w);
-			Widget[] kids = tab.getStaticChildren();
-			if (kids != null)
+			Widget w = client.getWidget(e.getKey());
+			if (w == null)
 			{
-				for (Widget k : kids)
+				continue;
+			}
+			int[] g = e.getValue();
+			apply(g, 0, w);
+			Widget[] kids = w.getStaticChildren();
+			for (int i = 0; kids != null && i < kids.length && 4 + i * 4 < g.length; i++)
+			{
+				apply(g, 4 + i * 4, kids[i]);
+			}
+		}
+		original.clear();
+	}
+
+	/**
+	 * Move a tab to x and give it width w. Children that spanned the whole tab (its graphic) get the new width; the
+	 * rest keep their own sizing (text lines that follow their parent's width already).
+	 */
+	private void place(Widget tab, int x, int w)
+	{
+		if (tab.getRelativeX() == x && tab.getWidth() == w)
+		{
+			return;
+		}
+		int oldWidth = tab.getWidth();
+		tab.setXPositionMode(WidgetPositionMode.ABSOLUTE_LEFT);
+		tab.setWidthMode(WidgetSizeMode.ABSOLUTE);
+		tab.setOriginalX(x);
+		tab.setOriginalWidth(w);
+		Widget[] kids = tab.getStaticChildren();
+		if (kids != null)
+		{
+			for (Widget k : kids)
+			{
+				if (k.getWidthMode() == WidgetSizeMode.ABSOLUTE && k.getWidth() == oldWidth)
 				{
 					k.setXPositionMode(WidgetPositionMode.ABSOLUTE_LEFT);
-					k.setWidthMode(WidgetSizeMode.ABSOLUTE);
 					k.setOriginalX(0);
 					k.setOriginalWidth(w);
-					k.revalidate();
 				}
 			}
-			tab.revalidate();
+		}
+		tab.revalidate();
+		if (kids != null)
+		{
+			for (Widget k : kids)
+			{
+				k.revalidate();
+			}
 		}
 	}
 
