@@ -95,7 +95,7 @@ class AccountApi
 		send("DELETE", q.toString(), null, callback);
 	}
 
-	/** Upload a recorded session's summary for review. */
+	/** Upload an observed session's summary for review. */
 	void uploadSession(JsonObject summary, Consumer<Result> callback)
 	{
 		String name = accountName.get();

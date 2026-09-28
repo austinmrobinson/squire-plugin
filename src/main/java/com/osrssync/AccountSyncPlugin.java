@@ -330,7 +330,7 @@ public class AccountSyncPlugin extends Plugin
 		accountApi = api;
 		GearCard.api = api;
 		recorder = new SessionRecorder(client, id -> itemManager.getItemComposition(id).getName(), this::sessionFinished);
-		// Squire's start_session_review tool (in chat) starts a recording
+		// Squire's start_session_review tool (in chat) starts observing
 		ChatTrace.sessionStart = label -> clientThread.invokeLater(() -> startRecording(label));
 		panel.setAccountActions(this::deleteMyData, this::removeGatewayKey, this::refreshUsage);
 		ProgressView progressView = new ProgressView(skill -> skillIconManager.getSkillImage(skill, true), new WikiImages(okHttpClient));
@@ -606,9 +606,9 @@ public class AccountSyncPlugin extends Plugin
 			return;
 		}
 		String question = String.join(" ", event.getArguments()).trim();
-		// "::squire record [what]" and "::squire stop" control a session recording for review
+		// "::squire observe [what]" and "::squire stop" control observing a session for review ("record" still works)
 		String[] words = question.split("\\s+", 2);
-		if (words[0].equalsIgnoreCase("record"))
+		if (words[0].equalsIgnoreCase("observe") || words[0].equalsIgnoreCase("record"))
 		{
 			startRecording(words.length > 1 ? words[1] : "Session");
 			return;
@@ -2166,18 +2166,18 @@ public class AccountSyncPlugin extends Plugin
 			return;
 		}
 		recorder.start(label);
-		console("Squire is recording \"" + recorder.label() + "\" for a review afterwards. Type ::squire stop when you're done.");
+		console("Squire is observing \"" + recorder.label() + "\" to review it afterwards. Type ::squire stop when you're done.");
 		String l = recorder.label();
 		long at = recorder.startedAt();
 		SwingUtilities.invokeLater(() -> sidebar.setRecording(l, at, () -> clientThread.invokeLater(() -> recorder.stop("stopped"))));
 	}
 
-	/** A recording ended: upload the summary, then open a chat asking Squire to review it. */
+	/** Observing ended: upload the summary, then open a chat asking Squire to review it. */
 	private void sessionFinished(Map<String, Object> summary)
 	{
 		SwingUtilities.invokeLater(() -> sidebar.setRecording(null, 0, null));
 		String label = String.valueOf(summary.get("label"));
-		console("Squire recorded \"" + label + "\". Your review is in the Squire panel.");
+		console("Squire finished observing \"" + label + "\". Your review is in the Squire panel.");
 		com.google.gson.JsonObject body = gson.toJsonTree(summary).getAsJsonObject();
 		accountApi.uploadSession(body, r -> SwingUtilities.invokeLater(() ->
 		{

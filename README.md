@@ -9,7 +9,7 @@ Squire is your OSRS companion: an AI in your RuneLite sidebar that knows your ac
 - **Chat that knows your account**: progression advice for mains, ironmen and hardcores, checked against your actual requirements
 - **Your plan**: a roadmap of checkpoints (Barrows gloves, Fire cape, your first raid...) that Squire builds with you and ticks off as you play, on your Home page
 - **Gear you can act on**: setups shown like the game's equipment screen, with DPS; click a slot to try your other items, then copy it to Inventory Setups
-- **Session reviews**: "watch my Gauntlet run" records it silently, then Squire debriefs you afterwards with specific fixes. Nothing is shown during play
+- **Session reviews**: "watch my Gauntlet run" and Squire observes it silently, then Squire debriefs you afterwards with specific fixes. Nothing is shown during play
 - **Boss setups**: inventory setups, Bank Tags tabs and Ground Markers to import into those plugins
 - **Progress and activity**: your account rank, time played and XP, with one-click questions for Squire on every card
 - **In-game chat**: type `::squire <question>` or press Ctrl+B to ask from the chatbox

@@ -215,7 +215,7 @@ class ChatTrace
 	/** Set by the plugin: reload the plan, and open the Plan page. */
 	static Runnable planSaved = () -> {};
 	static Runnable openPlan = () -> {};
-	/** Set by the plugin: Squire's start_session_review tool starts a recording with this label. */
+	/** Set by the plugin: Squire's start_session_review tool starts observing with this label. */
 	static java.util.function.Consumer<String> sessionStart = label -> {};
 
 	void result(String callId, JsonElement output, boolean ok)
@@ -479,7 +479,7 @@ class ChatTrace
 			case "show_gear":
 				return "Put together a gear setup";
 			case "start_session_review":
-				return "Started recording";
+				return "Started observing";
 			case "get_session":
 				return "Read your session";
 			case "list_sessions":

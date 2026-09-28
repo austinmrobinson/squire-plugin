@@ -183,7 +183,7 @@ class BuddySidebar extends PluginPanel
 			show(Page.CHAT);
 		});
 		chatMenuButton.addActionListener(e -> showChatMenu());
-		// The nav bar, and under it the "Recording" bar while a session is being recorded for review
+		// The nav bar, and under it the "Observing" bar while Squire observes a session for review
 		JPanel north = new JPanel(new BorderLayout(0, 4));
 		north.setOpaque(false);
 		north.add(nav, BorderLayout.NORTH);
@@ -262,7 +262,7 @@ class BuddySidebar extends PluginPanel
 
 	private final RecordingBar recordingBar = new RecordingBar();
 
-	/** Show (label non-null) or hide the Recording bar; {@code onStop} runs when the player presses Stop. */
+	/** Show (label non-null) or hide the Observing bar; {@code onStop} runs when the player presses Stop. */
 	void setRecording(String label, long startedAt, Runnable onStop)
 	{
 		recordingBar.set(label, startedAt, onStop);
@@ -313,7 +313,7 @@ class BuddySidebar extends PluginPanel
 			stop.setForeground(java.awt.Color.WHITE);
 			stop.addMouseListener(PlanView.click(() -> onStop.run()));
 			add(stop, BorderLayout.EAST);
-			setToolTipText("Squire is recording this for a review afterwards. Nothing is shown during play.");
+			setToolTipText("Squire is observing this to review it afterwards. Nothing is shown during play.");
 			timer = new javax.swing.Timer(1000, e -> update());
 		}
 
@@ -337,7 +337,7 @@ class BuddySidebar extends PluginPanel
 		private void update()
 		{
 			long s = Math.max(0, (System.currentTimeMillis() - startedAt) / 1000);
-			text.setText("Recording " + label + " · " + String.format("%d:%02d", s / 60, s % 60));
+			text.setText("Observing " + label + " · " + String.format("%d:%02d", s / 60, s % 60));
 		}
 	}
 

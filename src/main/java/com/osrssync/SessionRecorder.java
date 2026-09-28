@@ -20,7 +20,7 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.InventoryID;
 
 /**
- * Records a stretch of play for Squire to review afterwards: damage taken (from what, with which protection prayer
+ * Observes a stretch of play for Squire to review afterwards: damage taken (from what, with which protection prayer
  * up), damage dealt, attacks by weapon, supplies used, kills, deaths, HP and time. It only counts; it never shows
  * anything during play (Jagex's rules forbid live boss coaching), and the summary is uploaded when it stops.
  * All methods run on the client thread.
