@@ -313,6 +313,11 @@ public class AccountSyncPlugin extends Plugin
 		}, new ChatStore(new File(RuneLite.RUNELITE_DIR, "account-sync/chats"), gson));
 		sessions.load();
 		inGameChat = new InGameChat(client, chatMessageManager, chatboxPanelManager, () -> sessions);
+		// The Squire stone among the chatbox tabs: status, and a Squire-only view of the chat
+		chatTab = new SquireChatTab(client, () -> inGameChat.openPrompt(),
+			() -> recorder != null && recorder.recording() ? "Observing" : inGameChat != null && inGameChat.thinking() ? "Thinking" : null,
+			() -> clientThread.invokeLater(() -> client.runScript(net.runelite.api.ScriptID.BUILD_CHATBOX)));
+		InGameChat.onPrinted = () -> clientThread.invokeLater(() -> chatTab.onSquireLine());
 		keyManager.registerKeyListener(askHotkey);
 		// In-game chat settings, editable right in the panel; each change re-renders Settings with the new value
 		panel = new SettingsView(this::requestFullUpdate, () -> List.of(
@@ -433,6 +438,12 @@ public class AccountSyncPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		if (chatTab != null)
+		{
+			SquireChatTab tab = chatTab;
+			clientThread.invokeLater(tab::remove);
+			chatTab = null;
+		}
 		clientToolbar.removeNavigation(navButton);
 		keyManager.unregisterKeyListener(askHotkey);
 		inGameChat = null;
@@ -513,6 +524,7 @@ public class AccountSyncPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
+		updateChatTab();
 		if (recorder != null)
 		{
 			recorder.onTick();
@@ -1003,6 +1015,11 @@ public class AccountSyncPlugin extends Plugin
 	@Subscribe
 	public void onScriptPostFired(ScriptPostFired event)
 	{
+		// The game rebuilt the chatbox: put the Squire tab back straight away rather than on the next tick
+		if (event.getScriptId() == net.runelite.api.ScriptID.BUILD_CHATBOX)
+		{
+			updateChatTab();
+		}
 		if (event.getScriptId() == SCRIPT_COLLECTION_LOG_SETUP && clogRequested && clogCapture == null)
 		{
 			// Let the interface finish building before triggering its search
@@ -2152,6 +2169,53 @@ public class AccountSyncPlugin extends Plugin
 		if (!hide)
 		{
 			requestFullUpdate();
+		}
+	}
+
+	// ---- The chatbox's Squire tab
+
+	private SquireChatTab chatTab;
+
+	private void updateChatTab()
+	{
+		if (chatTab == null)
+		{
+			return;
+		}
+		if (config.squireChatTab() && isConfigured() && client.getGameState() == GameState.LOGGED_IN)
+		{
+			chatTab.update();
+		}
+		else
+		{
+			chatTab.remove();
+		}
+	}
+
+	/** Squire-only chat: hide every line that isn't Squire's while the tab is focused (RuneLite's chat filter hook). */
+	@Subscribe
+	public void onScriptCallbackEvent(net.runelite.api.events.ScriptCallbackEvent event)
+	{
+		if (chatTab == null || !chatTab.focused() || !"chatFilterCheck".equals(event.getEventName()))
+		{
+			return;
+		}
+		int[] intStack = client.getIntStack();
+		int size = client.getIntStackSize();
+		int messageId = intStack[size - 1];
+		if (!chatTab.keep(messageId))
+		{
+			intStack[size - 3] = 0;
+		}
+	}
+
+	/** Clicking one of the game's own chat tabs leaves the Squire view. */
+	@Subscribe
+	public void onMenuOptionClicked(net.runelite.api.events.MenuOptionClicked event)
+	{
+		if (chatTab != null && SquireChatTab.isGameTab(event.getParam1()))
+		{
+			chatTab.onGameTabClicked();
 		}
 	}
 

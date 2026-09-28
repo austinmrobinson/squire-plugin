@@ -45,6 +45,14 @@ class InGameChat
 		this.sessions = sessions;
 	}
 
+	// A question from the chatbox is being answered (the chat tab shows "Thinking")
+	private volatile boolean thinking;
+
+	boolean thinking()
+	{
+		return thinking;
+	}
+
 	/** The shortcut: open an "Ask Squire" prompt in the chatbox. Client thread. */
 	void openPrompt()
 	{
@@ -88,12 +96,14 @@ class InGameChat
 					@Override
 					public void reply(String markdown, boolean more)
 					{
+						thinking = false;
 						printReply(markdown, more);
 					}
 
 					@Override
 					public void error(String message)
 					{
+						thinking = false;
 						print(ColorUtil.wrapWithColorTag("Squire: ", NAME) + ColorUtil.wrapWithColorTag(Text.escapeJagex(message), MUTED));
 					}
 				}));
@@ -103,6 +113,7 @@ class InGameChat
 				return;
 			}
 			print(ColorUtil.wrapWithColorTag("Squire is thinking...", MUTED));
+			thinking = true;
 			view.sendMessage(q);
 		});
 	}
@@ -165,12 +176,27 @@ class InGameChat
 		return out;
 	}
 
-	private void print(String formatted)
+	/**
+	 * An empty colour tag at the start of every Squire line: invisible, but lets the chatbox's Squire tab keep just
+	 * Squire's lines (including a reply's continuation lines) when it's focused.
+	 */
+	static final String MARK = "<col=fefefe></col>";
+
+	static boolean isSquireLine(String value)
+	{
+		return value != null && value.contains(MARK);
+	}
+
+	/** Called for every line Squire prints (the chat tab counts unread replies). */
+	static Runnable onPrinted = () -> {};
+
+	void print(String formatted)
 	{
 		// Console lines: shown only in this client, and not "game messages" that other plugins parse
 		chatMessages.queue(QueuedMessage.builder()
 			.type(ChatMessageType.CONSOLE)
-			.runeLiteFormattedMessage(formatted)
+			.runeLiteFormattedMessage(MARK + formatted)
 			.build());
+		onPrinted.run();
 	}
 }

@@ -76,6 +76,18 @@ public interface AccountSyncConfig extends Config
 		return AskShortcut.CHATBOX;
 	}
 
+	@ConfigItem(
+		keyName = "squireChatTab",
+		name = "Squire chat tab",
+		description = "A Squire stone among the chatbox tabs, with its status; click it to show only Squire and ask",
+		section = inGameSection,
+		position = 4
+	)
+	default boolean squireChatTab()
+	{
+		return true;
+	}
+
 	/** The public Squire server. Self-hosters set their own in Advanced. */
 	String DEFAULT_SERVER = "https://rs-buddy.vercel.app";
 
