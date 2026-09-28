@@ -374,7 +374,8 @@ public class AccountSyncPlugin extends Plugin
 		ChatTrace.planSaved = () -> sidebar.home().planView().refresh();
 		ChatTrace.openPlan = () -> sidebar.showPage("plan");
 		// Nothing is sent until the player turns Squire on from the Welcome page
-		sidebar.setTurnedOn(isTurnedOn(), new WelcomeView(serverUrl() + "/privacy", this::turnOn));
+		welcome = new WelcomeView(serverUrl() + "/privacy", this::turnOn);
+		sidebar.setTurnedOn(isTurnedOn(), welcome);
 		// Other AI apps (MCP connectors): Settings lists them, the Connect page pairs a new one
 		sidebar.setConnectView(new ConnectView(new ConnectView.Source()
 		{
@@ -1930,9 +1931,12 @@ public class AccountSyncPlugin extends Plugin
 			.build());
 	}
 
+	/** On once the player pressed Continue and this install has a token (clearing the token brings Welcome back). */
+	private WelcomeView welcome;
+
 	private boolean isTurnedOn()
 	{
-		return config.enabled();
+		return config.enabled() && !config.token().isBlank();
 	}
 
 	/** The Squire server: the public one unless the player set their own (Advanced). */
@@ -2394,6 +2398,11 @@ public class AccountSyncPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(net.runelite.client.events.ConfigChanged event)
 	{
+		// Pointing at another server, or clearing the token, means signing up again: show Welcome
+		if (AccountSyncConfig.GROUP.equals(event.getGroup()) && ("token".equals(event.getKey()) || "endpoint".equals(event.getKey())) && sidebar != null)
+		{
+			SwingUtilities.invokeLater(() -> sidebar.setTurnedOn(isTurnedOn(), welcome));
+		}
 		if (!AccountSyncConfig.GROUP.equals(event.getGroup()) || !"gatewayKey".equals(event.getKey()))
 		{
 			return;
