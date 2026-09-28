@@ -316,6 +316,8 @@ class SettingsView extends javax.swing.JPanel
 	private void group(String title)
 	{
 		JLabel label = Ui.bold(title);
+		// Indented to line up with the row labels inside the cards
+		label.setBorder(BorderFactory.createEmptyBorder(0, 11, 0, 0));
 		list.add(ChatComponents.place(label, Align.LEFT, list.getComponentCount() == 0 ? 6 : 18));
 	}
 
