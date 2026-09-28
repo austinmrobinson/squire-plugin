@@ -20,7 +20,7 @@ Nothing is sent until you press **Turn on RS Buddy**. After that the plugin send
 - your bank, inventory, equipment and notable loot
 - what you spend your time on, your world and location
 - your messages to RS Buddy, which are answered by an AI model
-- your IP address, as with any website
+- your IP address, which any server sees. RS Buddy only keeps a one-way hash of it to limit sign-ups
 
 It never sends your password, other players' information or your chat with other players. You can delete everything from **Settings → Delete my data**. The full privacy notice is at the server's `/privacy` page.
 
