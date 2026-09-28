@@ -82,6 +82,19 @@ class AccountApi
 		send("POST", "api/gear" + query, request, callback);
 	}
 
+	/** Forget part of the player's data on the server: a kind (bank, worn, storage, location, loot, activity, clog) or one item. */
+	void forget(String kind, String item, Consumer<Result> callback)
+	{
+		StringBuilder q = new StringBuilder("api/me/data?");
+		String name = accountName.get();
+		if (name != null && !name.isBlank())
+		{
+			q.append("account=").append(java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8)).append('&');
+		}
+		q.append(kind != null ? "kind=" + kind : "item=" + java.net.URLEncoder.encode(item, java.nio.charset.StandardCharsets.UTF_8));
+		send("DELETE", q.toString(), null, callback);
+	}
+
 	/** This install's daily allowance and linked accounts. */
 	void me(Consumer<Result> callback)
 	{

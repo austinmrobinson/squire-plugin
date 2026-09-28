@@ -182,4 +182,108 @@ public interface AccountSyncConfig extends Config
 	{
 		return ChatView.AUTO_MODEL;
 	}
+
+	@ConfigSection(
+		name = "What's synced",
+		description = "Choose what Squire syncs. Turning something off also removes what the server already has.",
+		position = 20,
+		closedByDefault = true
+	)
+	String syncSection = "sync";
+
+	@ConfigItem(
+		keyName = "syncBank",
+		name = "Bank",
+		description = "Your bank's items and value",
+		section = syncSection,
+		position = 1
+	)
+	default boolean syncBank()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncWorn",
+		name = "Inventory and equipment",
+		description = "What you're carrying and wearing",
+		section = syncSection,
+		position = 2
+	)
+	default boolean syncWorn()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncStorage",
+		name = "Other storage",
+		description = "Looting bag, rune pouch, seed vault and house storage",
+		section = syncSection,
+		position = 3
+	)
+	default boolean syncStorage()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncLocation",
+		name = "Location and world",
+		description = "Where you are, for location-aware answers",
+		section = syncSection,
+		position = 4
+	)
+	default boolean syncLocation()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncLoot",
+		name = "Loot drops",
+		description = "Notable drops, for loot history and drop luck",
+		section = syncSection,
+		position = 5
+	)
+	default boolean syncLoot()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncActivity",
+		name = "What you're doing",
+		description = "The monster or skill you're on each minute, for time played",
+		section = syncSection,
+		position = 6
+	)
+	default boolean syncActivity()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "syncClog",
+		name = "Collection log",
+		description = "Your collection log slots",
+		section = syncSection,
+		position = 7
+	)
+	default boolean syncClog()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "hiddenItems",
+		name = "Hidden items",
+		description = "Items never synced, comma-separated (e.g. a rare you'd rather keep private)",
+		section = syncSection,
+		position = 8
+	)
+	default String hiddenItems()
+	{
+		return "";
+	}
 }

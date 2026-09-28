@@ -41,6 +41,14 @@ class SettingsView extends javax.swing.JPanel
 	private Runnable onConnect = () -> {};
 	private java.util.function.Consumer<String> onDisconnect = id -> {};
 
+	private Runnable onSyncPage = () -> {};
+
+	/** Open the What's synced page. */
+	void setSyncPage(Runnable open)
+	{
+		this.onSyncPage = open;
+	}
+
 	/** Open the Connect page, and disconnect an app by id. */
 	void setConnectActions(Runnable onConnect, java.util.function.Consumer<String> onDisconnect)
 	{
@@ -216,6 +224,8 @@ class SettingsView extends javax.swing.JPanel
 		group("Your data");
 		Surface data = HomeView.listCard();
 		data.add(row("Messages today", usageLine, null, null));
+		data.add(HomeView.divider());
+		data.add(row("What's synced", null, "Choose what Squire syncs, and hide items", onSyncPage));
 		if (personalKey)
 		{
 			data.add(HomeView.divider());

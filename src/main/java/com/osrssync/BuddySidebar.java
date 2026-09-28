@@ -37,7 +37,7 @@ class BuddySidebar extends PluginPanel
 {
 	private enum Page
 	{
-		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), PLAN("Plan"), WELCOME("Squire");
+		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), WELCOME("Squire");
 
 		final String title;
 
@@ -57,6 +57,7 @@ class BuddySidebar extends PluginPanel
 				case CHAT:
 					return CHATS;
 				case CONNECT:
+				case SYNC:
 					return SETTINGS;
 				default:
 					return HOME;
@@ -253,6 +254,14 @@ class BuddySidebar extends PluginPanel
 	}
 
 	private ConnectView connect;
+	private SyncView sync;
+
+	/** The What's synced page (opened from Settings). */
+	void setSyncView(SyncView view)
+	{
+		sync = view;
+		body.add(view, Page.SYNC.name());
+	}
 
 	/** The Connect an AI app page (opened from Settings). */
 	void setConnectView(ConnectView view)
@@ -288,7 +297,7 @@ class BuddySidebar extends PluginPanel
 			actions.add(newChatButton);
 		}
 		nav.set(titleOf(next), ancestors, actions);
-		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME && next != Page.CONNECT);
+		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME && next != Page.CONNECT && next != Page.SYNC);
 
 		if (next == Page.CHAT)
 		{
@@ -314,6 +323,10 @@ class BuddySidebar extends PluginPanel
 		else if (next == Page.SETTINGS)
 		{
 			settings.onShown();
+		}
+		else if (next == Page.SYNC && sync != null)
+		{
+			sync.onShown();
 		}
 		else if (next == Page.CONNECT && connect != null)
 		{

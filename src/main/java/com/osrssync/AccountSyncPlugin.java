@@ -374,6 +374,41 @@ public class AccountSyncPlugin extends Plugin
 				});
 			}
 		}));
+		sidebar.setSyncView(new SyncView(new SyncView.Controller()
+		{
+			@Override
+			public boolean isOn(String key)
+			{
+				return !"false".equals(configManager.getConfiguration(AccountSyncConfig.GROUP, key));
+			}
+
+			@Override
+			public void set(String key, String kind, boolean on)
+			{
+				setSyncChoice(key, kind, on);
+			}
+
+			@Override
+			public List<String> hidden()
+			{
+				List<String> out = new ArrayList<>();
+				for (String s : config.hiddenItems().split(","))
+				{
+					if (!s.isBlank())
+					{
+						out.add(s.trim());
+					}
+				}
+				return out;
+			}
+
+			@Override
+			public void hide(String item, boolean hide)
+			{
+				hideItem(item, hide);
+			}
+		}));
+		panel.setSyncPage(() -> sidebar.showPage("sync"));
 		panel.setConnectActions(() -> sidebar.showPage("connect"),
 			id -> accountApi.disconnect(id, r -> refreshConnections()));
 		navButton = NavigationButton.builder()
@@ -1134,8 +1169,11 @@ public class AccountSyncPlugin extends Plugin
 		Map<String, Object> c = new LinkedHashMap<>();
 		c.put("character", local.getName());
 		c.put("date", java.time.LocalDate.now().toString());
-		c.put("world", client.getWorld());
-		c.put("location", Map.of("x", wp.getX(), "y", wp.getY(), "plane", wp.getPlane(), "regionId", wp.getRegionID()));
+		if (config.syncLocation())
+		{
+			c.put("world", client.getWorld());
+			c.put("location", Map.of("x", wp.getX(), "y", wp.getY(), "plane", wp.getPlane(), "regionId", wp.getRegionID()));
+		}
 		c.put("hitpoints", client.getBoostedSkillLevel(Skill.HITPOINTS) + "/" + client.getRealSkillLevel(Skill.HITPOINTS));
 		c.put("prayer", client.getBoostedSkillLevel(Skill.PRAYER) + "/" + client.getRealSkillLevel(Skill.PRAYER));
 		// Boosted or drained stats, e.g. "Strength 118/99"
@@ -1154,8 +1192,16 @@ public class AccountSyncPlugin extends Plugin
 		}
 		int spellbook = client.getVarbitValue(VarbitID.SPELLBOOK);
 		c.put("spellbook", spellbook >= 0 && spellbook < SPELLBOOKS.length ? SPELLBOOKS[spellbook] : "unknown");
-		c.put("equipped", itemNames(client.getItemContainer(InventoryID.WORN), false));
-		c.put("inventory", itemNames(client.getItemContainer(InventoryID.INV), true));
+		if (config.syncWorn())
+		{
+			java.util.Set<String> hidden = hiddenItems();
+			List<String> worn = new ArrayList<>(itemNames(client.getItemContainer(InventoryID.WORN), false));
+			List<String> inv = new ArrayList<>(itemNames(client.getItemContainer(InventoryID.INV), true));
+			worn.removeIf(n -> hidden.stream().anyMatch(h -> n.toLowerCase().startsWith(h)));
+			inv.removeIf(n -> hidden.stream().anyMatch(h -> n.toLowerCase().startsWith(h)));
+			c.put("equipped", worn);
+			c.put("inventory", inv);
+		}
 		String doing = activityTracker.current();
 		if (doing != null)
 		{
@@ -1944,6 +1990,140 @@ public class AccountSyncPlugin extends Plugin
 		return sb.append(key.length() == 1 && !Character.isLetterOrDigit(key.charAt(0)) ? "Key " + k.getKeyCode() : key).toString();
 	}
 
+	// ---- What's synced
+
+	/** Lowercased names from the Hidden items setting. */
+	private java.util.Set<String> hiddenItems()
+	{
+		java.util.Set<String> out = new java.util.HashSet<>();
+		for (String s : config.hiddenItems().split(","))
+		{
+			if (!s.isBlank())
+			{
+				out.add(s.trim().toLowerCase());
+			}
+		}
+		return out;
+	}
+
+	/** Drop whatever the player chose not to sync (Settings, What's synced) before it leaves the client. */
+	@SuppressWarnings("unchecked")
+	private void applySyncChoices(Map<String, Object> payload)
+	{
+		java.util.Set<String> hidden = hiddenItems();
+		java.util.function.Predicate<Object> isHidden = m -> m instanceof Map && ((Map<String, Object>) m).get("name") != null
+			&& hidden.contains(String.valueOf(((Map<String, Object>) m).get("name")).toLowerCase());
+		Object c = payload.get("containers");
+		if (c instanceof Map)
+		{
+			Map<String, Object> containers = new HashMap<>((Map<String, Object>) c);
+			containers.keySet().removeIf(name ->
+				name.equals("bank") ? !config.syncBank()
+					: name.equals("inventory") || name.equals("equipment") ? !config.syncWorn()
+					: !config.syncStorage());
+			for (Map.Entry<String, Object> e : containers.entrySet())
+			{
+				if (e.getValue() instanceof List)
+				{
+					List<Object> items = new ArrayList<>((List<Object>) e.getValue());
+					items.removeIf(isHidden);
+					e.setValue(items);
+				}
+			}
+			if (containers.isEmpty())
+			{
+				payload.remove("containers");
+			}
+			else
+			{
+				payload.put("containers", containers);
+			}
+		}
+		Object p = payload.get("profile");
+		if (p instanceof Map && !config.syncLocation())
+		{
+			Map<String, Object> profile = new LinkedHashMap<>((Map<String, Object>) p);
+			for (String k : new String[]{"x", "y", "plane", "regionId", "world"})
+			{
+				profile.remove(k);
+			}
+			payload.put("profile", profile);
+		}
+		Object ev = payload.get("events");
+		if (ev instanceof List)
+		{
+			List<Object> events = new ArrayList<>((List<Object>) ev);
+			events.removeIf(o ->
+			{
+				if (!(o instanceof Map))
+				{
+					return false;
+				}
+				String type = String.valueOf(((Map<String, Object>) o).get("type"));
+				return type.equals("loot") && !config.syncLoot() || type.equals("collection_log") && !config.syncClog();
+			});
+			// Hidden items out of loot drops
+			for (Object o : events)
+			{
+				Object data = o instanceof Map ? ((Map<String, Object>) o).get("data") : null;
+				if (data instanceof Map && ((Map<String, Object>) data).get("items") instanceof List)
+				{
+					List<Object> items = new ArrayList<>((List<Object>) ((Map<String, Object>) data).get("items"));
+					items.removeIf(isHidden);
+					((Map<String, Object>) data).put("items", items);
+				}
+			}
+			payload.put("events", events);
+		}
+		if (!config.syncActivity())
+		{
+			payload.remove("activity");
+		}
+		if (!config.syncClog())
+		{
+			payload.remove("collectionLog");
+		}
+	}
+
+	/** Settings' What's synced: turning something off also forgets it on the server. */
+	void setSyncChoice(String key, String kind, boolean on)
+	{
+		configManager.setConfiguration(AccountSyncConfig.GROUP, key, on);
+		if (!on && accountApi != null)
+		{
+			accountApi.forget(kind, null, r -> {});
+		}
+		if (on)
+		{
+			requestFullUpdate();
+		}
+	}
+
+	void hideItem(String name, boolean hide)
+	{
+		java.util.List<String> names = new ArrayList<>();
+		for (String s : config.hiddenItems().split(","))
+		{
+			if (!s.isBlank() && !s.trim().equalsIgnoreCase(name.trim()))
+			{
+				names.add(s.trim());
+			}
+		}
+		if (hide)
+		{
+			names.add(name.trim());
+			if (accountApi != null)
+			{
+				accountApi.forget(null, name.trim(), r -> {});
+			}
+		}
+		configManager.setConfiguration(AccountSyncConfig.GROUP, "hiddenItems", String.join(", ", names));
+		if (!hide)
+		{
+			requestFullUpdate();
+		}
+	}
+
 	/** {id, name} for each connected AI app, or null if the server couldn't say. */
 	private static List<String[]> connectedAppsOf(AccountApi.Result r)
 	{
@@ -2028,6 +2208,7 @@ public class AccountSyncPlugin extends Plugin
 
 	private void send(Map<String, Object> payload)
 	{
+		applySyncChoices(payload);
 		HttpUrl base = HttpUrl.parse(serverUrl());
 		if (base == null)
 		{

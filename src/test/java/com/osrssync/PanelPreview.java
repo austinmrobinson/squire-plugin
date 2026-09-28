@@ -215,6 +215,32 @@ public class PanelPreview
 				gearList.setBorder(javax.swing.BorderFactory.createEmptyBorder(8, 8, 8, 8));
 				gearList.add(ChatComponents.place(new GearCard(new Gson().fromJson("{\"gear\": {\"name\": \"Vorkath (ranged)\", \"target\": \"Vorkath (Post-quest)\", \"style\": \"ranged\", \"equipment\": {\"head\": {\"id\": 26382, \"name\": \"Masori mask (f)\"}, \"cape\": {\"id\": 22109, \"name\": \"Ava's assembler\"}, \"neck\": {\"id\": 19547, \"name\": \"Necklace of anguish\"}, \"ammo\": {\"id\": 11212, \"name\": \"Dragon arrow\"}, \"weapon\": {\"id\": 25865, \"name\": \"Bow of faerdhinen (c)\"}, \"body\": {\"id\": 26384, \"name\": \"Masori body (f)\"}, \"shield\": null, \"legs\": {\"id\": 26386, \"name\": \"Masori chaps (f)\"}, \"hands\": {\"id\": 26235, \"name\": \"Zaryte vambraces\"}, \"feet\": {\"id\": 13237, \"name\": \"Pegasian boots\"}, \"ring\": {\"id\": 28310, \"name\": \"Venator ring\"}}, \"inventory\": [{\"id\": 12695, \"name\": \"Divine ranging potion(4)\", \"quantity\": 1}, {\"id\": 22461, \"name\": \"Extended antifire(4)\", \"quantity\": 1}, {\"id\": 12913, \"name\": \"Anti-venom+(4)\", \"quantity\": 1}, {\"id\": 27281, \"name\": \"Divine rune pouch\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 385, \"name\": \"Shark\", \"quantity\": 1}, {\"id\": 2434, \"name\": \"Prayer potion(4)\", \"quantity\": 1}, {\"id\": 2434, \"name\": \"Prayer potion(4)\", \"quantity\": 1}, {\"id\": 2434, \"name\": \"Prayer potion(4)\", \"quantity\": 1}, {\"id\": 2434, \"name\": \"Prayer potion(4)\", \"quantity\": 1}, {\"id\": 2434, \"name\": \"Prayer potion(4)\", \"quantity\": 1}, {\"id\": 2434, \"name\": \"Prayer potion(4)\", \"quantity\": 1}, {\"id\": 12791, \"name\": \"Rune pouch\", \"quantity\": 1}, null, {\"id\": 8013, \"name\": \"Teleport to house\", \"quantity\": 10}, null], \"bonuses\": {\"attack\": {\"stab\": 0, \"slash\": 0, \"crush\": 0, \"magic\": -20, \"ranged\": 212}, \"defence\": {\"stab\": 0, \"slash\": 0, \"crush\": 0, \"magic\": 0, \"ranged\": 0}, \"other\": {\"str\": 0, \"ranged_str\": 38, \"magic_str\": 0, \"prayer\": 6}}, \"dps\": {\"dps\": 6.12, \"maxHit\": 41, \"hitChance\": 71.3, \"secondsToKill\": 122, \"attackSpeedTicks\": 4, \"style\": \"ranged\", \"attackType\": \"ranged\"}, \"alternatives\": {\"weapon\": [{\"id\": 20997, \"name\": \"Twisted bow\", \"dpsChange\": 1.84, \"twoHanded\": true}]}, \"request\": {\"name\": \"Vorkath (ranged)\", \"target\": \"Vorkath\", \"equipment\": {}}}, \"export\": {\"kind\": \"inventory_setup\", \"text\": \"{}\", \"title\": \"Vorkath (ranged)\"}}", JsonObject.class)), ChatComponents.Align.FILL, 0));
 				renderSized(gearList, new File(out, "14-gear.png"), BuddySidebar.DEFAULT_WIDTH, 720);
+				sidebar.setSyncView(new SyncView(new SyncView.Controller()
+				{
+					@Override
+					public boolean isOn(String key)
+					{
+						return !key.equals("syncLocation");
+					}
+
+					@Override
+					public void set(String key, String kind, boolean on)
+					{
+					}
+
+					@Override
+					public java.util.List<String> hidden()
+					{
+						return java.util.List.of("Twisted bow");
+					}
+
+					@Override
+					public void hide(String item, boolean hide)
+					{
+					}
+				}));
+				sidebar.showPage("sync");
+				renderSized(sidebar, new File(out, "15-sync.png"), BuddySidebar.DEFAULT_WIDTH, 760);
 				sidebar.showPage("plan");
 				renderSized(sidebar, new File(out, "13-plan.png"), BuddySidebar.DEFAULT_WIDTH, 1100);
 				sidebar.showPage("home");
