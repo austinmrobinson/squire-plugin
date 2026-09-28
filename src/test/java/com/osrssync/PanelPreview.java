@@ -241,6 +241,10 @@ public class PanelPreview
 				}));
 				sidebar.showPage("sync");
 				renderSized(sidebar, new File(out, "15-sync.png"), BuddySidebar.DEFAULT_WIDTH, 760);
+				sidebar.showPage("home");
+				sidebar.setRecording("Corrupted Gauntlet", System.currentTimeMillis() - 192_000, () -> {});
+				renderSized(sidebar, new File(out, "16-recording.png"), BuddySidebar.DEFAULT_WIDTH, 420);
+				sidebar.setRecording(null, 0, null);
 				sidebar.showPage("plan");
 				renderSized(sidebar, new File(out, "13-plan.png"), BuddySidebar.DEFAULT_WIDTH, 1100);
 				sidebar.showPage("home");

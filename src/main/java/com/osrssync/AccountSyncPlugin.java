@@ -329,6 +329,9 @@ public class AccountSyncPlugin extends Plugin
 		AccountApi api = new AccountApi(okHttpClient, gson, this::serverUrl, config::token, () -> playerName);
 		accountApi = api;
 		GearCard.api = api;
+		recorder = new SessionRecorder(client, id -> itemManager.getItemComposition(id).getName(), this::sessionFinished);
+		// Squire's start_session_review tool (in chat) starts a recording
+		ChatTrace.sessionStart = label -> clientThread.invokeLater(() -> startRecording(label));
 		panel.setAccountActions(this::deleteMyData, this::removeGatewayKey, this::refreshUsage);
 		ProgressView progressView = new ProgressView(skill -> skillIconManager.getSkillImage(skill, true), new WikiImages(okHttpClient));
 		ActivityView activityView = new ActivityView(api);
@@ -452,6 +455,10 @@ public class AccountSyncPlugin extends Plugin
 		}
 		else if (state == GameState.LOGIN_SCREEN)
 		{
+			if (recorder != null)
+			{
+				recorder.stop("logged out");
+			}
 			flush();
 			resetAccountState();
 		}
@@ -506,6 +513,10 @@ public class AccountSyncPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
+		if (recorder != null)
+		{
+			recorder.onTick();
+		}
 		if (ticksSinceLogin < 0)
 		{
 			return;
@@ -595,6 +606,18 @@ public class AccountSyncPlugin extends Plugin
 			return;
 		}
 		String question = String.join(" ", event.getArguments()).trim();
+		// "::squire record [what]" and "::squire stop" control a session recording for review
+		String[] words = question.split("\\s+", 2);
+		if (words[0].equalsIgnoreCase("record"))
+		{
+			startRecording(words.length > 1 ? words[1] : "Session");
+			return;
+		}
+		if (words[0].equalsIgnoreCase("stop") && recorder != null && recorder.recording())
+		{
+			recorder.stop("stopped");
+			return;
+		}
 		if (question.isEmpty())
 		{
 			inGameChat.openPrompt();
@@ -658,6 +681,10 @@ public class AccountSyncPlugin extends Plugin
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
+		if (recorder != null && event.getContainerId() == net.runelite.api.gameval.InventoryID.INV)
+		{
+			recorder.onInventoryChanged(event.getItemContainer());
+		}
 		String name = CONTAINERS.get(event.getContainerId());
 		if (name == null)
 		{
@@ -811,6 +838,10 @@ public class AccountSyncPlugin extends Plugin
 	@Subscribe
 	public void onActorDeath(ActorDeath event)
 	{
+		if (recorder != null)
+		{
+			recorder.onDeath(event.getActor());
+		}
 		Player local = client.getLocalPlayer();
 		if (local == null || event.getActor() != local)
 		{
@@ -2121,6 +2152,69 @@ public class AccountSyncPlugin extends Plugin
 		if (!hide)
 		{
 			requestFullUpdate();
+		}
+	}
+
+	// ---- Session review
+
+	private SessionRecorder recorder;
+
+	private void startRecording(String label)
+	{
+		if (recorder == null || client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+		recorder.start(label);
+		console("Squire is recording \"" + recorder.label() + "\" for a review afterwards. Type ::squire stop when you're done.");
+		String l = recorder.label();
+		long at = recorder.startedAt();
+		SwingUtilities.invokeLater(() -> sidebar.setRecording(l, at, () -> clientThread.invokeLater(() -> recorder.stop("stopped"))));
+	}
+
+	/** A recording ended: upload the summary, then open a chat asking Squire to review it. */
+	private void sessionFinished(Map<String, Object> summary)
+	{
+		SwingUtilities.invokeLater(() -> sidebar.setRecording(null, 0, null));
+		String label = String.valueOf(summary.get("label"));
+		console("Squire recorded \"" + label + "\". Your review is in the Squire panel.");
+		com.google.gson.JsonObject body = gson.toJsonTree(summary).getAsJsonObject();
+		accountApi.uploadSession(body, r -> SwingUtilities.invokeLater(() ->
+		{
+			if (r.json != null)
+			{
+				Ui.askSquire.accept("Review my session: " + label);
+			}
+			else
+			{
+				console("Squire couldn't upload the session: " + (r.error != null ? r.error : "unknown error"));
+			}
+		}));
+	}
+
+	private void console(String message)
+	{
+		chatMessageManager.queue(net.runelite.client.chat.QueuedMessage.builder()
+			.type(net.runelite.api.ChatMessageType.CONSOLE)
+			.runeLiteFormattedMessage(message)
+			.build());
+	}
+
+	@Subscribe
+	public void onHitsplatApplied(net.runelite.api.events.HitsplatApplied event)
+	{
+		if (recorder != null && recorder.recording())
+		{
+			recorder.onHitsplat(event.getActor(), event.getHitsplat().getAmount(), event.getHitsplat().isMine());
+		}
+	}
+
+	@Subscribe
+	public void onAnimationChanged(net.runelite.api.events.AnimationChanged event)
+	{
+		if (recorder != null && recorder.recording() && event.getActor() instanceof Player)
+		{
+			recorder.onPlayerAnimation((Player) event.getActor());
 		}
 	}
 

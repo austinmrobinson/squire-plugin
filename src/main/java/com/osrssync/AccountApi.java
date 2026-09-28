@@ -95,6 +95,14 @@ class AccountApi
 		send("DELETE", q.toString(), null, callback);
 	}
 
+	/** Upload a recorded session's summary for review. */
+	void uploadSession(JsonObject summary, Consumer<Result> callback)
+	{
+		String name = accountName.get();
+		String query = name == null || name.isBlank() ? "" : "?account=" + java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8);
+		send("POST", "api/sessions" + query, summary, callback);
+	}
+
 	/** This install's daily allowance and linked accounts. */
 	void me(Consumer<Result> callback)
 	{

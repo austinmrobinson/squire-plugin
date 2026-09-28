@@ -20,6 +20,7 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JTabbedPane;
@@ -182,7 +183,13 @@ class BuddySidebar extends PluginPanel
 			show(Page.CHAT);
 		});
 		chatMenuButton.addActionListener(e -> showChatMenu());
-		add(nav, BorderLayout.NORTH);
+		// The nav bar, and under it the "Recording" bar while a session is being recorded for review
+		JPanel north = new JPanel(new BorderLayout(0, 4));
+		north.setOpaque(false);
+		north.add(nav, BorderLayout.NORTH);
+		north.add(recordingBar, BorderLayout.SOUTH);
+		recordingBar.setVisible(false);
+		add(north, BorderLayout.NORTH);
 
 		body.setOpaque(false);
 		body.add(home, Page.HOME.name());
@@ -251,6 +258,87 @@ class BuddySidebar extends PluginPanel
 			body.add(welcome, Page.WELCOME.name());
 		}
 		show(on ? Page.HOME : Page.WELCOME);
+	}
+
+	private final RecordingBar recordingBar = new RecordingBar();
+
+	/** Show (label non-null) or hide the Recording bar; {@code onStop} runs when the player presses Stop. */
+	void setRecording(String label, long startedAt, Runnable onStop)
+	{
+		recordingBar.set(label, startedAt, onStop);
+		revalidate();
+		repaint();
+	}
+
+	/** A red dot, what's being recorded, the time so far, and Stop. Nothing is shown in the game itself. */
+	private static final class RecordingBar extends ChatComponents.Surface
+	{
+		private final JLabel text = new JLabel();
+		private final javax.swing.Timer timer;
+		private String label;
+		private long startedAt;
+		private Runnable onStop = () -> {};
+
+		RecordingBar()
+		{
+			super(ChatComponents.PANEL_BG, 4, true);
+			setLayout(new BorderLayout(8, 0));
+			setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
+			text.setFont(net.runelite.client.ui.FontManager.getRunescapeSmallFont());
+			text.setForeground(java.awt.Color.WHITE);
+			text.setIcon(new javax.swing.Icon()
+			{
+				@Override
+				public void paintIcon(java.awt.Component c, java.awt.Graphics g, int x, int y)
+				{
+					g.setColor(new java.awt.Color(0xE5534B));
+					Pixel.fill((java.awt.Graphics2D) g, x, y + 1, 8, 8, 2);
+				}
+
+				@Override
+				public int getIconWidth()
+				{
+					return 8;
+				}
+
+				@Override
+				public int getIconHeight()
+				{
+					return 10;
+				}
+			});
+			text.setIconTextGap(8);
+			add(text, BorderLayout.CENTER);
+			JLabel stop = PlanView.link("Stop");
+			stop.setForeground(java.awt.Color.WHITE);
+			stop.addMouseListener(PlanView.click(() -> onStop.run()));
+			add(stop, BorderLayout.EAST);
+			setToolTipText("Squire is recording this for a review afterwards. Nothing is shown during play.");
+			timer = new javax.swing.Timer(1000, e -> update());
+		}
+
+		void set(String label, long startedAt, Runnable onStop)
+		{
+			this.label = label;
+			this.startedAt = startedAt;
+			this.onStop = onStop == null ? () -> {} : onStop;
+			setVisible(label != null);
+			if (label != null)
+			{
+				update();
+				timer.start();
+			}
+			else
+			{
+				timer.stop();
+			}
+		}
+
+		private void update()
+		{
+			long s = Math.max(0, (System.currentTimeMillis() - startedAt) / 1000);
+			text.setText("Recording " + label + " · " + String.format("%d:%02d", s / 60, s % 60));
+		}
 	}
 
 	private ConnectView connect;

@@ -215,6 +215,8 @@ class ChatTrace
 	/** Set by the plugin: reload the plan, and open the Plan page. */
 	static Runnable planSaved = () -> {};
 	static Runnable openPlan = () -> {};
+	/** Set by the plugin: Squire's start_session_review tool starts a recording with this label. */
+	static java.util.function.Consumer<String> sessionStart = label -> {};
 
 	void result(String callId, JsonElement output, boolean ok)
 	{
@@ -236,6 +238,12 @@ class ChatTrace
 			g.add("gear", data.getAsJsonObject().get("gear"));
 			g.add("export", data.getAsJsonObject().get("export"));
 			gears.add(g);
+			return;
+		}
+		if (tool.equals("start_session_review") && data != null && data.isJsonObject())
+		{
+			String label = str(data.getAsJsonObject(), "label");
+			javax.swing.SwingUtilities.invokeLater(() -> sessionStart.accept(label.isEmpty() ? "Session" : label));
 			return;
 		}
 		if (tool.equals("save_plan"))
@@ -470,6 +478,12 @@ class ChatTrace
 				return "Saved your plan";
 			case "show_gear":
 				return "Put together a gear setup";
+			case "start_session_review":
+				return "Started recording";
+			case "get_session":
+				return "Read your session";
+			case "list_sessions":
+				return "Checked your past sessions";
 			case "create_inventory_setup":
 				return "Made an inventory setup";
 			case "create_bank_tag":

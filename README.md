@@ -7,13 +7,14 @@ Squire is your OSRS companion: an AI in your RuneLite sidebar that knows your ac
 ## Features
 
 - **Chat that knows your account**: progression advice for mains, ironmen and hardcores, checked against your actual requirements
-- **Gear and DPS**: compares realistic upgrades for your account using a DPS calculator
-- **Boss setups**: suggests inventory setups and exports them to Inventory Setups, Bank Tags and Ground Markers
-- **Sources**: answers cite the OSRS Wiki, the official news and other pages it read
+- **Your plan**: a roadmap of checkpoints (Barrows gloves, Fire cape, your first raid...) that Squire builds with you and ticks off as you play, on your Home page
+- **Gear you can act on**: setups shown like the game's equipment screen, with DPS; click a slot to try your other items, then copy it to Inventory Setups
+- **Session reviews**: "watch my Gauntlet run" records it silently, then Squire debriefs you afterwards with specific fixes. Nothing is shown during play
+- **Boss setups**: inventory setups, Bank Tags tabs and Ground Markers to import into those plugins
+- **Progress and activity**: your account rank, time played and XP, with one-click questions for Squire on every card
 - **In-game chat**: type `::squire <question>` or press Ctrl+B to ask from the chatbox
-- **Progress**: time played, recent XP and activity at a glance
-- **Chat history**: several chats, each can run at the same time
-- **Use it in other AI apps**: connect Claude, ChatGPT, Cursor or any MCP client to your account from Settings, Connect an AI app. Sign-in uses a one-time code from the plugin; disconnect any time
+- **Use it in other AI apps**: connect Claude, ChatGPT, Cursor or any MCP client from Settings, Connect an AI app
+- **Your data, your call**: choose what's synced and hide items in Settings, What's synced; delete everything any time
 
 ## Data and privacy
 
