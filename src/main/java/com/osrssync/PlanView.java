@@ -82,6 +82,55 @@ class PlanView extends JPanel
 		return plan;
 	}
 
+	/**
+	 * The plan as context for a question asked from this page: a tile on the player's message ("PLAN" with the
+	 * current checkpoint's item), and a markdown summary Squire reads (it can also call get_plan for detail).
+	 */
+	Attachment contextAttachment()
+	{
+		if (plan == null)
+		{
+			return null;
+		}
+		StringBuilder md = new StringBuilder("# Plan: ").append(Ui.str(plan, "title")).append("\n\n");
+		String summary = Ui.str(plan, "summary");
+		if (!summary.isEmpty())
+		{
+			md.append(summary).append("\n\n");
+		}
+		md.append((int) Ui.num(plan, "completed")).append(" of ").append((int) Ui.num(plan, "total")).append(" checkpoints done.\n\n");
+		JsonArray cps = plan.getAsJsonArray("checkpoints");
+		int current = plan.has("current") && !plan.get("current").isJsonNull() ? plan.get("current").getAsInt() : -1;
+		int iconId = -1;
+		for (int i = 0; i < cps.size(); i++)
+		{
+			JsonObject cp = cps.get(i).getAsJsonObject();
+			boolean done = cp.get("complete").getAsBoolean();
+			md.append(i + 1).append(". [").append(done ? "x" : " ").append("] ").append(Ui.str(cp, "title"))
+				.append(done ? " (done)" : i == current ? " (current, " + Math.round(Ui.num(cp, "progress") * 100) + "%)" : "").append("\n");
+			if (i == current)
+			{
+				for (JsonElement e : cp.getAsJsonArray("goals"))
+				{
+					JsonObject g = e.getAsJsonObject();
+					md.append("   - goal: ").append(Ui.str(g, "label")).append(g.get("met").getAsBoolean() ? " (met)" : " (not yet)").append("\n");
+				}
+				for (JsonElement e : cp.getAsJsonArray("steps"))
+				{
+					JsonObject s = e.getAsJsonObject();
+					md.append("   - step: ").append(Ui.str(s, "text")).append(s.get("done").getAsBoolean() ? " (done)" : "").append("\n");
+				}
+				JsonElement icon = cp.get("icon");
+				if (icon != null && icon.isJsonObject() && icon.getAsJsonObject().has("id") && !icon.getAsJsonObject().get("id").isJsonNull())
+				{
+					iconId = icon.getAsJsonObject().get("id").getAsInt();
+				}
+			}
+		}
+		BufferedImage img = iconId > 0 ? Crest.itemImage(iconId, this) : null;
+		return Attachment.context("Plan", "Plan: " + Ui.str(plan, "title"), md.toString(), img != null ? img : SquireIcon.create(26));
+	}
+
 	boolean loaded()
 	{
 		return loaded;
@@ -162,9 +211,6 @@ class PlanView extends JPanel
 			list.add(ChatComponents.place(new Tile(cp, i, i == current, i == 0, i == cps.size() - 1, prevDone), Align.FILL, i == 0 ? 12 : 0));
 		}
 
-		JLabel ask = link("Change the plan with Squire");
-		ask.addMouseListener(click(() -> askSquire.accept("Let's update my plan: ")));
-		list.add(ChatComponents.place(ask, Align.FILL, 14));
 		list.revalidate();
 		list.repaint();
 	}
@@ -622,6 +668,119 @@ class PlanView extends JPanel
 				y += gaps.get(i) + heightOf(getComponent(i), width);
 			}
 			return y;
+		}
+	}
+
+	/**
+	 * The plan in a chat reply: title, progress, and one row per checkpoint (its item, name, and done / next),
+	 * like a list card. Clicking it opens the Plan page.
+	 */
+	static final class ChatCard extends Surface implements HeightForWidth
+	{
+		private final Stack body = new Stack();
+
+		ChatCard(JsonObject plan, Runnable open)
+		{
+			super(ChatComponents.PANEL_BG, 6, true);
+			setLayout(new BorderLayout());
+			setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+			add(body);
+			int completed = (int) Ui.num(plan, "completed"), total = (int) Ui.num(plan, "total");
+			JPanel head = new JPanel(new BorderLayout(8, 0));
+			head.setOpaque(false);
+			head.add(Ui.bold(Ui.str(plan, "title")), BorderLayout.CENTER);
+			JPanel right = new JPanel(new BorderLayout(4, 0));
+			right.setOpaque(false);
+			right.add(Ui.small(completed + " of " + total), BorderLayout.CENTER);
+			right.add(new JLabel(SvgIcon.load("chevron-right", 16, null)), BorderLayout.EAST);
+			head.add(right, BorderLayout.EAST);
+			body.add(head);
+			body.add(new Bar(total == 0 ? 0 : completed / (double) total, completed == total ? DONE : ChatComponents.ACCENT), 6);
+			JsonArray cps = plan.getAsJsonArray("checkpoints");
+			int current = plan.has("current") && !plan.get("current").isJsonNull() ? plan.get("current").getAsInt() : -1;
+			for (int i = 0; i < cps.size(); i++)
+			{
+				body.add(row(cps.get(i).getAsJsonObject(), i, i == current), i == 0 ? 10 : 4);
+			}
+			setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+			MouseAdapter m = click(open);
+			addMouseListener(m);
+			for (Component c : body.getComponents())
+			{
+				c.addMouseListener(m);
+			}
+			setToolTipText("Open your plan");
+		}
+
+		private static JComponent row(JsonObject cp, int index, boolean current)
+		{
+			boolean done = cp.get("complete").getAsBoolean();
+			JPanel r = new JPanel(new BorderLayout(8, 0));
+			r.setOpaque(false);
+			r.add(new MiniNode(cp, index, done, current), BorderLayout.WEST);
+			JLabel name = current ? Ui.bold(Ui.str(cp, "title")) : Ui.text(Ui.str(cp, "title"), done ? ChatComponents.MUTED : new Color(0xC8C8C8));
+			r.add(name, BorderLayout.CENTER);
+			JLabel state = Ui.small(done ? "Done" : current ? "Next" : "");
+			state.setForeground(done ? DONE : ChatComponents.ACCENT.brighter());
+			r.add(state, BorderLayout.EAST);
+			r.setPreferredSize(new Dimension(100, 24));
+			return r;
+		}
+
+		@Override
+		public int heightForWidth(int width)
+		{
+			return body.heightForWidth(width - 20) + 20;
+		}
+	}
+
+	/** A 22px pixel node with the checkpoint's item (or its number), green when done, blue when next. */
+	private static final class MiniNode extends JComponent
+	{
+		private final int itemId;
+		private final int index;
+		private final boolean done;
+		private final boolean current;
+
+		MiniNode(JsonObject cp, int index, boolean done, boolean current)
+		{
+			JsonElement icon = cp.get("icon");
+			int id = -1;
+			if (icon != null && icon.isJsonObject() && icon.getAsJsonObject().has("id") && !icon.getAsJsonObject().get("id").isJsonNull())
+			{
+				id = icon.getAsJsonObject().get("id").getAsInt();
+			}
+			this.itemId = id;
+			this.index = index;
+			this.done = done;
+			this.current = current;
+			setPreferredSize(new Dimension(24, 24));
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setColor(done ? new Color(0x2E4A26) : ChatComponents.BASE_BG);
+			Pixel.fill(g2, 0, 0, 24, 24, 3);
+			g2.setColor(done ? DONE : current ? ChatComponents.ACCENT : ChatComponents.BORDER);
+			Pixel.draw(g2, 0, 0, 24, 24, 3);
+			BufferedImage img = itemId > 0 ? Crest.itemImage(itemId, this) : null;
+			if (img != null)
+			{
+				g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+				int w = img.getWidth() * 2 / 3, h = img.getHeight() * 2 / 3;
+				g2.drawImage(img, (24 - w) / 2, (24 - h) / 2, w, h, null);
+			}
+			else
+			{
+				g2.setFont(FontManager.getRunescapeSmallFont());
+				g2.setColor(done ? DONE : Color.WHITE);
+				String n = String.valueOf(index + 1);
+				java.awt.FontMetrics fm = g2.getFontMetrics();
+				g2.drawString(n, (24 - fm.stringWidth(n)) / 2, (24 + fm.getAscent()) / 2 - 2);
+			}
+			g2.dispose();
 		}
 	}
 

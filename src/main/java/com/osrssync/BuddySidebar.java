@@ -100,6 +100,7 @@ class BuddySidebar extends PluginPanel
 		this.sessions = sessions;
 		this.activity = activity;
 		this.settings = settings;
+		this.progressView = progress;
 		this.home = homeFactory.apply(new HomeView.Actions()
 		{
 			@Override
@@ -184,11 +185,8 @@ class BuddySidebar extends PluginPanel
 		});
 		chatMenuButton.addActionListener(e -> showChatMenu());
 		// The nav bar, and under it the "Observing" bar while Squire observes a session for review
-		JPanel north = new JPanel(new BorderLayout(0, 4));
 		north.setOpaque(false);
 		north.add(nav, BorderLayout.NORTH);
-		north.add(recordingBar, BorderLayout.SOUTH);
-		recordingBar.setVisible(false);
 		add(north, BorderLayout.NORTH);
 
 		body.setOpaque(false);
@@ -261,11 +259,22 @@ class BuddySidebar extends PluginPanel
 	}
 
 	private final RecordingBar recordingBar = new RecordingBar();
+	private ProgressView progressView;
+	/** The nav bar, plus the Observing bar only while a session is observed (it's added and removed, never hidden). */
+	private final JPanel north = new JPanel(new BorderLayout(0, 4));
 
 	/** Show (label non-null) or hide the Observing bar; {@code onStop} runs when the player presses Stop. */
 	void setRecording(String label, long startedAt, Runnable onStop)
 	{
 		recordingBar.set(label, startedAt, onStop);
+		if (label != null && recordingBar.getParent() != north)
+		{
+			north.add(recordingBar, BorderLayout.SOUTH);
+		}
+		else if (label == null && recordingBar.getParent() == north)
+		{
+			north.remove(recordingBar);
+		}
 		revalidate();
 		repaint();
 	}
@@ -385,6 +394,7 @@ class BuddySidebar extends PluginPanel
 			actions.add(newChatButton);
 		}
 		nav.set(titleOf(next), ancestors, actions);
+		ask.setPlaceholder(placeholderFor(next));
 		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME && next != Page.CONNECT && next != Page.SYNC);
 
 		if (next == Page.CHAT)
@@ -424,6 +434,29 @@ class BuddySidebar extends PluginPanel
 		repaint();
 	}
 
+	/** The floating composer's hint says what it will use: this plan, your progress, your playtime. */
+	private String placeholderFor(Page p)
+	{
+		switch (p)
+		{
+			case PLAN:
+				return home.planView().plan() != null ? "Ask about or change this plan..." : "Ask Squire to make a plan...";
+			case PROGRESS:
+				return "Ask about your progress...";
+			case ACTIVITY:
+				return "Ask about your playtime...";
+			default:
+				return "Ask anything...";
+		}
+	}
+
+	/** What a question from the floating composer carries from the page it was asked on. */
+	private java.util.List<Attachment> contextFor(Page p)
+	{
+		Attachment a = p == Page.PLAN ? home.planView().contextAttachment() : p == Page.PROGRESS ? progressView.contextAttachment() : null;
+		return a == null ? java.util.List.of() : java.util.List.of(a);
+	}
+
 	private String titleOf(Page p)
 	{
 		return p == Page.CHAT ? sessions.current().title() : p.title;
@@ -437,7 +470,8 @@ class BuddySidebar extends PluginPanel
 	{
 		Rectangle from = ask.isDisplayable() && ask.isVisible() ? ask.boxBoundsIn(this) : null;
 		ask.clear();
-		sessions.startWith(text);
+		// The page's context (the plan, your progress) goes along as a tile on the message
+		sessions.startWith(text, contextFor(page));
 		show(Page.CHAT);
 		validate();
 		ChatView chat = sessions.current();

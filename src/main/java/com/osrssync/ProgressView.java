@@ -89,8 +89,37 @@ class ProgressView extends JPanel
 		relayout();
 	}
 
+	private JsonObject shown;
+
+	/** The rank and what the score is made of, as context for a question asked from this page. */
+	Attachment contextAttachment()
+	{
+		JsonObject score = shown == null ? null : obj(shown, "score");
+		if (score == null)
+		{
+			return null;
+		}
+		StringBuilder md = new StringBuilder("# Progress\n\n");
+		JsonObject tier = obj(score, "tier");
+		md.append("Rank: ").append(tier != null ? str(tier, "name") : str(score, "stage")).append(" (score ").append(oneDecimal(num(score, "score"))).append(" / 100)\n");
+		JsonObject next = obj(score, "next");
+		if (next != null)
+		{
+			md.append("Next: ").append(str(next, "name")).append(", ").append(oneDecimal(num(next, "pointsToGo"))).append(" points to go\n");
+		}
+		md.append("\n");
+		for (JsonElement e : score.getAsJsonArray("parts"))
+		{
+			JsonObject part = e.getAsJsonObject();
+			md.append("- ").append(str(part, "label")).append(": ").append(oneDecimal(num(part, "points"))).append(" / ").append((int) num(part, "weight")).append("\n");
+		}
+		BufferedImage icon = tier != null ? Crest.itemImage((int) num(tier, "itemId"), this) : null;
+		return Attachment.context("Progress", "Progress", md.toString(), icon != null ? icon : SquireIcon.create(26));
+	}
+
 	void show(JsonObject o)
 	{
+		shown = o;
 		list.removeAll();
 		int gap = 0;
 		for (JComponent card : new JComponent[]{

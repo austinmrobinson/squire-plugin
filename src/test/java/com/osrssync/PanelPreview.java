@@ -247,6 +247,14 @@ public class PanelPreview
 				sidebar.setRecording(null, 0, null);
 				sidebar.showPage("plan");
 				renderSized(sidebar, new File(out, "13-plan.png"), BuddySidebar.DEFAULT_WIDTH, 1100);
+				// A question asked from the Plan page carries the plan as a tile; a saved plan shows as a card
+				ChatComponents.MessageList planChat = new ChatComponents.MessageList(ChatComponents.BASE_BG, 0);
+				planChat.setBorder(javax.swing.BorderFactory.createEmptyBorder(8, 8, 8, 8));
+				Attachment ctx = homeRef[0].planView().contextAttachment();
+				planChat.add(ChatComponents.place(AttachmentViews.strip(java.util.List.of(ctx), true, null), ChatComponents.Align.FILL, 0));
+				planChat.add(ChatComponents.place(new PlanView.ChatCard(homeRef[0].planView().plan(), () -> {}), ChatComponents.Align.FILL, 12));
+				renderSized(planChat, new File(out, "13b-plan-in-chat.png"), BuddySidebar.DEFAULT_WIDTH, 420);
+				System.out.println("plan context:\n" + ctx.text);
 				sidebar.showPage("home");
 
 				sidebar.showPage("progress");

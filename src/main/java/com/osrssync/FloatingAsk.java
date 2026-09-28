@@ -170,12 +170,24 @@ class FloatingAsk extends JPanel
 		return b.left + b.right + 8 + send.getPreferredSize().width + 4;
 	}
 
+	/** What the box says when empty; it changes with the page ("Ask about or change this plan..."). */
+	void setPlaceholder(String text)
+	{
+		if (!text.equals(input.placeholder()))
+		{
+			input.setPlaceholder(text);
+			revalidate();
+			repaint();
+		}
+	}
+
 	/** Width for the current text: compact, growing with the text up to {@code max}. */
 	private int boxWidth(int max)
 	{
 		String text = input.getText();
 		FontMetrics fm = input.getFontMetrics(input.getFont());
-		int longest = 0;
+		// Empty, it fits its hint
+		int longest = text.isEmpty() ? fm.stringWidth(input.placeholder()) : 0;
 		for (String line : text.split("\n", -1))
 		{
 			longest = Math.max(longest, fm.stringWidth(line));

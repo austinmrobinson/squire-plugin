@@ -158,6 +158,11 @@ class ChatSessions
 	}
 
 	/** Start a new conversation with this message (Home's prompts and composer). */
+	void startWith(String message, java.util.List<Attachment> context)
+	{
+		newChat().startWith(message, context);
+	}
+
 	void startWith(String message)
 	{
 		newChat().startWith(message);

@@ -99,6 +99,11 @@ class ChatTrace
 		JsonArray gs = new JsonArray();
 		gears.forEach(gs::add);
 		o.add("gears", gs);
+		o.addProperty("savedPlan", savedPlan);
+		if (plan != null)
+		{
+			o.add("plan", plan);
+		}
 		return o;
 	}
 
@@ -129,6 +134,11 @@ class ChatTrace
 				JsonObject j = el.getAsJsonObject();
 				t.sources.add(new Source(str(j, "title"), str(j, "url"), str(j, "origin")));
 			}
+		}
+		t.savedPlan = o.has("savedPlan") && o.get("savedPlan").getAsBoolean();
+		if (o.has("plan") && o.get("plan").isJsonObject())
+		{
+			t.plan = o.getAsJsonObject("plan");
 		}
 		if (o.has("gears"))
 		{
@@ -212,6 +222,8 @@ class ChatTrace
 	final List<JsonObject> gears = new ArrayList<>();
 	/** Squire saved the player's plan this turn: the reply links to it, and Home and the Plan page reload it. */
 	boolean savedPlan;
+	/** The plan as saved (checked against the account), shown as a card under the reply. */
+	JsonObject plan;
 	/** Set by the plugin: reload the plan, and open the Plan page. */
 	static Runnable planSaved = () -> {};
 	static Runnable openPlan = () -> {};
@@ -249,6 +261,10 @@ class ChatTrace
 		if (tool.equals("save_plan"))
 		{
 			savedPlan = true;
+			if (data != null && data.isJsonObject() && data.getAsJsonObject().get("plan") instanceof JsonObject)
+			{
+				plan = data.getAsJsonObject().getAsJsonObject("plan");
+			}
 			javax.swing.SwingUtilities.invokeLater(planSaved);
 			return;
 		}

@@ -406,6 +406,13 @@ class ChatView extends JPanel
 		send(text);
 	}
 
+	/** Start a new conversation with context attached (e.g. the plan, from the Plan page). */
+	void startWith(String text, List<Attachment> context)
+	{
+		newChat();
+		send(text, context);
+	}
+
 	/** Send a message in this conversation, as if typed into the composer. */
 	void sendMessage(String text)
 	{
@@ -1243,7 +1250,12 @@ class ChatView extends JPanel
 		{
 			list.add(ChatComponents.place(new GearCard(g), Align.FILL, 8));
 		}
-		if (trace.savedPlan)
+		if (trace.plan != null)
+		{
+			// The saved plan as a card: its checkpoints at a glance; click to open the Plan page
+			list.add(ChatComponents.place(new PlanView.ChatCard(trace.plan, ChatTrace.openPlan), Align.FILL, 8));
+		}
+		else if (trace.savedPlan)
 		{
 			JLabel open = PlanView.link("Open your plan");
 			open.setHorizontalAlignment(JLabel.LEFT);
@@ -1487,11 +1499,22 @@ class ChatView extends JPanel
 	/** Text area that draws a hint while it's empty. */
 	static class PlaceholderTextArea extends JTextArea
 	{
-		private final String placeholder;
+		private String placeholder;
 
 		PlaceholderTextArea(String placeholder)
 		{
 			this.placeholder = placeholder;
+		}
+
+		String placeholder()
+		{
+			return placeholder;
+		}
+
+		void setPlaceholder(String placeholder)
+		{
+			this.placeholder = placeholder;
+			repaint();
 		}
 
 		/** Room for the visible rows plus the padding, so a full view never scrolls. */

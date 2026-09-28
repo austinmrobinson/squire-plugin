@@ -128,6 +128,10 @@ final class AttachmentViews
 				drawCover(g2, attachment.thumbnail, w, h);
 				g2.setClip(null);
 			}
+			else if (attachment.label != null)
+			{
+				paintContext(g2, w, h, shape);
+			}
 			else
 			{
 				paintFile(g2, w, h, shape);
@@ -148,6 +152,28 @@ final class AttachmentViews
 				g2.drawImage(x, c.x + 2, c.y + 2, 12, 12, null);
 			}
 			g2.dispose();
+		}
+
+		/** Context from a page: its icon (e.g. the plan's current item) and a label ("PLAN") underneath. */
+		private void paintContext(Graphics2D g2, int w, int h, Shape shape)
+		{
+			g2.setColor(ChatComponents.PANEL_BG);
+			g2.fill(shape);
+			BufferedImage icon = attachment.thumbnail;
+			if (icon != null)
+			{
+				int iw = Math.min(icon.getWidth(), w - 8), ih = Math.min(icon.getHeight(), h - 18);
+				double scale = Math.min(iw / (double) icon.getWidth(), ih / (double) icon.getHeight());
+				int dw = (int) (icon.getWidth() * scale), dh = (int) (icon.getHeight() * scale);
+				g2.drawImage(icon, (w - dw) / 2, 4 + (h - 18 - dh) / 2, dw, dh, null);
+			}
+			Font font = FontManager.getRunescapeSmallFont();
+			g2.setFont(font);
+			FontMetrics fm = g2.getFontMetrics();
+			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
+			g2.setColor(ChatComponents.ACCENT.brighter());
+			String label = attachment.label.toUpperCase(java.util.Locale.ROOT);
+			g2.drawString(label, 8, h - 7 - fm.getDescent() + 2);
 		}
 
 		/** A document: faint lines of "text" and the file type underneath. */

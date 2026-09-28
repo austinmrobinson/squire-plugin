@@ -47,6 +47,8 @@ final class Attachment
 	final byte[] bytes;
 	final String text;
 	final BufferedImage thumbnail;
+	/** For context from a page (e.g. "Plan"): shown on the tile instead of a file type; null for files. */
+	String label;
 
 	private Attachment(Kind kind, String name, String mediaType, byte[] bytes, String text, BufferedImage thumbnail)
 	{
@@ -78,6 +80,17 @@ final class Attachment
 			}
 		}
 		return new Attachment(Kind.IMAGE, file, type, png, null, fit(source, 144));
+	}
+
+	/**
+	 * Context from the page the player asked from (their plan, their progress): sent to Squire like a text file,
+	 * shown as a tile with a label and an icon instead of a file type.
+	 */
+	static Attachment context(String label, String name, String markdown, BufferedImage icon)
+	{
+		Attachment a = new Attachment(Kind.TEXT, name, "text/markdown", null, markdown, icon);
+		a.label = label;
+		return a;
 	}
 
 	static Attachment text(String text, String name)
@@ -112,6 +125,10 @@ final class Attachment
 		o.addProperty("name", name);
 		o.addProperty("mediaType", mediaType);
 		o.addProperty("size", sizeLabel());
+		if (label != null)
+		{
+			o.addProperty("label", label);
+		}
 		if (thumbnail != null)
 		{
 			try
@@ -144,7 +161,9 @@ final class Attachment
 		}
 		String name = o.has("name") ? o.get("name").getAsString() : "Attachment";
 		String type = o.has("mediaType") ? o.get("mediaType").getAsString() : "";
-		return new Attachment(kind, name, type, new byte[0], kind == Kind.TEXT ? "" : null, thumb);
+		Attachment a = new Attachment(kind, name, type, new byte[0], kind == Kind.TEXT ? "" : null, thumb);
+		a.label = o.has("label") ? o.get("label").getAsString() : null;
+		return a;
 	}
 
 	/** True for pasted text that should become a file rather than go into the input. */
