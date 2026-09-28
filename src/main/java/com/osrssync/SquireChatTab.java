@@ -166,7 +166,12 @@ class SquireChatTab
 		Widget sampleName = client.getWidget(InterfaceID.Chatbox.CHAT_TRADE_TEXT);
 		Widget sampleFilter = client.getWidget(InterfaceID.Chatbox.CHAT_TRADE_FILTER);
 		graphic = bar.createChild(-1, WidgetType.GRAPHIC);
-		if (sampleGraphic != null)
+		learnSprites();
+		if (normalSprite >= 0)
+		{
+			graphic.setSpriteId(normalSprite);
+		}
+		else if (sampleGraphic != null)
 		{
 			graphic.setSpriteId(sampleGraphic.getSpriteId());
 		}
@@ -176,26 +181,19 @@ class SquireChatTab
 		status = bar.createChild(-1, WidgetType.TEXT);
 		styleText(status, sampleFilter, GREEN);
 
-		graphic.setName("<col=ff9040>Squire</col>");
-		graphic.setAction(0, "Squire");
+		// No target name: the game's own tabs show just the option ("Switch tab"), not "Option Target"
+		graphic.setName("");
+		graphic.setAction(0, "View Squire");
 		graphic.setAction(1, "Ask Squire");
-		graphic.setAction(2, "Show all chat");
 		graphic.setHasListener(true);
 		graphic.setOnOpListener((JavaScriptCallback) ev ->
 		{
 			switch (ev.getOp())
 			{
 				case 1:
-					// First click focuses; clicking again while focused asks
-					if (focused)
-					{
-						openPrompt.run();
-					}
-					else
-					{
-						setFocused(true);
-						openPrompt.run();
-					}
+					// View: show only Squire's lines (and ask, since that's why you'd look)
+					setFocused(true);
+					openPrompt.run();
 					break;
 				case 2:
 					openPrompt.run();
@@ -214,8 +212,9 @@ class SquireChatTab
 			w.setTextShadowed(sample.getTextShadowed());
 		}
 		w.setTextColor(color);
-		w.setXTextAlignment(WidgetTextAlignment.CENTER);
-		w.setYTextAlignment(WidgetTextAlignment.CENTER);
+		// Same alignment as the game's tab text: the name at the top, the status at the bottom
+		w.setXTextAlignment(sample != null ? sample.getXTextAlignment() : WidgetTextAlignment.CENTER);
+		w.setYTextAlignment(sample != null ? sample.getYTextAlignment() : WidgetTextAlignment.CENTER);
 	}
 
 	/** Nine even slots across the bar: the seven chat tabs, Squire, Report. */
@@ -272,17 +271,54 @@ class SquireChatTab
 		put(name, squireX, y + (sampleName != null ? sampleName.getRelativeY() : 0), w, sampleName != null ? sampleName.getHeight() : h / 2);
 		put(status, squireX, y + (sampleFilter != null ? sampleFilter.getRelativeY() : h / 2), w, sampleFilter != null ? sampleFilter.getHeight() : h / 2);
 
+		learnSprites();
 		// While focused, no game tab looks selected: the Squire stone is
-		Widget normal = child(TABS[TABS.length - 1], 0);
-		if (focused && normal != null)
+		if (focused && normalSprite >= 0)
 		{
 			for (int id : TABS)
 			{
 				Widget g = child(id, 0);
-				if (g != null && g.getSpriteId() != normal.getSpriteId())
+				if (g != null && g.getSpriteId() != normalSprite)
 				{
-					g.setSpriteId(normal.getSpriteId());
+					g.setSpriteId(normalSprite);
 				}
+			}
+		}
+	}
+
+	/** The game's stone graphics: the one most tabs use (normal) and the odd one out (the selected tab). */
+	private int normalSprite = -1, selectedSprite = -1;
+
+	private void learnSprites()
+	{
+		Map<Integer, Integer> counts = new HashMap<>();
+		for (int id : TABS)
+		{
+			Widget g = child(id, 0);
+			if (g != null && g.getSpriteId() >= 0)
+			{
+				counts.merge(g.getSpriteId(), 1, Integer::sum);
+			}
+		}
+		if (counts.isEmpty())
+		{
+			return;
+		}
+		int best = -1, bestCount = -1;
+		for (Map.Entry<Integer, Integer> e : counts.entrySet())
+		{
+			if (e.getValue() > bestCount)
+			{
+				best = e.getKey();
+				bestCount = e.getValue();
+			}
+		}
+		normalSprite = best;
+		for (int sprite : counts.keySet())
+		{
+			if (sprite != best && !focused)
+			{
+				selectedSprite = sprite;
 			}
 		}
 	}
@@ -308,7 +344,7 @@ class SquireChatTab
 		}
 		else
 		{
-			text = focused ? "On" : "Ready";
+			text = "Ready";
 			color = GREEN;
 		}
 		if (!text.equals(status.getText()))
@@ -316,7 +352,16 @@ class SquireChatTab
 			status.setText(text);
 		}
 		status.setTextColor(color);
-		name.setTextColor(focused ? YELLOW : WHITE);
+		name.setTextColor(WHITE);
+		if (graphic != null)
+		{
+			graphic.setAction(2, focused ? "Show all chat" : null);
+			int sprite = focused && selectedSprite >= 0 ? selectedSprite : normalSprite;
+			if (sprite >= 0 && graphic.getSpriteId() != sprite)
+			{
+				graphic.setSpriteId(sprite);
+			}
+		}
 	}
 
 	/** The game's own geometry for a tab and its children: {xMode, x, widthMode, width} each. */
