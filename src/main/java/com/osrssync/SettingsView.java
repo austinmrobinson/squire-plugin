@@ -23,9 +23,10 @@ import net.runelite.client.ui.FontManager;
  */
 class SettingsView extends javax.swing.JPanel
 {
+	private static final Color DANGER = new Color(0xF0625A);
 	private final MessageList list = new MessageList(null, 0);
 	private final Runnable onUpdate;
-	private final Supplier<List<String[]>> chatSettings;
+	private final Supplier<List<Item>> chatSettings;
 	/** The sync headline ("Last synced 08:41:12") and any details from the last sync ("Kill counts: 58"). */
 	private String syncHeadline = "Not synced yet this session";
 	private final List<String[]> syncDetails = new ArrayList<>();
@@ -93,10 +94,10 @@ class SettingsView extends javax.swing.JPanel
 	}
 
 	/**
-	 * {@code chatSettings}: the in-game chat settings as label/value pairs (read-only here; they're changed in
-	 * RuneLite's plugin settings).
+	 * {@code chatSettings}: the in-game chat settings, each editable in place (a toggle, a choice, or a shortcut
+	 * the player presses).
 	 */
-	SettingsView(Runnable onUpdate, Supplier<List<String[]>> chatSettings)
+	SettingsView(Runnable onUpdate, Supplier<List<Item>> chatSettings)
 	{
 		this.onUpdate = onUpdate;
 		this.chatSettings = chatSettings;
@@ -161,21 +162,20 @@ class SettingsView extends javax.swing.JPanel
 	{
 		list.removeAll();
 
-		// Sync: just the action, with the latest status as a small line under it
+		// Sync: the action, with the latest status as its subtitle and what it does on hover
 		group("Sync");
 		Surface sync = HomeView.listCard();
-		StringBuilder details = new StringBuilder(syncHeadline);
+		StringBuilder details = new StringBuilder("Re-reads skills, quests, diaries and items, backfills kill counts and PBs, and reads every "
+			+ "combat achievement. Open your collection log afterwards to include it.\n\n").append(syncHeadline);
 		for (String[] d : syncDetails)
 		{
 			details.append("\n").append(d[0]).append(d[1].isEmpty() ? "" : ": " + d[1]);
 		}
-		sync.add(actionRow("Update now", syncHeadline, details.toString(), onUpdate));
-		list.add(ChatComponents.place(sync, Align.FILL, 4));
-		note("Re-reads skills, quests, diaries and items, backfills kill counts and PBs, and reads every combat "
-			+ "achievement. Open your collection log afterwards to include it.");
+		sync.add(actionRow("Update now", syncHeadline, details.toString(), null, onUpdate));
+		list.add(ChatComponents.place(sync, Align.FILL, 6));
 
 		// In-game chat
-		List<String[]> chat = chatSettings.get();
+		List<Item> chat = chatSettings.get();
 		if (!chat.isEmpty())
 		{
 			group("In-game chat");
@@ -186,11 +186,10 @@ class SettingsView extends javax.swing.JPanel
 				{
 					c.add(HomeView.divider());
 				}
-				c.add(row(chat.get(i)[0], chat.get(i)[1], null, null));
+				c.add(itemRow(chat.get(i)));
 			}
-			list.add(ChatComponents.place(c, Align.FILL, 4));
+			list.add(ChatComponents.place(c, Align.FILL, 6));
 		}
-		note("Change the shortcut and sync delay, or add your own AI Gateway key, in RuneLite's plugin settings (the wrench icon, then Squire).");
 
 		// Other AI apps using Squire's tools (MCP connectors)
 		group("Connected apps");
@@ -209,9 +208,9 @@ class SettingsView extends javax.swing.JPanel
 			}));
 			conn.add(HomeView.divider());
 		}
-		conn.add(row("Connect an AI app", null, "Use your account in Claude, ChatGPT, Cursor and other AI apps", onConnect));
-		list.add(ChatComponents.place(conn, Align.FILL, 4));
-		note("Let Claude, ChatGPT, Cursor or another AI app read your synced account with Squire's tools.");
+		conn.add(actionRow("Connect an AI app", "Claude, ChatGPT, Cursor and more",
+			"Let Claude, ChatGPT, Cursor or another AI app read your synced account with Squire's tools.", null, onConnect));
+		list.add(ChatComponents.place(conn, Align.FILL, 6));
 
 		// Your data on the Squire server
 		group("Your data");
@@ -222,8 +221,12 @@ class SettingsView extends javax.swing.JPanel
 			data.add(HomeView.divider());
 			data.add(row("Remove your AI Gateway key", null, "Go back to the free daily messages", onRemoveKey));
 		}
-		data.add(HomeView.divider());
-		data.add(row("Delete my data", null, "Delete everything Squire stored for you", () ->
+		list.add(ChatComponents.place(data, Align.FILL, 6));
+
+		// Deleting stands on its own, in red, so it's never clicked by mistake
+		Surface danger = HomeView.listCard();
+		danger.add(actionRow("Delete my data", null,
+			"Removes your data from the Squire server and your chat history from this computer.", DANGER, () ->
 		{
 			int answer = javax.swing.JOptionPane.showConfirmDialog(this,
 				"Delete everything Squire stored for you (account data, the assistant's notes and chat history)?\nThis turns Squire off and can't be undone.",
@@ -233,34 +236,50 @@ class SettingsView extends javax.swing.JPanel
 				onDeleteData.run();
 			}
 		}));
-		list.add(ChatComponents.place(data, Align.FILL, 4));
-		note("Deleting removes your data from the Squire server and your chat history from this computer.");
+		list.add(ChatComponents.place(danger, Align.FILL, 16));
 
 		list.revalidate();
 		list.repaint();
 	}
 
-	/** An action row with a small muted detail line under its label (e.g. the sync status). */
-	private static JComponent actionRow(String label, String detail, String tooltip, Runnable onClick)
+	/**
+	 * An action row: label with an optional small muted detail line under it (e.g. the sync status), a chevron, and
+	 * a tooltip. {@code color} tints the label and chevron (red for destructive actions); null for the default.
+	 */
+	private static JComponent actionRow(String label, String detail, String tooltip, Color color, Runnable onClick)
 	{
+		Color rest = color != null ? color : net.runelite.client.ui.ColorScheme.LIGHT_GRAY_COLOR;
+		Color hot = color != null ? color.brighter() : Color.WHITE;
 		Surface r = new Surface(null, 0, false);
 		r.setLayout(new BorderLayout(8, 0));
-		r.setBorder(BorderFactory.createEmptyBorder(7, 12, 7, 12));
+		r.setBorder(detail == null ? BorderFactory.createEmptyBorder(0, 10, 0, 12) : BorderFactory.createEmptyBorder(7, 10, 7, 12));
 		javax.swing.JPanel words = new javax.swing.JPanel();
 		words.setOpaque(false);
 		words.setLayout(new javax.swing.BoxLayout(words, javax.swing.BoxLayout.Y_AXIS));
-		JLabel title = Ui.text(label, net.runelite.client.ui.ColorScheme.LIGHT_GRAY_COLOR);
-		JLabel sub = Ui.small(detail);
+		JLabel title = Ui.text(label, rest);
+		JLabel sub = Ui.small(detail == null ? "" : detail);
 		title.setAlignmentX(LEFT_ALIGNMENT);
 		sub.setAlignmentX(LEFT_ALIGNMENT);
-		words.add(title);
-		words.add(sub);
+		if (detail != null)
+		{
+			words.add(title);
+			words.add(sub);
+		}
+		else
+		{
+			// Just the label: centre it in the row
+			words.add(javax.swing.Box.createVerticalGlue());
+			words.add(title);
+			words.add(javax.swing.Box.createVerticalGlue());
+		}
 		r.add(words, BorderLayout.CENTER);
-		JLabel chevron = new JLabel(SvgIcon.load("chevron-right", 16, null));
+		JLabel chevron = new JLabel(SvgIcon.load("chevron-right", 16, color));
 		r.add(chevron, BorderLayout.EAST);
 		r.setToolTipText("<html>" + MarkdownLite.escape(tooltip).replace("\n", "<br>") + "</html>");
 		r.setAlignmentX(LEFT_ALIGNMENT);
-		r.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, r.getPreferredSize().height));
+		int height = detail == null ? 32 : r.getPreferredSize().height;
+		r.setPreferredSize(new java.awt.Dimension(100, height));
+		r.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, height));
 		r.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
 		java.awt.event.MouseAdapter m = new java.awt.event.MouseAdapter()
 		{
@@ -274,7 +293,7 @@ class SettingsView extends javax.swing.JPanel
 			public void mouseEntered(java.awt.event.MouseEvent e)
 			{
 				r.setFill(ChatComponents.HOVER_BG);
-				title.setForeground(Color.WHITE);
+				title.setForeground(hot);
 			}
 
 			@Override
@@ -283,7 +302,7 @@ class SettingsView extends javax.swing.JPanel
 				if (!r.contains(SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), r)))
 				{
 					r.setFill(null);
-					title.setForeground(net.runelite.client.ui.ColorScheme.LIGHT_GRAY_COLOR);
+					title.setForeground(rest);
 				}
 			}
 		};
@@ -296,14 +315,110 @@ class SettingsView extends javax.swing.JPanel
 
 	private void group(String title)
 	{
-		JLabel label = Ui.sectionLabel(title);
-		label.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
-		list.add(ChatComponents.place(label, Align.LEFT, list.getComponentCount() == 0 ? 4 : 16));
+		JLabel label = Ui.bold(title);
+		list.add(ChatComponents.place(label, Align.LEFT, list.getComponentCount() == 0 ? 6 : 18));
 	}
 
 	private void note(String text)
 	{
 		list.add(ChatComponents.place(new Note(text), Align.FILL, 6));
+	}
+
+	/** An editable setting: clicking runs {@code onClick}, or, with {@code onShortcut}, records the next key combo. */
+	static final class Item
+	{
+		final String label;
+		final String value;
+		final String tooltip;
+		final Runnable onClick;
+		final java.util.function.Consumer<net.runelite.client.config.Keybind> onShortcut;
+
+		private Item(String label, String value, String tooltip, Runnable onClick, java.util.function.Consumer<net.runelite.client.config.Keybind> onShortcut)
+		{
+			this.label = label;
+			this.value = value;
+			this.tooltip = tooltip;
+			this.onClick = onClick;
+			this.onShortcut = onShortcut;
+		}
+
+		/** A value that changes when clicked (a toggle, or the next option). */
+		static Item choice(String label, String value, String tooltip, Runnable onClick)
+		{
+			return new Item(label, value, tooltip, onClick, null);
+		}
+
+		/** A keyboard shortcut: click, then press the new combination (Esc cancels, Backspace clears). */
+		static Item shortcut(String label, String value, String tooltip, java.util.function.Consumer<net.runelite.client.config.Keybind> onShortcut)
+		{
+			return new Item(label, value, tooltip, null, onShortcut);
+		}
+
+		/** Read-only. */
+		static Item info(String label, String value)
+		{
+			return new Item(label, value, null, null, null);
+		}
+	}
+
+	private JComponent itemRow(Item item)
+	{
+		JLabel value = Ui.text(item.value == null ? "" : item.value, ChatComponents.MUTED);
+		if (item.onShortcut == null)
+		{
+			JComponent r = HomeView.listRow(null, item.label, value, item.onClick);
+			r.setToolTipText(item.tooltip);
+			return r;
+		}
+		// Shortcut: the row takes focus and records the next key combination
+		JComponent[] holder = new JComponent[1];
+		holder[0] = HomeView.listRow(null, item.label, value, () ->
+		{
+			value.setText("Press keys...");
+			value.setForeground(ChatComponents.ACCENT);
+			holder[0].setFocusable(true);
+			holder[0].requestFocusInWindow();
+		});
+		JComponent r = holder[0];
+		r.setToolTipText(item.tooltip);
+		r.addKeyListener(new java.awt.event.KeyAdapter()
+		{
+			@Override
+			public void keyPressed(java.awt.event.KeyEvent e)
+			{
+				if (!"Press keys...".equals(value.getText()))
+				{
+					return;
+				}
+				int code = e.getKeyCode();
+				if (code == java.awt.event.KeyEvent.VK_SHIFT || code == java.awt.event.KeyEvent.VK_CONTROL
+					|| code == java.awt.event.KeyEvent.VK_ALT || code == java.awt.event.KeyEvent.VK_META)
+				{
+					return; // wait for the actual key
+				}
+				e.consume();
+				if (code == java.awt.event.KeyEvent.VK_ESCAPE)
+				{
+					render();
+					return;
+				}
+				item.onShortcut.accept(code == java.awt.event.KeyEvent.VK_BACK_SPACE
+					? net.runelite.client.config.Keybind.NOT_SET
+					: new net.runelite.client.config.Keybind(code, e.getModifiersEx()));
+			}
+		});
+		r.addFocusListener(new java.awt.event.FocusAdapter()
+		{
+			@Override
+			public void focusLost(java.awt.event.FocusEvent e)
+			{
+				if ("Press keys...".equals(value.getText()))
+				{
+					render();
+				}
+			}
+		});
+		return r;
 	}
 
 	/** A settings row: label, value on the right (or a chevron when it does something). */

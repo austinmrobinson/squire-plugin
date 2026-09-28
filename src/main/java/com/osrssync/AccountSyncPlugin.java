@@ -314,10 +314,16 @@ public class AccountSyncPlugin extends Plugin
 		sessions.load();
 		inGameChat = new InGameChat(client, chatMessageManager, chatboxPanelManager, () -> sessions);
 		keyManager.registerKeyListener(askHotkey);
+		// In-game chat settings, editable right in the panel; each change re-renders Settings with the new value
 		panel = new SettingsView(this::requestFullUpdate, () -> List.of(
-			new String[]{"::squire command", config.chatCommand() ? "On" : "Off"},
-			new String[]{"Ask shortcut", config.askHotkey().toString()},
-			new String[]{"Shortcut opens", config.askHotkeyOpens() == AccountSyncConfig.AskShortcut.PANEL ? "Panel" : "Chatbox"}));
+			SettingsView.Item.choice("::squire command", config.chatCommand() ? "On" : "Off", "Click to turn ::squire on or off",
+				() -> setChatSetting("chatCommand", !config.chatCommand())),
+			SettingsView.Item.shortcut("Ask shortcut", shortcutText(config.askHotkey()),
+				"Click, then press a new shortcut (Esc cancels, Backspace clears)", k -> setChatSetting("askHotkey", k)),
+			SettingsView.Item.choice("Shortcut opens", config.askHotkeyOpens() == AccountSyncConfig.AskShortcut.PANEL ? "Panel" : "Chatbox",
+				"Click to switch between asking in the chatbox and opening the panel",
+				() -> setChatSetting("askHotkeyOpens", config.askHotkeyOpens() == AccountSyncConfig.AskShortcut.PANEL
+					? AccountSyncConfig.AskShortcut.CHATBOX : AccountSyncConfig.AskShortcut.PANEL))));
 		Crest.setIconSource(itemManager::getImage);
 		WikiCards.install(okHttpClient);
 		AccountApi api = new AccountApi(okHttpClient, gson, this::serverUrl, config::token, () -> playerName);
@@ -1896,6 +1902,42 @@ public class AccountSyncPlugin extends Plugin
 	private void removeGatewayKey()
 	{
 		accountApi.setGatewayKey(null, r -> refreshUsage());
+	}
+
+	/** Save an in-game chat setting from the Settings page and show the new value. */
+	private void setChatSetting(String key, Object value)
+	{
+		configManager.setConfiguration(AccountSyncConfig.GROUP, key, value);
+		SwingUtilities.invokeLater(panel::onShown);
+	}
+
+	/** "Ctrl+B": Keybind's own text uses macOS symbols (⌃⇧⌥⌘) that the game font can't draw. */
+	static String shortcutText(net.runelite.client.config.Keybind k)
+	{
+		if (k == null || k.getKeyCode() == java.awt.event.KeyEvent.VK_UNDEFINED)
+		{
+			return "Not set";
+		}
+		StringBuilder sb = new StringBuilder();
+		int m = k.getModifiers();
+		if ((m & java.awt.event.InputEvent.CTRL_DOWN_MASK) != 0)
+		{
+			sb.append("Ctrl+");
+		}
+		if ((m & java.awt.event.InputEvent.ALT_DOWN_MASK) != 0)
+		{
+			sb.append(net.runelite.client.util.OSType.getOSType() == net.runelite.client.util.OSType.MacOS ? "Option+" : "Alt+");
+		}
+		if ((m & java.awt.event.InputEvent.SHIFT_DOWN_MASK) != 0)
+		{
+			sb.append("Shift+");
+		}
+		if ((m & java.awt.event.InputEvent.META_DOWN_MASK) != 0)
+		{
+			sb.append("Cmd+");
+		}
+		String key = java.awt.event.KeyEvent.getKeyText(k.getKeyCode());
+		return sb.append(key.length() == 1 && !Character.isLetterOrDigit(key.charAt(0)) ? "Key " + k.getKeyCode() : key).toString();
 	}
 
 	/** {id, name} for each connected AI app, or null if the server couldn't say. */

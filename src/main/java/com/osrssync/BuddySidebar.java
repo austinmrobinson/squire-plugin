@@ -155,7 +155,11 @@ class BuddySidebar extends PluginPanel
 		this.onWidthChosen = onWidthChosen;
 
 		setLayout(new BorderLayout(0, 4));
-		setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+		// A 1px line along the top in the same colour as RuneLite's line between the panel and the sidebar tabs
+		java.awt.Color edge = javax.swing.UIManager.getColor("TabbedPane.contentAreaColor");
+		setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createMatteBorder(1, 0, 0, 0, edge != null ? edge : net.runelite.client.ui.ColorScheme.DARK_GRAY_COLOR),
+			BorderFactory.createEmptyBorder(3, 4, 4, 4)));
 		setBackground(ChatComponents.BASE_BG);
 		installResizeGrip();
 

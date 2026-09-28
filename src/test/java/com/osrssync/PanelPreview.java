@@ -183,7 +183,8 @@ public class PanelPreview
 				ChatSessions sessions = new ChatSessions(() -> new ChatView(new ChatClient(new OkHttpClient(), new Gson(), () -> "http://127.0.0.1:1", () -> "x", () -> ModelCatalog.DEFAULT_ID), Map::of, models, () -> ChatView.AUTO_MODEL, id -> {}), null);
 				ChatView chat = sessions.current();
 				SettingsView settings = new SettingsView(() -> {}, () -> java.util.List.of(
-					new String[]{"::squire command", "On"}, new String[]{"Ask shortcut", "Ctrl+B"}, new String[]{"Shortcut opens", "Chatbox"}));
+					SettingsView.Item.choice("::squire command", "On", null, () -> {}), SettingsView.Item.shortcut("Ask shortcut", "Ctrl+B", null, k -> {}),
+					SettingsView.Item.choice("Shortcut opens", "Chatbox", null, () -> {})));
 				AccountApi api = new AccountApi(new OkHttpClient(), new Gson(), () -> "", () -> "", () -> null);
 				SkillIconManager icons = new SkillIconManager();
 				ProgressView progress = new ProgressView(skill -> icons.getSkillImage(skill, true), null);
