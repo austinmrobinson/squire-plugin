@@ -65,6 +65,18 @@ public interface AccountSyncConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "panelHotkey",
+		name = "Open panel shortcut",
+		description = "Opens the Squire panel. Shift-clicking the Squire chat tab does the same.",
+		section = inGameSection,
+		position = 13
+	)
+	default Keybind panelHotkey()
+	{
+		return new Keybind(java.awt.event.KeyEvent.VK_B, java.awt.event.InputEvent.CTRL_DOWN_MASK | java.awt.event.InputEvent.SHIFT_DOWN_MASK);
+	}
+
+	@ConfigItem(
 		keyName = "askHotkeyOpens",
 		name = "Shortcut opens",
 		description = "Ask in the chatbox, or open the Squire panel with the cursor in its chat",

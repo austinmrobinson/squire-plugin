@@ -34,6 +34,8 @@ class SquireChatTab
 	private final Runnable openPrompt;
 	private final Supplier<String> busyStatus;
 	private final Runnable rebuildChat;
+	private final Runnable openPanel;
+	private final Supplier<String> panelShortcut;
 
 	private Widget graphic;
 	private Widget name;
@@ -59,8 +61,10 @@ class SquireChatTab
 	 * @param busyStatus "Thinking" or "Observing" while that's happening, else null
 	 * @param rebuildChat redraws the chatbox (later, not from inside the game's click handler)
 	 */
-	SquireChatTab(Client client, Runnable openPrompt, Supplier<String> busyStatus, Runnable rebuildChat)
+	SquireChatTab(Client client, Runnable openPrompt, Supplier<String> busyStatus, Runnable rebuildChat, Runnable openPanel, Supplier<String> panelShortcut)
 	{
+		this.openPanel = openPanel;
+		this.panelShortcut = panelShortcut;
 		this.rebuildChat = rebuildChat;
 		this.client = client;
 		this.openPrompt = openPrompt;
@@ -195,17 +199,29 @@ class SquireChatTab
 		graphic.setName("");
 		graphic.setAction(0, "View Squire");
 		graphic.setAction(1, "Ask Squire");
+		graphic.setAction(2, panelAction());
 		graphic.setHasListener(true);
 		graphic.setOnOpListener((JavaScriptCallback) ev ->
 		{
 			switch (ev.getOp())
 			{
 				case 1:
-					// View: only Squire's lines, and the chatbox talks to Squire (see onChatboxInput)
-					setFocused(true);
+					// Shift-click opens the panel; a plain click shows only Squire's lines and the chatbox talks to
+					// Squire (see onChatboxInput)
+					if (client.isKeyPressed(net.runelite.api.KeyCode.KC_SHIFT))
+					{
+						openPanel.run();
+					}
+					else
+					{
+						setFocused(true);
+					}
 					break;
 				case 2:
 					openPrompt.run();
+					break;
+				case 3:
+					openPanel.run();
 					break;
 				default:
 					setFocused(false);
@@ -297,6 +313,13 @@ class SquireChatTab
 		}
 	}
 
+	/** "Open Squire panel", with its shortcut in grey (the menu shows it like a hint). */
+	private String panelAction()
+	{
+		String key = panelShortcut.get();
+		return "Open Squire panel" + (key == null || key.isEmpty() || key.equals("Not set") ? "" : " <col=9f9f9f>(" + key + " or shift-click)</col>");
+	}
+
 	/** The game's stone graphics: the one most tabs use (normal) and the odd one out (the selected tab). */
 	private int normalSprite = -1, selectedSprite = -1;
 
@@ -349,7 +372,8 @@ class SquireChatTab
 		name.setTextColor(WHITE);
 		if (graphic != null)
 		{
-			graphic.setAction(2, focused ? "Show all chat" : null);
+			graphic.setAction(2, panelAction());
+			graphic.setAction(3, focused ? "Show all chat" : null);
 			int sprite = focused && selectedSprite >= 0 ? selectedSprite : normalSprite;
 			if (sprite >= 0 && graphic.getSpriteId() != sprite)
 			{

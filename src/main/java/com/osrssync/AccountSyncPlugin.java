@@ -202,6 +202,27 @@ public class AccountSyncPlugin extends Plugin
 	private InGameChat inGameChat;
 
 	/** The Ask Squire shortcut: a chatbox prompt, or the panel with the cursor in its chat. */
+	/** Open the Squire panel (the shortcut, and shift-click on the chat tab). */
+	private void openPanel()
+	{
+		SwingUtilities.invokeLater(() ->
+		{
+			if (navButton != null)
+			{
+				clientToolbar.openPanel(navButton);
+			}
+		});
+	}
+
+	private final net.runelite.client.util.HotkeyListener panelHotkey = new net.runelite.client.util.HotkeyListener(() -> config.panelHotkey())
+	{
+		@Override
+		public void hotkeyPressed()
+		{
+			openPanel();
+		}
+	};
+
 	private final net.runelite.client.util.HotkeyListener askHotkey = new net.runelite.client.util.HotkeyListener(() -> config.askHotkey())
 	{
 		@Override
@@ -316,15 +337,19 @@ public class AccountSyncPlugin extends Plugin
 		// The Squire stone among the chatbox tabs: status, and a Squire-only view of the chat
 		chatTab = new SquireChatTab(client, () -> inGameChat.openPrompt(),
 			() -> recorder != null && recorder.recording() ? "Observing" : inGameChat != null && inGameChat.thinking() ? "Thinking" : null,
-			() -> clientThread.invokeLater(() -> client.runScript(net.runelite.api.ScriptID.BUILD_CHATBOX)));
+			() -> clientThread.invokeLater(() -> client.runScript(net.runelite.api.ScriptID.BUILD_CHATBOX)),
+			this::openPanel, () -> shortcutText(config.panelHotkey()));
 		InGameChat.onPrinted = () -> clientThread.invokeLater(() -> chatTab.onSquireLine());
 		keyManager.registerKeyListener(askHotkey);
+		keyManager.registerKeyListener(panelHotkey);
 		// In-game chat settings, editable right in the panel; each change re-renders Settings with the new value
 		panel = new SettingsView(this::requestFullUpdate, () -> List.of(
 			SettingsView.Item.choice("::squire command", config.chatCommand() ? "On" : "Off", "Click to turn ::squire on or off",
 				() -> setChatSetting("chatCommand", !config.chatCommand())),
 			SettingsView.Item.shortcut("Ask shortcut", shortcutText(config.askHotkey()),
 				"Click, then press a new shortcut (Esc cancels, Backspace clears)", k -> setChatSetting("askHotkey", k)),
+			SettingsView.Item.shortcut("Open panel shortcut", shortcutText(config.panelHotkey()),
+				"Click, then press a new shortcut (Esc cancels, Backspace clears)", k -> setChatSetting("panelHotkey", k)),
 			SettingsView.Item.choice("Shortcut opens", config.askHotkeyOpens() == AccountSyncConfig.AskShortcut.PANEL ? "Panel" : "Chatbox",
 				"Click to switch between asking in the chatbox and opening the panel",
 				() -> setChatSetting("askHotkeyOpens", config.askHotkeyOpens() == AccountSyncConfig.AskShortcut.PANEL
@@ -446,6 +471,7 @@ public class AccountSyncPlugin extends Plugin
 		}
 		clientToolbar.removeNavigation(navButton);
 		keyManager.unregisterKeyListener(askHotkey);
+		keyManager.unregisterKeyListener(panelHotkey);
 		inGameChat = null;
 		if (sessions != null)
 		{
