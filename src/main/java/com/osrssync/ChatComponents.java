@@ -85,6 +85,7 @@ final class ChatComponents
 		private Color fill;
 		private Color border;
 		private boolean bottomShadow;
+		private boolean sunken;
 
 		Surface(Color fill, int radius, boolean framed)
 		{
@@ -105,6 +106,13 @@ final class ChatComponents
 		Surface bottomShadow()
 		{
 			this.bottomShadow = true;
+			return this;
+		}
+
+		/** Pressed into the panel, like the game's text fields: dark top/left edge, light bottom/right. */
+		Surface sunken()
+		{
+			this.sunken = true;
 			return this;
 		}
 
@@ -146,6 +154,14 @@ final class ChatComponents
 			{
 				g2.setColor(border);
 				Pixel.draw(g2, inset, inset, w - 2 * inset, h - 2 * inset - lip, arc / 2.0);
+				if (sunken)
+				{
+					Pixel.bevel(g2, inset + 1, inset + 1, w - 2 * inset - 2, h - 2 * inset - lip - 2, arc / 2.0 - 1, CARD_DARK, CARD_LIGHT);
+				}
+			}
+			else if (framed && sunken)
+			{
+				Pixel.bevel(g2, inset, inset, w - 2 * inset, h - 2 * inset - lip, arc / 2.0, CARD_DARK, CARD_LIGHT);
 			}
 			else if (framed)
 			{

@@ -43,7 +43,7 @@ class FloatingAsk extends JPanel
 	/** Shadow margin around the box (the shadow paints outside it). */
 	static final int PAD = 16;
 
-	private final Surface box = new Surface(ChatComponents.CARD_BG, 8, false).border(ChatComponents.BORDER);
+	private final Surface box = new Surface(ChatComponents.CARD_BG, 8, false).border(ChatComponents.BORDER).sunken();
 	private final ChatView.PlaceholderTextArea input = new ChatView.PlaceholderTextArea("Ask anything...");
 	private final JScrollPane inputScroll = new JScrollPane(input);
 	private final ChatComponents.SendButton send = new ChatComponents.SendButton(true);

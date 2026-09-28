@@ -88,7 +88,7 @@ class ChatView extends JPanel
 	private final JTextArea input = new PlaceholderTextArea("Ask anything...");
 	private final SendButton sendButton = new SendButton();
 	private final JLabel modelPicker = new JLabel();
-	private final Surface composer = new Surface(ChatComponents.PANEL_BG, 8, false).border(ChatComponents.BORDER);
+	private final Surface composer = new Surface(ChatComponents.PANEL_BG, 8, false).border(ChatComponents.BORDER).sunken();
 	private final JScrollPane inputScroll = new JScrollPane(input);
 	private boolean multiline;
 	private final JLabel attachButton = new JLabel(SvgIcon.load("paperclip", 16, null));
