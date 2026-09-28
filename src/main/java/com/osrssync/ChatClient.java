@@ -24,7 +24,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * Talks to the RS Buddy agent (eve) over its session HTTP API: create a session, post messages,
+ * Talks to the Squire agent (eve) over its session HTTP API: create a session, post messages,
  * and follow the NDJSON event stream for each turn.
  */
 @Slf4j

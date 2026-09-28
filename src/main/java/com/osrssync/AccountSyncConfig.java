@@ -14,16 +14,16 @@ public interface AccountSyncConfig extends Config
 
 	@ConfigSection(
 		name = "In-game chat",
-		description = "Ask RS Buddy from the game's chatbox; replies appear there, visible only to you",
+		description = "Ask Squire from the game's chatbox; replies appear there, visible only to you",
 		position = 10
 	)
 	String inGameSection = "inGame";
 
-	/** What the Ask RS Buddy shortcut does. */
+	/** What the Ask Squire shortcut does. */
 	enum AskShortcut
 	{
 		CHATBOX("Ask in the chatbox"),
-		PANEL("Open the RS Buddy panel");
+		PANEL("Open the Squire panel");
 
 		private final String label;
 
@@ -41,9 +41,9 @@ public interface AccountSyncConfig extends Config
 
 	@ConfigItem(
 		keyName = "chatCommand",
-		name = "::buddy command",
-		description = "Type ::buddy followed by a question in the chatbox to ask RS Buddy. Nothing is sent to the game; "
-			+ "the reply shows in your chatbox and in the RS Buddy panel.",
+		name = "::squire command",
+		description = "Type ::squire followed by a question in the chatbox to ask Squire. Nothing is sent to the game; "
+			+ "the reply shows in your chatbox and in the Squire panel.",
 		section = inGameSection,
 		position = 11
 	)
@@ -55,7 +55,7 @@ public interface AccountSyncConfig extends Config
 	@ConfigItem(
 		keyName = "askHotkey",
 		name = "Ask shortcut",
-		description = "Opens an \"Ask RS Buddy\" prompt in the chatbox (or the panel, below). Ignored while you're typing a message.",
+		description = "Opens an \"Ask Squire\" prompt in the chatbox (or the panel, below). Ignored while you're typing a message.",
 		section = inGameSection,
 		position = 12
 	)
@@ -67,7 +67,7 @@ public interface AccountSyncConfig extends Config
 	@ConfigItem(
 		keyName = "askHotkeyOpens",
 		name = "Shortcut opens",
-		description = "Ask in the chatbox, or open the RS Buddy panel with the cursor in its chat",
+		description = "Ask in the chatbox, or open the Squire panel with the cursor in its chat",
 		section = inGameSection,
 		position = 13
 	)
@@ -76,12 +76,12 @@ public interface AccountSyncConfig extends Config
 		return AskShortcut.CHATBOX;
 	}
 
-	/** The public RS Buddy server. Self-hosters set their own in Advanced. */
+	/** The public Squire server. Self-hosters set their own in Advanced. */
 	String DEFAULT_SERVER = "https://rs-buddy.vercel.app";
 
 	@ConfigSection(
 		name = "Advanced",
-		description = "For running your own RS Buddy server",
+		description = "For running your own Squire server",
 		position = 90,
 		closedByDefault = true
 	)
@@ -89,8 +89,8 @@ public interface AccountSyncConfig extends Config
 
 	@ConfigItem(
 		keyName = "enabled",
-		name = "RS Buddy is on",
-		description = "Set when you turn RS Buddy on from its Home page; nothing is sent before that",
+		name = "Squire is on",
+		description = "Set when you turn Squire on from its Home page; nothing is sent before that",
 		hidden = true
 	)
 	default boolean enabled()
@@ -115,7 +115,7 @@ public interface AccountSyncConfig extends Config
 	@ConfigItem(
 		keyName = "endpoint",
 		name = "Server URL",
-		description = "Leave blank for the public RS Buddy server, or set your own (see the project's README)",
+		description = "Leave blank for the public Squire server, or set your own (see the project's README)",
 		section = advancedSection,
 		position = 91
 	)
@@ -127,7 +127,7 @@ public interface AccountSyncConfig extends Config
 	@ConfigItem(
 		keyName = "token",
 		name = "Access token",
-		description = "Filled in automatically when you turn RS Buddy on. On your own server this can be its INGEST_TOKEN.",
+		description = "Filled in automatically when you turn Squire on. On your own server this can be its INGEST_TOKEN.",
 		secret = true,
 		section = advancedSection,
 		position = 92
@@ -164,7 +164,7 @@ public interface AccountSyncConfig extends Config
 	@ConfigItem(
 		keyName = "panelWidth",
 		name = "Panel width",
-		description = "Width of the RS Buddy panel; drag its left edge to change",
+		description = "Width of the Squire panel; drag its left edge to change",
 		hidden = true
 	)
 	default int panelWidth()
@@ -175,7 +175,7 @@ public interface AccountSyncConfig extends Config
 	@ConfigItem(
 		keyName = "model",
 		name = "Chat model",
-		description = "Model RS Buddy uses; pick it from the chat's model menu",
+		description = "Model Squire uses; pick it from the chat's model menu",
 		hidden = true
 	)
 	default String model()

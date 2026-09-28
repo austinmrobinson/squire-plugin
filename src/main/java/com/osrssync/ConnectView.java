@@ -25,7 +25,7 @@ import javax.swing.Timer;
 import net.runelite.client.ui.FontManager;
 
 /**
- * Connect another AI app (Claude, ChatGPT, Cursor, ...) to RS Buddy's MCP server: the connector URL to add, and a
+ * Connect another AI app (Claude, ChatGPT, Cursor, ...) to Squire's MCP server: the connector URL to add, and a
  * one-time pairing code to type when the app asks you to sign in. Watches for the new connection while it's open.
  */
 class ConnectView extends JPanel
@@ -124,7 +124,7 @@ class ConnectView extends JPanel
 		list.add(ChatComponents.place(status, Align.FILL, 14));
 
 		list.add(ChatComponents.place(new Wrapped(
-			"The app can read your synced account and use RS Buddy's OSRS tools. It can't do anything in your game. "
+			"The app can read your synced account and use Squire's OSRS tools. It can't do anything in your game. "
 				+ "Disconnect it any time in Settings.", ChatComponents.MUTED, false), Align.FILL, 14));
 	}
 

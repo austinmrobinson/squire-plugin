@@ -175,7 +175,7 @@ class ActivityView extends JPanel
 		else if (offset == 0)
 		{
 			list.add(ChatComponents.place(message("Nothing tracked " + (range == 0 ? "today" : "this " + RANGES[range])
-				+ " yet. RS Buddy notes what you're doing each minute you play: the monster you're fighting, the skill you're training, or **Other**. "
+				+ " yet. Squire notes what you're doing each minute you play: the monster you're fighting, the skill you're training, or **Other**. "
 				+ "Idle minutes aren't counted."), Align.FILL, 8));
 		}
 		relayout();

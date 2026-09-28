@@ -26,7 +26,7 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.LinkBrowser;
 
 /**
- * Shown until the player turns RS Buddy on: what it can do, a short note on what it sends to the RS Buddy server
+ * Shown until the player turns Squire on: what it can do, a short note on what it sends to the Squire server
  * (with the privacy page for the details), and Continue, which signs this install up and starts syncing.
  * Nothing is sent before that.
  */
@@ -52,13 +52,13 @@ class WelcomeView extends JPanel
 		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		add(scroll);
 
-		JLabel icon = new JLabel(new ImageIcon(BuddyIcon.create(40)), SwingConstants.CENTER);
+		JLabel icon = new JLabel(new ImageIcon(SquireIcon.create(52)), SwingConstants.CENTER);
 		list.add(ChatComponents.place(icon, Align.FILL, 0));
-		JLabel title = new JLabel("Welcome to RS Buddy", SwingConstants.CENTER);
+		JLabel title = new JLabel("Meet Squire", SwingConstants.CENTER);
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(Color.WHITE);
 		list.add(ChatComponents.place(title, Align.FILL, 10));
-		Wrapped intro = new Wrapped("An AI sidekick that knows your account.", ChatComponents.MUTED, true);
+		Wrapped intro = new Wrapped("Your OSRS companion. It knows your account and helps you gear up and prepare.", ChatComponents.MUTED, true);
 		list.add(ChatComponents.place(intro, Align.FILL, 4));
 
 		list.add(ChatComponents.place(new Feature("progress", "Know what to do next",
@@ -68,13 +68,13 @@ class WelcomeView extends JPanel
 		list.add(ChatComponents.place(new Feature("skull", "Boss setups",
 			"Inventories for your next boss that you can export to Inventory Setups and Bank Tags."), Align.FILL, 16));
 		list.add(ChatComponents.place(new Feature("chat-bubble", "Ask from the game",
-			"Type ::buddy or press Ctrl+B to ask without leaving the chatbox."), Align.FILL, 16));
+			"Type ::squire or press Ctrl+B to ask without leaving the chatbox."), Align.FILL, 16));
 
 		// Bottom: the disclosure sits just above the button, like a system onboarding sheet
 		MessageList bottom = new MessageList(null, 0);
 		bottom.setBorder(BorderFactory.createEmptyBorder(4, 8, 14, 8));
 		Wrapped disclosure = new Wrapped(
-			"RS Buddy sends your character name, progress, bank, gear, location and messages to the RS Buddy server, "
+			"Squire sends your character name, progress, bank, gear, location and messages to the Squire server, "
 				+ "where an AI model answers you. Never your password or other players' data. "
 				+ "You can delete it all from Settings.", ChatComponents.MUTED, true);
 		bottom.add(ChatComponents.place(disclosure, Align.FILL, 0));

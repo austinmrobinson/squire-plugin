@@ -70,7 +70,7 @@ public class InGameCheck
 		}
 		String r = reply.get() == null ? "" : reply.get();
 		System.out.println("\nReply as chat lines:");
-		InGameChat.toChatLines(r).forEach(l -> System.out.println("  RS Buddy | " + l));
+		InGameChat.toChatLines(r).forEach(l -> System.out.println("  Squire | " + l));
 		check("got a reply", !r.isEmpty() && !r.startsWith("ERROR"));
 		check("fits the chatbox (<= 5 lines)", InGameChat.toChatLines(r.replace("\n[more in panel]", "")).size() <= 5);
 		check("no interim narration", !r.toLowerCase().matches("(?s).*(let me|i'll check|checking).*"));

@@ -39,7 +39,7 @@ class ChatTrace
 	{
 		final String title;
 		final String url;
-		/** Who it's from: "OSRS Wiki", "Wiki prices", "RS Buddy" (the player's synced data), ... */
+		/** Who it's from: "OSRS Wiki", "Wiki prices", "Squire" (the player's synced data), ... */
 		final String origin;
 
 		Source(String title, String url, String origin)
@@ -222,7 +222,7 @@ class ChatTrace
 			}
 			return;
 		}
-		// RS Buddy's own tools (the player's synced data, the calculators) aren't listed as sources:
+		// Squire's own tools (the player's synced data, the calculators) aren't listed as sources:
 		// the Steps line already shows they were used. Sources are what came from outside.
 		if (tool.equals("wiki_read") && data != null && data.isJsonObject())
 		{

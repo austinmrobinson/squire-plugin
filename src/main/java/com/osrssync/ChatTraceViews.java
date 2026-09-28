@@ -433,7 +433,7 @@ final class ChatTraceViews
 			g2.dispose();
 		}
 
-		/** A round badge for where sources came from: the wiki's logo, RS Buddy's icon, or a letter. */
+		/** A round badge for where sources came from: the wiki's logo, Squire's icon, or a letter. */
 		private void paintOrigin(Graphics2D g2, String origin, int x, int y)
 		{
 			Ellipse2D circle = new Ellipse2D.Double(x, y, ICON, ICON);

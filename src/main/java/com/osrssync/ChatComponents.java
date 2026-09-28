@@ -34,7 +34,7 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.LinkBrowser;
 
 /**
- * Building blocks for the RS Buddy panel, following the Figma design:
+ * Building blocks for the Squire panel, following the Figma design:
  * framed surfaces (fill + faint inner border + dark outer outline), a width-tracking message list,
  * a beveled send button, icon buttons and tabs.
  */
@@ -49,8 +49,8 @@ final class ChatComponents
 	static final Color USER_BG = new Color(0x444444);
 	static final Color ERROR_BG = new Color(0x4A2020);
 	static final Color BORDER = ColorScheme.MEDIUM_GRAY_COLOR; // #4d4d4d
-	static final Color ACCENT = ColorScheme.BRAND_ORANGE; // #dc8a00
-	static final Color ACCENT_DARK = new Color(0xA56800);
+	static final Color ACCENT = new Color(0x4454DA); // Squire blue, a shade lighter than the plume
+	static final Color ACCENT_DARK = new Color(0x2F3AA6);
 	static final Color MUTED = new Color(0x9A9A9A);
 	static final Color OUTLINE = new Color(0, 0, 0, 128);
 	static final Color HAIRLINE = new Color(255, 255, 255, 13);

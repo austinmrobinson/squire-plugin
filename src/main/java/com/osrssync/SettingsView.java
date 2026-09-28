@@ -29,7 +29,7 @@ class SettingsView extends javax.swing.JPanel
 	/** The sync headline ("Last synced 08:41:12") and any details from the last sync ("Kill counts: 58"). */
 	private String syncHeadline = "Not synced yet this session";
 	private final List<String[]> syncDetails = new ArrayList<>();
-	// This install on the RS Buddy server: today's messages, personal key, and the delete button
+	// This install on the Squire server: today's messages, personal key, and the delete button
 	private String usageLine = "Loading...";
 	private boolean personalKey;
 	private Runnable onDeleteData = () -> {};
@@ -190,9 +190,9 @@ class SettingsView extends javax.swing.JPanel
 			}
 			list.add(ChatComponents.place(c, Align.FILL, 4));
 		}
-		note("Change the shortcut and sync delay, or add your own AI Gateway key, in RuneLite's plugin settings (the wrench icon, then RS Buddy).");
+		note("Change the shortcut and sync delay, or add your own AI Gateway key, in RuneLite's plugin settings (the wrench icon, then Squire).");
 
-		// Other AI apps using RS Buddy's tools (MCP connectors)
+		// Other AI apps using Squire's tools (MCP connectors)
 		group("Connected apps");
 		Surface conn = HomeView.listCard();
 		for (String[] app : apps)
@@ -211,9 +211,9 @@ class SettingsView extends javax.swing.JPanel
 		}
 		conn.add(row("Connect an AI app", null, "Use your account in Claude, ChatGPT, Cursor and other AI apps", onConnect));
 		list.add(ChatComponents.place(conn, Align.FILL, 4));
-		note("Let Claude, ChatGPT, Cursor or another AI app read your synced account with RS Buddy's tools.");
+		note("Let Claude, ChatGPT, Cursor or another AI app read your synced account with Squire's tools.");
 
-		// Your data on the RS Buddy server
+		// Your data on the Squire server
 		group("Your data");
 		Surface data = HomeView.listCard();
 		data.add(row("Messages today", usageLine, null, null));
@@ -223,10 +223,10 @@ class SettingsView extends javax.swing.JPanel
 			data.add(row("Remove your AI Gateway key", null, "Go back to the free daily messages", onRemoveKey));
 		}
 		data.add(HomeView.divider());
-		data.add(row("Delete my data", null, "Delete everything RS Buddy stored for you", () ->
+		data.add(row("Delete my data", null, "Delete everything Squire stored for you", () ->
 		{
 			int answer = javax.swing.JOptionPane.showConfirmDialog(this,
-				"Delete everything RS Buddy stored for you (account data, the assistant's notes and chat history)?\nThis turns RS Buddy off and can't be undone.",
+				"Delete everything Squire stored for you (account data, the assistant's notes and chat history)?\nThis turns Squire off and can't be undone.",
 				"Delete my data", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE);
 			if (answer == javax.swing.JOptionPane.OK_OPTION)
 			{
@@ -234,7 +234,7 @@ class SettingsView extends javax.swing.JPanel
 			}
 		}));
 		list.add(ChatComponents.place(data, Align.FILL, 4));
-		note("Deleting removes your data from the RS Buddy server and your chat history from this computer.");
+		note("Deleting removes your data from the Squire server and your chat history from this computer.");
 
 		list.revalidate();
 		list.repaint();

@@ -33,7 +33,7 @@ final class Ui
 {
 	/** Activity colours, in rank order; "Other" is always grey. */
 	private static final Color[] PALETTE = {
-		ChatComponents.ACCENT, new Color(0x3F8FD6), new Color(0x3FA33F), new Color(0xC9483F), new Color(0x8F6AD8),
+		ChatComponents.ACCENT, new Color(0xE0922F), new Color(0x3FA33F), new Color(0xC9483F), new Color(0xB064C8),
 	};
 	static final Color OTHER = new Color(0x6B6B6B);
 

@@ -18,14 +18,14 @@ import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.Text;
 
 /**
- * Talking to RS Buddy from the game's chatbox: "::buddy <question>" or the Ask shortcut's prompt. Nothing is sent
+ * Talking to Squire from the game's chatbox: "::squire <question>" or the Ask shortcut's prompt. Nothing is sent
  * to the game: RuneLite keeps "::" commands to itself, and replies are local console lines only this player sees.
  * The questions and replies also live in an "In-game" conversation in the panel, where sources, hover cards and
  * setups to copy are shown in full.
  */
 class InGameChat
 {
-	private static final Color NAME = new Color(0xDC8A00);
+	private static final Color NAME = new Color(0x3F52D6);
 	private static final Color MUTED = new Color(0x9A9A9A);
 	/** A chatbox answer longer than this many lines is cut short with a pointer to the panel. */
 	private static final int MAX_LINES = 5;
@@ -45,7 +45,7 @@ class InGameChat
 		this.sessions = sessions;
 	}
 
-	/** The shortcut: open an "Ask RS Buddy" prompt in the chatbox. Client thread. */
+	/** The shortcut: open an "Ask Squire" prompt in the chatbox. Client thread. */
 	void openPrompt()
 	{
 		if (client.getGameState() != GameState.LOGGED_IN || chatbox.getCurrentInput() != null)
@@ -58,7 +58,7 @@ class InGameChat
 		{
 			return;
 		}
-		chatbox.openTextInput("Ask RS Buddy:")
+		chatbox.openTextInput("Ask Squire:")
 			.onDone((Consumer<String>) this::ask)
 			.build();
 	}
@@ -71,7 +71,7 @@ class InGameChat
 		{
 			return;
 		}
-		print(ColorUtil.wrapWithColorTag("You asked RS Buddy: ", MUTED) + Text.escapeJagex(q));
+		print(ColorUtil.wrapWithColorTag("You asked Squire: ", MUTED) + Text.escapeJagex(q));
 		SwingUtilities.invokeLater(() ->
 		{
 			ChatSessions s = sessions.get();
@@ -82,7 +82,7 @@ class InGameChat
 			ChatView view = s.inGame(v -> v.setInGame(
 				Map.of("replyIn", "game chatbox",
 					"replyGuide", "The player asked in the game's chatbox; the answer is shown there as plain text lines. "
-						+ "Answer in 1-3 short sentences with no lists, headings or markdown. The full reply is also in their RS Buddy panel."),
+						+ "Answer in 1-3 short sentences with no lists, headings or markdown. The full reply is also in their Squire panel."),
 				new ChatView.ReplyListener()
 				{
 					@Override
@@ -94,15 +94,15 @@ class InGameChat
 					@Override
 					public void error(String message)
 					{
-						print(ColorUtil.wrapWithColorTag("RS Buddy: ", NAME) + ColorUtil.wrapWithColorTag(Text.escapeJagex(message), MUTED));
+						print(ColorUtil.wrapWithColorTag("Squire: ", NAME) + ColorUtil.wrapWithColorTag(Text.escapeJagex(message), MUTED));
 					}
 				}));
 			if (view.isBusy())
 			{
-				print(ColorUtil.wrapWithColorTag("RS Buddy is still answering your last question.", MUTED));
+				print(ColorUtil.wrapWithColorTag("Squire is still answering your last question.", MUTED));
 				return;
 			}
-			print(ColorUtil.wrapWithColorTag("RS Buddy is thinking...", MUTED));
+			print(ColorUtil.wrapWithColorTag("Squire is thinking...", MUTED));
 			view.sendMessage(q);
 		});
 	}
@@ -115,15 +115,15 @@ class InGameChat
 		for (int i = 0; i < shown.size(); i++)
 		{
 			String line = Text.escapeJagex(shown.get(i));
-			print(i == 0 ? ColorUtil.wrapWithColorTag("RS Buddy: ", NAME) + line : line);
+			print(i == 0 ? ColorUtil.wrapWithColorTag("Squire: ", NAME) + line : line);
 		}
 		if (shown.isEmpty())
 		{
-			print(ColorUtil.wrapWithColorTag("RS Buddy: ", NAME) + ColorUtil.wrapWithColorTag("(no reply)", MUTED));
+			print(ColorUtil.wrapWithColorTag("Squire: ", NAME) + ColorUtil.wrapWithColorTag("(no reply)", MUTED));
 		}
 		if (cut || more)
 		{
-			print(ColorUtil.wrapWithColorTag("Full answer in the RS Buddy panel.", MUTED));
+			print(ColorUtil.wrapWithColorTag("Full answer in the Squire panel.", MUTED));
 		}
 	}
 

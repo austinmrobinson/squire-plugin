@@ -302,7 +302,7 @@ class HomeView extends JPanel
 		return p;
 	}
 
-	/** The chathead in a sunken square, like the game's dialogue portrait; the RS Buddy icon until it's ready. */
+	/** The chathead in a sunken square, like the game's dialogue portrait; the Squire icon until it's ready. */
 	private static final class Portrait extends JComponent
 	{
 		private static final int SIZE = 56;
@@ -333,7 +333,7 @@ class HomeView extends JPanel
 				g2.fillRoundRect(0, 0, SIZE, SIZE, 12, 12);
 				g2.setColor(ChatComponents.OUTLINE);
 				g2.drawRoundRect(0, 0, SIZE - 1, SIZE - 1, 12, 12);
-				java.awt.image.BufferedImage icon = BuddyIcon.create(28);
+				java.awt.image.BufferedImage icon = SquireIcon.create(28);
 				g2.drawImage(icon, (SIZE - icon.getWidth()) / 2, (SIZE - icon.getHeight()) / 2, null);
 			}
 			g2.dispose();

@@ -183,7 +183,7 @@ public class PanelPreview
 				ChatSessions sessions = new ChatSessions(() -> new ChatView(new ChatClient(new OkHttpClient(), new Gson(), () -> "http://127.0.0.1:1", () -> "x", () -> ModelCatalog.DEFAULT_ID), Map::of, models, () -> ChatView.AUTO_MODEL, id -> {}), null);
 				ChatView chat = sessions.current();
 				SettingsView settings = new SettingsView(() -> {}, () -> java.util.List.of(
-					new String[]{"::buddy command", "On"}, new String[]{"Ask shortcut", "Ctrl+B"}, new String[]{"Shortcut opens", "Chatbox"}));
+					new String[]{"::squire command", "On"}, new String[]{"Ask shortcut", "Ctrl+B"}, new String[]{"Shortcut opens", "Chatbox"}));
 				AccountApi api = new AccountApi(new OkHttpClient(), new Gson(), () -> "", () -> "", () -> null);
 				SkillIconManager icons = new SkillIconManager();
 				ProgressView progress = new ProgressView(skill -> icons.getSkillImage(skill, true), null);
@@ -391,14 +391,14 @@ public class PanelPreview
 					render(stageLayer, new File(out, "9f-transition-mid.png"));
 				}
 
-				// Before the player turns RS Buddy on: the Welcome page
+				// Before the player turns Squire on: the Welcome page
 				sidebar.setTurnedOn(false, new WelcomeView("https://example.com/privacy", done -> {}));
 				renderSized(sidebar, new File(out, "11-welcome.png"), BuddySidebar.DEFAULT_WIDTH, 760);
 				sidebar.setTurnedOn(true, null);
 				settings.setUsage("12 of 30 free", false);
 				sidebar.showPage("settings");
 				renderSized(sidebar, new File(out, "11b-settings-data.png"), BuddySidebar.DEFAULT_WIDTH, 760);
-				ImageIO.write(BuddyIcon.create(48), "png", new File(out, "icon.png"));
+				ImageIO.write(SquireIcon.create(48), "png", new File(out, "icon.png"));
 				settings.setConnectedApps(java.util.List.<String[]>of(new String[]{"c1", "Claude"}));
 				renderSized(sidebar, new File(out, "11c-settings-apps.png"), BuddySidebar.DEFAULT_WIDTH, 1100);
 				sidebar.setConnectView(new ConnectView(new ConnectView.Source()

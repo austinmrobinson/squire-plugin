@@ -60,7 +60,7 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * RS Buddy chat: messages in an inset card, a grooved typing row, and a composer with the
+ * Squire chat: messages in an inset card, a grooved typing row, and a composer with the
  * model picker and a beveled send button.
  */
 class ChatView extends JPanel
@@ -121,7 +121,7 @@ class ChatView extends JPanel
 	private final List<com.google.gson.JsonObject> turns = new ArrayList<>();
 	/** Told when the conversation changes (a message sent or answered) or starts/stops working. */
 	private Runnable onChanged = () -> {};
-	/** Started from the game's chatbox (::buddy or the shortcut); its replies are echoed there. */
+	/** Started from the game's chatbox (::squire or the shortcut); its replies are echoed there. */
 	private boolean inGame;
 	private Map<String, Object> extraContext = Map.of();
 	private ReplyListener replyListener;
@@ -347,7 +347,7 @@ class ChatView extends JPanel
 		{
 			String role = t.has("role") ? t.get("role").getAsString() : "";
 			String text = t.has("text") ? t.get("text").getAsString() : "";
-			sb.append("user".equals(role) ? "**You:** " : "error".equals(role) ? "**Error:** " : "**RS Buddy:** ").append(text).append("\n\n");
+			sb.append("user".equals(role) ? "**You:** " : "error".equals(role) ? "**Error:** " : "**Squire:** ").append(text).append("\n\n");
 		}
 		return sb.toString().trim();
 	}
@@ -368,7 +368,7 @@ class ChatView extends JPanel
 			{
 				text = text.substring(0, RECAP_CHARS) + " [...]";
 			}
-			sb.append("user".equals(role) ? "Player: " : "RS Buddy: ").append(text).append("\n\n");
+			sb.append("user".equals(role) ? "Player: " : "Squire: ").append(text).append("\n\n");
 		}
 		return sb.toString().trim();
 	}
@@ -512,12 +512,12 @@ class ChatView extends JPanel
 		col.setOpaque(false);
 		col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
 
-		JLabel icon = new JLabel(new ImageIcon(BuddyIcon.create(32)));
+		JLabel icon = new JLabel(new ImageIcon(SquireIcon.create(32)));
 		icon.setAlignmentX(Component.CENTER_ALIGNMENT);
 		col.add(icon);
 		col.add(Box.createVerticalStrut(10));
 
-		JLabel title = new JLabel("Ask RS Buddy");
+		JLabel title = new JLabel("Ask Squire");
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(Color.WHITE);
 		title.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -1397,7 +1397,7 @@ class ChatView extends JPanel
 		return message == null || message.isBlank() ? "Something went wrong." : message;
 	}
 
-	/** Full-width row between grooved dividers: animated dots plus what RS Buddy is doing. */
+	/** Full-width row between grooved dividers: animated dots plus what Squire is doing. */
 	static class TypingRow extends JPanel
 	{
 		private static final float[][] FRAMES = {{1f, 0.6f, 0.3f}, {0.3f, 1f, 0.6f}, {0.6f, 0.3f, 1f}};

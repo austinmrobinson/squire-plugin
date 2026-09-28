@@ -80,8 +80,8 @@ import okhttp3.ResponseBody;
 
 @Slf4j
 @PluginDescriptor(
-	name = "RS Buddy",
-	description = "Chat with an AI sidekick that knows your account: stats, gear, quests, diaries, clog and KC",
+	name = "Squire",
+	description = "Your OSRS companion: an AI that knows your account and helps you plan, gear up and prepare for bosses",
 	tags = {"sync", "database", "export", "api", "mcp"}
 )
 public class AccountSyncPlugin extends Plugin
@@ -201,7 +201,7 @@ public class AccountSyncPlugin extends Plugin
 
 	private InGameChat inGameChat;
 
-	/** The Ask RS Buddy shortcut: a chatbox prompt, or the panel with the cursor in its chat. */
+	/** The Ask Squire shortcut: a chatbox prompt, or the panel with the cursor in its chat. */
 	private final net.runelite.client.util.HotkeyListener askHotkey = new net.runelite.client.util.HotkeyListener(() -> config.askHotkey())
 	{
 		@Override
@@ -315,7 +315,7 @@ public class AccountSyncPlugin extends Plugin
 		inGameChat = new InGameChat(client, chatMessageManager, chatboxPanelManager, () -> sessions);
 		keyManager.registerKeyListener(askHotkey);
 		panel = new SettingsView(this::requestFullUpdate, () -> List.of(
-			new String[]{"::buddy command", config.chatCommand() ? "On" : "Off"},
+			new String[]{"::squire command", config.chatCommand() ? "On" : "Off"},
 			new String[]{"Ask shortcut", config.askHotkey().toString()},
 			new String[]{"Shortcut opens", config.askHotkeyOpens() == AccountSyncConfig.AskShortcut.PANEL ? "Panel" : "Chatbox"}));
 		Crest.setIconSource(itemManager::getImage);
@@ -330,7 +330,7 @@ public class AccountSyncPlugin extends Plugin
 			progressView, activityView, sessions, panel, config.panelWidth(),
 			w -> configManager.setConfiguration(AccountSyncConfig.GROUP, "panelWidth", w));
 		models.refresh(options -> SwingUtilities.invokeLater(() -> sessions.forEachView(ChatView::refreshModelLabel)));
-		// Nothing is sent until the player turns RS Buddy on from the Welcome page
+		// Nothing is sent until the player turns Squire on from the Welcome page
 		sidebar.setTurnedOn(isTurnedOn(), new WelcomeView(serverUrl() + "/privacy", this::turnOn));
 		// Other AI apps (MCP connectors): Settings lists them, the Connect page pairs a new one
 		sidebar.setConnectView(new ConnectView(new ConnectView.Source()
@@ -367,8 +367,8 @@ public class AccountSyncPlugin extends Plugin
 		panel.setConnectActions(() -> sidebar.showPage("connect"),
 			id -> accountApi.disconnect(id, r -> refreshConnections()));
 		navButton = NavigationButton.builder()
-			.tooltip("RS Buddy")
-			.icon(BuddyIcon.create())
+			.tooltip("Squire")
+			.icon(SquireIcon.create())
 			.priority(10)
 			.panel(sidebar)
 			.build();
@@ -536,11 +536,11 @@ public class AccountSyncPlugin extends Plugin
 		return chatContext;
 	}
 
-	/** "::buddy <question>" in the chatbox asks RS Buddy; "::buddy" alone opens the prompt. Never sent to the game. */
+	/** "::squire <question>" in the chatbox asks Squire; "::squire" alone opens the prompt. Never sent to the game. */
 	@Subscribe
 	public void onCommandExecuted(net.runelite.api.events.CommandExecuted event)
 	{
-		if (!config.chatCommand() || inGameChat == null || !"buddy".equalsIgnoreCase(event.getCommand()))
+		if (!config.chatCommand() || inGameChat == null || !"squire".equalsIgnoreCase(event.getCommand()))
 		{
 			return;
 		}
@@ -1796,7 +1796,7 @@ public class AccountSyncPlugin extends Plugin
 	{
 		chatMessageManager.queue(net.runelite.client.chat.QueuedMessage.builder()
 			.type(net.runelite.api.ChatMessageType.CONSOLE)
-			.runeLiteFormattedMessage("RS Buddy is off. Turn it on from its sidebar panel first.")
+			.runeLiteFormattedMessage("Squire is off. Turn it on from its sidebar panel first.")
 			.build());
 	}
 
@@ -1805,7 +1805,7 @@ public class AccountSyncPlugin extends Plugin
 		return config.enabled();
 	}
 
-	/** The RS Buddy server: the public one unless the player set their own (Advanced). */
+	/** The Squire server: the public one unless the player set their own (Advanced). */
 	String serverUrl()
 	{
 		String url = config.endpoint().trim();
@@ -1849,7 +1849,7 @@ public class AccountSyncPlugin extends Plugin
 		}));
 	}
 
-	/** Settings' "Delete my data": delete it on the server, then locally, and turn RS Buddy off. */
+	/** Settings' "Delete my data": delete it on the server, then locally, and turn Squire off. */
 	private void deleteMyData()
 	{
 		accountApi.deleteMe(r -> SwingUtilities.invokeLater(() ->
@@ -1889,7 +1889,7 @@ public class AccountSyncPlugin extends Plugin
 		}
 		catch (IOException e)
 		{
-			log.warn("Couldn't delete local RS Buddy data", e);
+			log.warn("Couldn't delete local Squire data", e);
 		}
 	}
 
@@ -1937,7 +1937,7 @@ public class AccountSyncPlugin extends Plugin
 		refreshConnections();
 		if (!isConfigured())
 		{
-			panel.setUsage("RS Buddy is off", false);
+			panel.setUsage("Squire is off", false);
 			return;
 		}
 		accountApi.me(r ->

@@ -119,7 +119,7 @@ class AccountApi
 		HttpUrl base = HttpUrl.parse(endpoint.get().trim());
 		if (base == null || token.get().isBlank())
 		{
-			callback.accept(new Result(null, "RS Buddy isn't turned on yet."));
+			callback.accept(new Result(null, "Squire isn't turned on yet."));
 			return;
 		}
 		okhttp3.RequestBody payload = body == null ? null : okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"), gson.toJson(body));
@@ -184,7 +184,7 @@ class AccountApi
 		HttpUrl base = HttpUrl.parse(endpoint.get().trim());
 		if (base == null || token.get().isBlank())
 		{
-			callback.accept(new Result(null, "Turn on RS Buddy on the Home page to sync your account."));
+			callback.accept(new Result(null, "Turn on Squire on the Home page to sync your account."));
 			return;
 		}
 		HttpUrl.Builder url = base.newBuilder().addPathSegments(path);
@@ -214,7 +214,7 @@ class AccountApi
 					ResponseBody body = response.body();
 					if (response.code() == 401)
 					{
-						callback.accept(new Result(null, "The server didn't recognise this install. Turn RS Buddy off and on again in settings."));
+						callback.accept(new Result(null, "The server didn't recognise this install. Turn Squire off and on again in settings."));
 					}
 					else if (response.code() == 404)
 					{

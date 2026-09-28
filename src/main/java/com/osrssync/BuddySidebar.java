@@ -37,7 +37,7 @@ class BuddySidebar extends PluginPanel
 {
 	private enum Page
 	{
-		HOME("RS Buddy"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), WELCOME("RS Buddy");
+		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), WELCOME("Squire");
 
 		final String title;
 
@@ -224,7 +224,7 @@ class BuddySidebar extends PluginPanel
 	}
 
 	/**
-	 * Before the player turns RS Buddy on, only the Welcome page shows (nothing is sent until then); after, Home.
+	 * Before the player turns Squire on, only the Welcome page shows (nothing is sent until then); after, Home.
 	 */
 	void setTurnedOn(boolean on, JComponent welcome)
 	{
