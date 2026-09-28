@@ -391,6 +391,14 @@ public class PanelPreview
 					render(stageLayer, new File(out, "9f-transition-mid.png"));
 				}
 
+				// Before the player turns RS Buddy on: the Welcome page
+				sidebar.setTurnedOn(false, new WelcomeView("https://example.com/privacy", done -> {}));
+				renderSized(sidebar, new File(out, "11-welcome.png"), BuddySidebar.DEFAULT_WIDTH, 760);
+				sidebar.setTurnedOn(true, null);
+				settings.setUsage("12 of 30 free", false);
+				sidebar.showPage("settings");
+				renderSized(sidebar, new File(out, "11b-settings-data.png"), BuddySidebar.DEFAULT_WIDTH, 760);
+
 
 				JComponent card = WikiCards.preview(new WikiCards.Card("Vorkath", WikiCards.WIKI + "Vorkath",
 					"Vorkath is a draconic boss-monster first encountered during the Dragon Slayer II quest. After the quest, players can fight it again on Ungael.", "https://oldschool.runescape.wiki/images/thumb/Vorkath.png/120px-Vorkath.png"));

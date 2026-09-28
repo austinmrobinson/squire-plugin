@@ -60,12 +60,101 @@ class AccountApi
 		get("api/activity", Map.of("range", range, "offset", String.valueOf(offset), "tz", ZoneId.systemDefault().getId()), callback);
 	}
 
+	/** This install's daily allowance and linked accounts. */
+	void me(Consumer<Result> callback)
+	{
+		send("GET", "api/me", null, callback);
+	}
+
+	/** Delete this install and everything it synced from the server. */
+	void deleteMe(Consumer<Result> callback)
+	{
+		send("DELETE", "api/me", null, callback);
+	}
+
+	/** Use the player's own AI Gateway key (null removes it). */
+	void setGatewayKey(String key, Consumer<Result> callback)
+	{
+		JsonObject body = new JsonObject();
+		body.addProperty("key", key);
+		send("PUT", "api/me/gateway-key", body, callback);
+	}
+
+	/** Sign this install up; the reply carries its token. No token needed. */
+	void register(Consumer<Result> callback)
+	{
+		HttpUrl base = HttpUrl.parse(endpoint.get().trim());
+		if (base == null)
+		{
+			callback.accept(new Result(null, "The server URL isn't valid."));
+			return;
+		}
+		Request request = new Request.Builder()
+			.url(base.newBuilder().addPathSegments("api/register").build())
+			.post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"), "{}"))
+			.build();
+		http.newCall(request).enqueue(handler(callback));
+	}
+
+	private void send(String method, String path, JsonObject body, Consumer<Result> callback)
+	{
+		HttpUrl base = HttpUrl.parse(endpoint.get().trim());
+		if (base == null || token.get().isBlank())
+		{
+			callback.accept(new Result(null, "RS Buddy isn't turned on yet."));
+			return;
+		}
+		okhttp3.RequestBody payload = body == null ? null : okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"), gson.toJson(body));
+		Request request = new Request.Builder()
+			.url(base.newBuilder().addPathSegments(path).build())
+			.header("Authorization", "Bearer " + token.get().trim())
+			.method(method, payload == null && !method.equals("GET") && !method.equals("DELETE") ? okhttp3.RequestBody.create(null, new byte[0]) : payload)
+			.build();
+		http.newCall(request).enqueue(handler(callback));
+	}
+
+	private Callback handler(Consumer<Result> callback)
+	{
+		return new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				callback.accept(new Result(null, "Couldn't reach the server."));
+			}
+
+			@Override
+			public void onResponse(Call call, Response response)
+			{
+				try (response)
+				{
+					ResponseBody body = response.body();
+					String text = body == null ? "" : body.string();
+					JsonObject json = text.isEmpty() ? null : gson.fromJson(text, JsonObject.class);
+					if (response.isSuccessful())
+					{
+						callback.accept(new Result(json, null));
+					}
+					else
+					{
+						String error = json != null && json.has("error") ? json.get("error").getAsString() : "Server returned " + response.code() + ".";
+						callback.accept(new Result(null, error));
+					}
+				}
+				catch (IOException | RuntimeException e)
+				{
+					callback.accept(new Result(null, "Couldn't read the server's reply."));
+				}
+			}
+		};
+	}
+
 	private void get(String path, Map<String, String> query, Consumer<Result> callback)
 	{
 		HttpUrl base = HttpUrl.parse(endpoint.get().trim());
 		if (base == null || token.get().isBlank())
 		{
-			callback.accept(new Result(null, "Set the server URL and ingest token in RuneLite's plugin settings (wrench icon, then **RS Buddy**)."));
+			callback.accept(new Result(null, "Turn on RS Buddy on the Home page to sync your account."));
 			return;
 		}
 		HttpUrl.Builder url = base.newBuilder().addPathSegments(path);
@@ -95,7 +184,7 @@ class AccountApi
 					ResponseBody body = response.body();
 					if (response.code() == 401)
 					{
-						callback.accept(new Result(null, "The server rejected the ingest token. Check it in the plugin settings."));
+						callback.accept(new Result(null, "The server didn't recognise this install. Turn RS Buddy off and on again in settings."));
 					}
 					else if (response.code() == 404)
 					{

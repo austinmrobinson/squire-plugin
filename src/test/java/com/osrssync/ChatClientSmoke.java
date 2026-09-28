@@ -21,7 +21,7 @@ public class ChatClientSmoke
 			CountDownLatch done = new CountDownLatch(1);
 			StringBuilder text = new StringBuilder();
 			System.out.println(">> " + q);
-			client.send(q, Map.of("character", "Maximvs597"), new ChatClient.Listener()
+			client.send(q, Map.of("character", "Zezima"), new ChatClient.Listener()
 			{
 				public void onDelta(String t) { text.append(t); }
 				public void onBlockCompleted() { text.append("\n"); }

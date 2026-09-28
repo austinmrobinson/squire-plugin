@@ -76,11 +76,48 @@ public interface AccountSyncConfig extends Config
 		return AskShortcut.CHATBOX;
 	}
 
+	/** The public RS Buddy server. Self-hosters set their own in Advanced. */
+	String DEFAULT_SERVER = "https://rs-buddy.vercel.app";
+
+	@ConfigSection(
+		name = "Advanced",
+		description = "For running your own RS Buddy server",
+		position = 90,
+		closedByDefault = true
+	)
+	String advancedSection = "advanced";
+
+	@ConfigItem(
+		keyName = "enabled",
+		name = "RS Buddy is on",
+		description = "Set when you turn RS Buddy on from its Home page; nothing is sent before that",
+		hidden = true
+	)
+	default boolean enabled()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "gatewayKey",
+		name = "Your AI Gateway key",
+		description = "Optional: your own Vercel AI Gateway key for unlimited chat (the free tier has a daily limit). "
+			+ "It's sent to the server once, stored encrypted there, and cleared from here.",
+		secret = true,
+		position = 14,
+		section = inGameSection
+	)
+	default String gatewayKey()
+	{
+		return "";
+	}
+
 	@ConfigItem(
 		keyName = "endpoint",
 		name = "Server URL",
-		description = "Base URL of your RS Buddy server, e.g. https://my-rs-buddy.vercel.app",
-		position = 1
+		description = "Leave blank for the public RS Buddy server, or set your own (see the project's README)",
+		section = advancedSection,
+		position = 91
 	)
 	default String endpoint()
 	{
@@ -89,10 +126,11 @@ public interface AccountSyncConfig extends Config
 
 	@ConfigItem(
 		keyName = "token",
-		name = "Ingest token",
-		description = "Must match INGEST_TOKEN on the server",
+		name = "Access token",
+		description = "Filled in automatically when you turn RS Buddy on. On your own server this can be its INGEST_TOKEN.",
 		secret = true,
-		position = 2
+		section = advancedSection,
+		position = 92
 	)
 	default String token()
 	{

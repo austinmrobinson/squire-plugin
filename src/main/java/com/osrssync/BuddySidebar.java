@@ -17,6 +17,7 @@ import java.util.function.Function;
 import java.util.function.IntConsumer;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -36,7 +37,7 @@ class BuddySidebar extends PluginPanel
 {
 	private enum Page
 	{
-		HOME("RS Buddy"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings");
+		HOME("RS Buddy"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), WELCOME("RS Buddy");
 
 		final String title;
 
@@ -51,6 +52,7 @@ class BuddySidebar extends PluginPanel
 			switch (this)
 			{
 				case HOME:
+				case WELCOME:
 					return null;
 				case CHAT:
 					return CHATS;
@@ -219,12 +221,24 @@ class BuddySidebar extends PluginPanel
 		show(Page.HOME);
 	}
 
+	/**
+	 * Before the player turns RS Buddy on, only the Welcome page shows (nothing is sent until then); after, Home.
+	 */
+	void setTurnedOn(boolean on, JComponent welcome)
+	{
+		if (welcome != null && welcome.getParent() != body)
+		{
+			body.add(welcome, Page.WELCOME.name());
+		}
+		show(on ? Page.HOME : Page.WELCOME);
+	}
+
 	/** Go to a page. Home has no bar (its profile row stands in); the rest get back, title and actions. */
 	private void show(Page next)
 	{
 		page = next;
 		cards.show(body, next.name());
-		nav.setVisible(next != Page.HOME);
+		nav.setVisible(next != Page.HOME && next != Page.WELCOME);
 		List<NavBar.Crumb> ancestors = new ArrayList<>();
 		for (Page p = next.parent(); p != null; p = p.parent())
 		{
@@ -242,7 +256,7 @@ class BuddySidebar extends PluginPanel
 			actions.add(newChatButton);
 		}
 		nav.set(titleOf(next), ancestors, actions);
-		ask.setVisible(next != Page.CHAT && next != Page.CHATS);
+		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME);
 
 		if (next == Page.CHAT)
 		{

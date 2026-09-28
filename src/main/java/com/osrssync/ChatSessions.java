@@ -251,6 +251,23 @@ class ChatSessions
 		}
 	}
 
+	/** Forget every conversation (the player deleted their data); a fresh empty chat comes on screen. */
+	void clearAll()
+	{
+		for (Chat c : new java.util.ArrayList<>(chats))
+		{
+			if (c.view != null)
+			{
+				onUnloaded.accept(c.view);
+				c.view.close();
+			}
+		}
+		chats.clear();
+		current = create();
+		onCurrent.accept(current.view);
+		changed();
+	}
+
 	void shutdown()
 	{
 		for (Chat c : chats)

@@ -217,6 +217,11 @@ public class AccountSyncPlugin extends Plugin
 			}
 			else if (inGameChat != null)
 			{
+				if (!isConfigured())
+				{
+					notTurnedOn();
+					return;
+				}
 				clientThread.invoke(inGameChat::openPrompt);
 			}
 		}
@@ -292,14 +297,14 @@ public class AccountSyncPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		ModelCatalog models = new ModelCatalog(okHttpClient, gson, config::endpoint, config::token);
+		ModelCatalog models = new ModelCatalog(okHttpClient, gson, this::serverUrl, config::token);
 		// Export cards can open an imported setup in Inventory Setups (its "view" message, like picking it in its panel)
 		ExportCards.openSetup = name -> eventBus.post(new net.runelite.client.events.PluginMessage(
 			"inventory-setups", "view", new HashMap<>(Map.of("setup", name))));
 		// Every conversation gets its own view and connection, so several can answer at once; history is on disk
 		sessions = new ChatSessions(() ->
 		{
-			ChatClient client = new ChatClient(okHttpClient, gson, config::endpoint, config::token, config::model);
+			ChatClient client = new ChatClient(okHttpClient, gson, this::serverUrl, config::token, config::model);
 			client.setAccount(() -> accountHash);
 			ChatView view = new ChatView(client, this::chatContextForMessage, models, config::model,
 				id -> configManager.setConfiguration(AccountSyncConfig.GROUP, "model", id));
@@ -315,7 +320,9 @@ public class AccountSyncPlugin extends Plugin
 			new String[]{"Shortcut opens", config.askHotkeyOpens() == AccountSyncConfig.AskShortcut.PANEL ? "Panel" : "Chatbox"}));
 		Crest.setIconSource(itemManager::getImage);
 		WikiCards.install(okHttpClient);
-		AccountApi api = new AccountApi(okHttpClient, gson, config::endpoint, config::token, () -> playerName);
+		AccountApi api = new AccountApi(okHttpClient, gson, this::serverUrl, config::token, () -> playerName);
+		accountApi = api;
+		panel.setAccountActions(this::deleteMyData, this::removeGatewayKey, this::refreshUsage);
 		ProgressView progressView = new ProgressView(skill -> skillIconManager.getSkillImage(skill, true), new WikiImages(okHttpClient));
 		ActivityView activityView = new ActivityView(api);
 		sidebar = new BuddySidebar(
@@ -323,6 +330,8 @@ public class AccountSyncPlugin extends Plugin
 			progressView, activityView, sessions, panel, config.panelWidth(),
 			w -> configManager.setConfiguration(AccountSyncConfig.GROUP, "panelWidth", w));
 		models.refresh(options -> SwingUtilities.invokeLater(() -> sessions.forEachView(ChatView::refreshModelLabel)));
+		// Nothing is sent until the player turns RS Buddy on from the Welcome page
+		sidebar.setTurnedOn(isTurnedOn(), new WelcomeView(serverUrl() + "/privacy", this::turnOn));
 		navButton = NavigationButton.builder()
 			.tooltip("RS Buddy")
 			.icon(BuddyIcon.create())
@@ -499,6 +508,11 @@ public class AccountSyncPlugin extends Plugin
 	{
 		if (!config.chatCommand() || inGameChat == null || !"buddy".equalsIgnoreCase(event.getCommand()))
 		{
+			return;
+		}
+		if (!isConfigured())
+		{
+			notTurnedOn();
 			return;
 		}
 		String question = String.join(" ", event.getArguments()).trim();
@@ -1741,15 +1755,169 @@ public class AccountSyncPlugin extends Plugin
 
 	private boolean isConfigured()
 	{
-		return !config.endpoint().isBlank() && !config.token().isBlank();
+		return isTurnedOn() && !config.token().isBlank();
+	}
+
+	private void notTurnedOn()
+	{
+		chatMessageManager.queue(net.runelite.client.chat.QueuedMessage.builder()
+			.type(net.runelite.api.ChatMessageType.CONSOLE)
+			.runeLiteFormattedMessage("RS Buddy is off. Turn it on from its sidebar panel first.")
+			.build());
+	}
+
+	private boolean isTurnedOn()
+	{
+		return config.enabled();
+	}
+
+	/** The RS Buddy server: the public one unless the player set their own (Advanced). */
+	String serverUrl()
+	{
+		String url = config.endpoint().trim();
+		return (url.isEmpty() ? AccountSyncConfig.DEFAULT_SERVER : url).replaceAll("/+$", "");
+	}
+
+	// ---- Turning on, and the player's data on the server
+
+	private AccountApi accountApi;
+
+	/** The Welcome page's button: sign this install up (unless it already has a token), then start syncing. */
+	private void turnOn(java.util.function.Consumer<String> done)
+	{
+		Runnable enable = () ->
+		{
+			configManager.setConfiguration(AccountSyncConfig.GROUP, "enabled", true);
+			sidebar.setTurnedOn(true, null);
+			done.accept(null);
+			clientThread.invokeLater(() ->
+			{
+				if (client.getGameState() == GameState.LOGGED_IN)
+				{
+					onLogin();
+				}
+			});
+		};
+		if (!config.token().isBlank())
+		{
+			enable.run();
+			return;
+		}
+		accountApi.register(r -> SwingUtilities.invokeLater(() ->
+		{
+			if (r.error != null || r.json == null || !r.json.has("token"))
+			{
+				done.accept(r.error != null ? r.error : "Couldn't sign up. Try again in a moment.");
+				return;
+			}
+			configManager.setConfiguration(AccountSyncConfig.GROUP, "token", r.json.get("token").getAsString());
+			enable.run();
+		}));
+	}
+
+	/** Settings' "Delete my data": delete it on the server, then locally, and turn RS Buddy off. */
+	private void deleteMyData()
+	{
+		accountApi.deleteMe(r -> SwingUtilities.invokeLater(() ->
+		{
+			if (r.error != null)
+			{
+				panel.setStatus("Couldn't delete your data: " + r.error);
+				return;
+			}
+			configManager.setConfiguration(AccountSyncConfig.GROUP, "enabled", false);
+			configManager.setConfiguration(AccountSyncConfig.GROUP, "token", "");
+			sessions.clearAll();
+			deleteLocalData();
+			synchronized (lock)
+			{
+				dirtyTicks = -1;
+				pendingContainers.clear();
+				pendingActivity.clear();
+				pendingEvents.clear();
+				pendingKillCounts.clear();
+			}
+			sidebar.setTurnedOn(false, null);
+		}));
+	}
+
+	/** Chat history, portraits and ACCOUNT.md copies under ~/.runelite/account-sync. */
+	private void deleteLocalData()
+	{
+		java.nio.file.Path dir = new File(RuneLite.RUNELITE_DIR, "account-sync").toPath();
+		if (!Files.exists(dir))
+		{
+			return;
+		}
+		try (java.util.stream.Stream<java.nio.file.Path> walk = Files.walk(dir))
+		{
+			walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+		}
+		catch (IOException e)
+		{
+			log.warn("Couldn't delete local RS Buddy data", e);
+		}
+	}
+
+	private void removeGatewayKey()
+	{
+		accountApi.setGatewayKey(null, r -> refreshUsage());
+	}
+
+	/** Today's message count (or unlimited with the player's own key) for the Settings page. */
+	private void refreshUsage()
+	{
+		if (!isConfigured())
+		{
+			panel.setUsage("RS Buddy is off", false);
+			return;
+		}
+		accountApi.me(r ->
+		{
+			if (r.json == null)
+			{
+				panel.setUsage(r.error != null ? r.error : "Unavailable", false);
+				return;
+			}
+			if (r.json.has("admin"))
+			{
+				panel.setUsage("Unlimited (server owner)", false);
+				return;
+			}
+			boolean key = r.json.has("personalKey") && r.json.get("personalKey").getAsBoolean();
+			int used = r.json.has("used") ? r.json.get("used").getAsInt() : 0;
+			int limit = r.json.has("limit") ? r.json.get("limit").getAsInt() : 0;
+			panel.setUsage(key ? "Unlimited (your key)" : used + " of " + limit + " free", key);
+		});
+	}
+
+	/** A key typed into RuneLite's settings goes to the server once (stored encrypted there) and is cleared here. */
+	@Subscribe
+	public void onConfigChanged(net.runelite.client.events.ConfigChanged event)
+	{
+		if (!AccountSyncConfig.GROUP.equals(event.getGroup()) || !"gatewayKey".equals(event.getKey()))
+		{
+			return;
+		}
+		String key = config.gatewayKey().trim();
+		if (key.isEmpty() || accountApi == null || !isConfigured())
+		{
+			return;
+		}
+		accountApi.setGatewayKey(key, r ->
+		{
+			configManager.setConfiguration(AccountSyncConfig.GROUP, "gatewayKey", "");
+			panel.setStatus(r.error == null ? "Your AI Gateway key is saved: chat is unlimited." : "Couldn't save your key: " + r.error);
+			refreshUsage();
+		});
 	}
 
 	private void send(Map<String, Object> payload)
 	{
-		HttpUrl base = HttpUrl.parse(config.endpoint().trim());
+		HttpUrl base = HttpUrl.parse(serverUrl());
 		if (base == null)
 		{
-			log.warn("Account Sync: invalid server URL {}", config.endpoint());
+			log.warn("Account Sync: invalid server URL {}", serverUrl());
 			return;
 		}
 		HttpUrl url = base.newBuilder().addPathSegments("api/ingest").build();

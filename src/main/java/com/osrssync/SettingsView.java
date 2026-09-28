@@ -29,6 +29,39 @@ class SettingsView extends javax.swing.JPanel
 	/** The sync headline ("Last synced 08:41:12") and any details from the last sync ("Kill counts: 58"). */
 	private String syncHeadline = "Not synced yet this session";
 	private final List<String[]> syncDetails = new ArrayList<>();
+	// This install on the RS Buddy server: today's messages, personal key, and the delete button
+	private String usageLine = "Loading...";
+	private boolean personalKey;
+	private Runnable onDeleteData = () -> {};
+	private Runnable onRemoveKey = () -> {};
+	private Runnable onShownHook = () -> {};
+
+	/** Account actions and a hook to refresh the usage line when the page opens. */
+	void setAccountActions(Runnable onDeleteData, Runnable onRemoveKey, Runnable onShown)
+	{
+		this.onDeleteData = onDeleteData;
+		this.onRemoveKey = onRemoveKey;
+		this.onShownHook = onShown;
+	}
+
+	/** Today's usage ("12 of 30 free messages today", "Unlimited (your key)") and whether a personal key is set. */
+	void setUsage(String line, boolean hasPersonalKey)
+	{
+		Runnable apply = () ->
+		{
+			usageLine = line;
+			personalKey = hasPersonalKey;
+			render();
+		};
+		if (SwingUtilities.isEventDispatchThread())
+		{
+			apply.run();
+		}
+		else
+		{
+			SwingUtilities.invokeLater(apply);
+		}
+	}
 
 	/**
 	 * {@code chatSettings}: the in-game chat settings as label/value pairs (read-only here; they're changed in
@@ -60,6 +93,7 @@ class SettingsView extends javax.swing.JPanel
 	/** Called when the page is shown: pick up changed settings. */
 	void onShown()
 	{
+		onShownHook.run();
 		render();
 	}
 
@@ -127,7 +161,30 @@ class SettingsView extends javax.swing.JPanel
 			}
 			list.add(ChatComponents.place(c, Align.FILL, 4));
 		}
-		note("Change the server, token, shortcut and sync delay in RuneLite's plugin settings (the wrench icon, then RS Buddy).");
+		note("Change the shortcut and sync delay, or add your own AI Gateway key, in RuneLite's plugin settings (the wrench icon, then RS Buddy).");
+
+		// Your data on the RS Buddy server
+		group("Your data");
+		Surface data = HomeView.listCard();
+		data.add(row("Messages today", usageLine, null, null));
+		if (personalKey)
+		{
+			data.add(HomeView.divider());
+			data.add(row("Remove your AI Gateway key", null, "Go back to the free daily messages", onRemoveKey));
+		}
+		data.add(HomeView.divider());
+		data.add(row("Delete my data", null, "Delete everything RS Buddy stored for you", () ->
+		{
+			int answer = javax.swing.JOptionPane.showConfirmDialog(this,
+				"Delete everything RS Buddy stored for you (account data, the assistant's notes and chat history)?\nThis turns RS Buddy off and can't be undone.",
+				"Delete my data", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE);
+			if (answer == javax.swing.JOptionPane.OK_OPTION)
+			{
+				onDeleteData.run();
+			}
+		}));
+		list.add(ChatComponents.place(data, Align.FILL, 4));
+		note("Deleting removes your data from the RS Buddy server and your chat history from this computer.");
 
 		list.revalidate();
 		list.repaint();
