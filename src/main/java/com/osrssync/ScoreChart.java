@@ -106,18 +106,7 @@ final class ScoreChart
 			double d = size - inset * 2;
 			double cx = size / 2.0, cy = size / 2.0;
 
-			// The ring is drawn at half resolution without smoothing, then doubled: chunky 2px pixels that match
-			// the panel's stepped corners
-			int px = 2, lo = (size + px - 1) / px;
-			java.awt.image.BufferedImage ringImage = new java.awt.image.BufferedImage(lo, lo, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-			Graphics2D r = ringImage.createGraphics();
-			r.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-			r.scale(1.0 / px, 1.0 / px);
-			paintRing(r, inset, d, cx, cy);
-			r.dispose();
-			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-			g2.drawImage(ringImage, 0, 0, lo * px, lo * px, null);
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			paintRing(g2, inset, d, cx, cy);
 
 			if (crestColor != null)
 			{
