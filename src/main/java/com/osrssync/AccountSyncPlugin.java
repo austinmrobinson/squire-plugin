@@ -328,6 +328,7 @@ public class AccountSyncPlugin extends Plugin
 		WikiCards.install(okHttpClient);
 		AccountApi api = new AccountApi(okHttpClient, gson, this::serverUrl, config::token, () -> playerName);
 		accountApi = api;
+		GearCard.api = api;
 		panel.setAccountActions(this::deleteMyData, this::removeGatewayKey, this::refreshUsage);
 		ProgressView progressView = new ProgressView(skill -> skillIconManager.getSkillImage(skill, true), new WikiImages(okHttpClient));
 		ActivityView activityView = new ActivityView(api);

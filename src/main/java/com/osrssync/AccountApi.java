@@ -74,6 +74,14 @@ class AccountApi
 		send("PATCH", "api/plan" + query, edit, callback);
 	}
 
+	/** Re-evaluate a gear view after the player changes a slot (bonuses, DPS, swaps, export). */
+	void gear(JsonObject request, Consumer<Result> callback)
+	{
+		String name = accountName.get();
+		String query = name == null || name.isBlank() ? "" : "?account=" + java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8);
+		send("POST", "api/gear" + query, request, callback);
+	}
+
 	/** This install's daily allowance and linked accounts. */
 	void me(Consumer<Result> callback)
 	{

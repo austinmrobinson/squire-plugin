@@ -96,6 +96,9 @@ class ChatTrace
 		JsonArray xs = new JsonArray();
 		exports.forEach(x -> xs.add(x.toJson()));
 		o.add("exports", xs);
+		JsonArray gs = new JsonArray();
+		gears.forEach(gs::add);
+		o.add("gears", gs);
 		return o;
 	}
 
@@ -125,6 +128,13 @@ class ChatTrace
 			{
 				JsonObject j = el.getAsJsonObject();
 				t.sources.add(new Source(str(j, "title"), str(j, "url"), str(j, "origin")));
+			}
+		}
+		if (o.has("gears"))
+		{
+			for (JsonElement el : o.getAsJsonArray("gears"))
+			{
+				t.gears.add(el.getAsJsonObject());
 			}
 		}
 		if (o.has("exports"))
@@ -198,6 +208,8 @@ class ChatTrace
 
 	/** Data the agent made for other plugins this turn (setups, tags, markers), shown as cards to copy. */
 	final List<ExportCards.Export> exports = new ArrayList<>();
+	/** Gear views this turn ({gear, export}): the game's equipment screen, editable, with a copy button. */
+	final List<JsonObject> gears = new ArrayList<>();
 	/** Squire saved the player's plan this turn: the reply links to it, and Home and the Plan page reload it. */
 	boolean savedPlan;
 	/** Set by the plugin: reload the plan, and open the Plan page. */
@@ -218,6 +230,14 @@ class ChatTrace
 			return;
 		}
 		JsonElement data = unwrap(output);
+		if ((tool.equals("show_gear") || tool.equals("create_inventory_setup")) && data != null && data.isJsonObject() && data.getAsJsonObject().has("gear"))
+		{
+			JsonObject g = new JsonObject();
+			g.add("gear", data.getAsJsonObject().get("gear"));
+			g.add("export", data.getAsJsonObject().get("export"));
+			gears.add(g);
+			return;
+		}
 		if (tool.equals("save_plan"))
 		{
 			savedPlan = true;
@@ -448,6 +468,8 @@ class ChatTrace
 				return "Read your plan";
 			case "save_plan":
 				return "Saved your plan";
+			case "show_gear":
+				return "Put together a gear setup";
 			case "create_inventory_setup":
 				return "Made an inventory setup";
 			case "create_bank_tag":
