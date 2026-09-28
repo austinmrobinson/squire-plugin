@@ -247,20 +247,19 @@ final class ScoreChart
 			{
 				Checkpoint c = checkpoints.get(i);
 				double x = margin + span * i / (n - 1);
-				Ellipse2D node = new Ellipse2D.Double(x - NODE / 2.0, 0, NODE, NODE);
+				java.awt.Shape node = Pixel.shape(x - NODE / 2.0, 0, NODE, NODE, NODE / 2.0);
 				g2.setColor(c.reached ? ChatComponents.ACCENT : ChatComponents.BASE_BG);
 				g2.fill(node);
 				if (i == current)
 				{
-					g2.setStroke(new BasicStroke(2f));
 					g2.setColor(Color.WHITE);
-					g2.draw(new Ellipse2D.Double(x - NODE / 2.0 + 1, 1, NODE - 2, NODE - 2));
+					Pixel.draw(g2, x - NODE / 2.0, 0, NODE, NODE, NODE / 2.0);
+					Pixel.draw(g2, x - NODE / 2.0 + 1, 1, NODE - 2, NODE - 2, NODE / 2.0 - 1);
 				}
 				else if (!c.reached)
 				{
-					g2.setStroke(new BasicStroke(1f));
 					g2.setColor(ChatComponents.BORDER);
-					g2.draw(new Ellipse2D.Double(x - NODE / 2.0 + 0.5, 0.5, NODE - 1, NODE - 1));
+					Pixel.draw(g2, x - NODE / 2.0, 0, NODE, NODE, NODE / 2.0);
 				}
 				g2.setColor(i == current ? Color.WHITE : c.reached ? ChatComponents.MUTED.brighter() : ChatComponents.MUTED);
 				g2.drawString(c.label, (int) Math.round(x - fm.stringWidth(c.label) / 2.0), NODE + 4 + fm.getAscent());
@@ -360,7 +359,7 @@ final class ScoreChart
 				if (i == current)
 				{
 					g2.setColor(ChatComponents.ACCENT);
-					g2.fillRoundRect(cx - 7, CREST + 4, 14, 3, 3, 3);
+					Pixel.fill(g2, cx - 7, CREST + 4, 14, 3, 1.5);
 				}
 			}
 			g2.dispose();

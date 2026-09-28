@@ -11,7 +11,6 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -150,9 +149,9 @@ final class ActivityCharts
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			int w = getWidth(), h = getHeight();
 			g2.setColor(ChatComponents.BASE_BG);
-			g2.fillRoundRect(0, 0, w, h, 10, 10);
+			Pixel.fill(g2, 0, 0, w, h, 5);
 			g2.setColor(ChatComponents.OUTLINE);
-			g2.drawRoundRect(0, 0, w - 1, h - 1, 10, 10);
+			Pixel.draw(g2, 0, 0, w, h, 5);
 
 			Font font = h < 28 ? FontManager.getRunescapeSmallFont() : FontManager.getRunescapeFont();
 			FontMetrics fm = g2.getFontMetrics(font);
@@ -165,11 +164,11 @@ final class ActivityCharts
 				if (i == selected)
 				{
 					g2.setColor(ChatComponents.OUTLINE);
-					g2.fillRoundRect(x, 2, sw, h - 4, 8, 8);
+					Pixel.fill(g2, x, 2, sw, h - 4, 4);
 					g2.setColor(ChatComponents.PANEL_BG);
-					g2.fillRoundRect(x + 1, 3, sw - 2, h - 6, 6, 6);
+					Pixel.fill(g2, x + 1, 3, sw - 2, h - 6, 3);
 					g2.setColor(ChatComponents.HAIRLINE);
-					g2.drawRoundRect(x + 1, 3, sw - 3, h - 7, 6, 6);
+					Pixel.draw(g2, x + 1, 3, sw - 2, h - 6, 3);
 				}
 				g2.setColor(i == selected || i == hover ? Color.WHITE : ChatComponents.MUTED);
 				String s = options[i];
@@ -213,7 +212,7 @@ final class ActivityCharts
 			if (total <= 0)
 			{
 				g2.setColor(ChatComponents.BASE_BG);
-				g2.fillRoundRect(0, 0, w, HEIGHT, HEIGHT, HEIGHT);
+				Pixel.fill(g2, 0, 0, w, HEIGHT, HEIGHT / 2.0);
 				g2.dispose();
 				return;
 			}
@@ -223,7 +222,7 @@ final class ActivityCharts
 			{
 				double pw = Math.max(HEIGHT, usable * p.value / total);
 				g2.setColor(p.color);
-				g2.fill(new RoundRectangle2D.Double(x, 0, Math.min(pw, w - x), HEIGHT, HEIGHT, HEIGHT));
+				g2.fill(Pixel.shape(x, 0, Math.min(pw, w - x), HEIGHT, HEIGHT / 2.0));
 				x += pw + GAP;
 				if (x >= w)
 				{
@@ -347,7 +346,7 @@ final class ActivityCharts
 				{
 					g2.setColor(ChatComponents.HOVER_BG);
 					double hw = Math.min(slot - 2, barW + 12);
-					g2.fill(new RoundRectangle2D.Double(slot * i + (slot - hw) / 2, 0, hw, getHeight(), 8, 8));
+					g2.fill(Pixel.shape(slot * i + (slot - hw) / 2, 0, hw, getHeight(), 4));
 				}
 			}
 
@@ -374,7 +373,7 @@ final class ActivityCharts
 					continue;
 				}
 				double h = Math.max(2, (bottom - top) * Math.min(1, total / max));
-				java.awt.Shape clip = new RoundRectangle2D.Double(x, bottom - h, barW, h + radius, radius * 2, radius * 2);
+				java.awt.Shape clip = Pixel.shape(x, bottom - h, barW, h + radius, radius);
 				Graphics2D bar = (Graphics2D) g2.create();
 				bar.clip(new java.awt.Rectangle((int) Math.floor(x) - 1, 0, (int) Math.ceil(barW) + 2, bottom));
 				bar.clip(clip);
@@ -408,7 +407,7 @@ final class ActivityCharts
 					{
 						int d = Math.max(fm.getHeight() + 2, fm.stringWidth(c.sub) + 8);
 						g2.setColor(ChatComponents.ACCENT);
-						g2.fillOval((int) Math.round(cx - d / 2.0), subY - fm.getAscent() - (d - fm.getHeight()) / 2 - 1, d, d);
+						Pixel.fill(g2, (int) Math.round(cx - d / 2.0), subY - fm.getAscent() - (d - fm.getHeight()) / 2 - 1, d, d, d / 2.0);
 						g2.setColor(Color.WHITE);
 					}
 					else

@@ -279,7 +279,7 @@ final class WikiCards
 			java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
 			g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setColor(ChatComponents.BASE_BG);
-			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+			Pixel.fill(g2, 0, 0, getWidth(), getHeight(), 4);
 			if (image != null)
 			{
 				g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC);

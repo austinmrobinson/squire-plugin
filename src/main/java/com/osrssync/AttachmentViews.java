@@ -15,7 +15,6 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.function.Consumer;
@@ -118,7 +117,7 @@ final class AttachmentViews
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			int w = getWidth(), h = getHeight();
-			Shape shape = new RoundRectangle2D.Float(0, 0, w, h, RADIUS * 2, RADIUS * 2);
+			Shape shape = Pixel.shape(0, 0, w, h, RADIUS);
 
 			if (attachment.kind == Attachment.Kind.IMAGE && attachment.thumbnail != null)
 			{
@@ -136,15 +135,15 @@ final class AttachmentViews
 
 			g2.setColor(ChatComponents.BORDER);
 			g2.setStroke(new BasicStroke(1f));
-			g2.draw(new RoundRectangle2D.Float(0.5f, 0.5f, w - 1, h - 1, RADIUS * 2, RADIUS * 2));
+			Pixel.draw(g2, 0, 0, w, h, RADIUS);
 
 			if (hover && onRemove != null)
 			{
 				Rectangle c = closeBounds();
 				g2.setColor(overClose ? ChatComponents.HOVER_BG : ChatComponents.BASE_BG);
-				g2.fillOval(c.x, c.y, c.width, c.height);
+				Pixel.fill(g2, c.x, c.y, c.width, c.height, c.width / 2.0);
 				g2.setColor(ChatComponents.BORDER);
-				g2.drawOval(c.x, c.y, c.width - 1, c.height - 1);
+				Pixel.draw(g2, c.x, c.y, c.width, c.height, c.width / 2.0);
 				Image x = SvgIcon.load("close", 12, overClose ? Color.WHITE : ChatComponents.MUTED).getImage();
 				g2.drawImage(x, c.x + 2, c.y + 2, 12, 12, null);
 			}

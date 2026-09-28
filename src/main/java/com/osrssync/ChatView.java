@@ -1412,10 +1412,9 @@ class ChatView extends JPanel
 			setOpaque(false);
 			setLayout(new BorderLayout(8, 0));
 			setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-			String svg = SvgIcon.source("typing-dots");
 			for (int i = 0; i < FRAMES.length; i++)
 			{
-				dots[i] = new ImageIcon(SvgIcon.render(withOpacities(svg, FRAMES[i]), 4, null));
+				dots[i] = new ImageIcon(squares(FRAMES[i]));
 			}
 			dotLabel.setIcon(dots[0]);
 			activity.setFont(FontManager.getRunescapeFont());
@@ -1425,19 +1424,19 @@ class ChatView extends JPanel
 			timer = new Timer(300, e -> dotLabel.setIcon(dots[++frame % dots.length]));
 		}
 
-		/** The exported dots SVG with each circle's opacity replaced, in order. */
-		private static String withOpacities(String svg, float[] opacities)
+		/** Three 4px accent squares, each at its own opacity (one frame of the animation). */
+		private static java.awt.image.BufferedImage squares(float[] opacities)
 		{
-			String cleaned = svg.replaceAll("\\sopacity=\"[\\d.]+\"", "");
-			StringBuilder out = new StringBuilder();
-			int from = 0, i = 0;
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("<circle").matcher(cleaned);
-			while (m.find() && i < opacities.length)
+			java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(18, 4, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+			java.awt.Graphics2D g = img.createGraphics();
+			for (int i = 0; i < 3 && i < opacities.length; i++)
 			{
-				out.append(cleaned, from, m.end()).append(" opacity=\"").append(opacities[i++]).append('"');
-				from = m.end();
+				g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, opacities[i]));
+				g.setColor(ChatComponents.ACCENT);
+				g.fillRect(i * 7, 0, 4, 4);
 			}
-			return out.append(cleaned.substring(from)).toString();
+			g.dispose();
+			return img;
 		}
 
 		void setActivity(String text)

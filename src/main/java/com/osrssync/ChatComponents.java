@@ -14,7 +14,6 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -52,6 +51,7 @@ final class ChatComponents
 	static final Color ACCENT = new Color(0x4454DA); // Squire blue, a shade lighter than the plume
 	static final Color ACCENT_DARK = new Color(0x2F3AA6);
 	static final Color MUTED = new Color(0x9A9A9A);
+	private static final java.net.URL BULLET = ChatComponents.class.getResource("bullet.png");
 	static final Color OUTLINE = new Color(0, 0, 0, 128);
 	static final Color HAIRLINE = new Color(255, 255, 255, 13);
 
@@ -125,23 +125,23 @@ final class ChatComponents
 			if (framed)
 			{
 				g2.setColor(OUTLINE);
-				g2.fillRoundRect(0, 0, w, h, arc + 2, arc + 2);
+				Pixel.fill(g2, 0, 0, w, h, (arc + 2) / 2.0);
 			}
 			if (bottomShadow && border != null)
 			{
 				g2.setColor(border);
-				g2.fillRoundRect(inset, inset + 1, w - 2 * inset, h - 2 * inset - 1, arc, arc);
+				Pixel.fill(g2, inset, inset + 1, w - 2 * inset, h - 2 * inset - 1, arc / 2.0);
 			}
 			if (fill != null)
 			{
 				g2.setColor(fill);
-				g2.fillRoundRect(inset, inset, w - 2 * inset, h - 2 * inset - lip, arc, arc);
+				Pixel.fill(g2, inset, inset, w - 2 * inset, h - 2 * inset - lip, arc / 2.0);
 			}
 			Color line = border != null ? border : framed ? HAIRLINE : null;
 			if (line != null)
 			{
 				g2.setColor(line);
-				g2.drawRoundRect(inset, inset, w - 2 * inset - 1, h - 2 * inset - 1 - lip, arc, arc);
+				Pixel.draw(g2, inset, inset, w - 2 * inset, h - 2 * inset - lip, arc / 2.0);
 			}
 			g2.dispose();
 			super.paintComponent(g);
@@ -189,7 +189,8 @@ final class ChatComponents
 			StyleSheet css = new StyleSheet();
 			css.addRule("b { font-weight: bold; }");
 			css.addRule("i { font-style: italic; }");
-			css.addRule("ul { list-style-type: disc; }");
+			// Bullets are a filled pixel square (Swing's "square" is hollow and reads as a checkbox)
+			css.addRule(BULLET == null ? "ul { list-style-type: square; }" : "ul { list-style-image: url(" + BULLET + "); }");
 			css.addRule("ol { list-style-type: decimal; }");
 			css.addRule("tr { text-align: left; }");
 			css.addRule("td { padding: 3px; }");
@@ -508,7 +509,7 @@ final class ChatComponents
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			int w = getWidth(), h = getHeight();
-			RoundRectangle2D shape = new RoundRectangle2D.Float(0, 0, w, h, 8, 8);
+			java.awt.Shape shape = Pixel.shape(0, 0, w, h, 4);
 			if (neutral)
 			{
 				g2.setColor(hover ? USER_BG.brighter() : USER_BG);
@@ -526,7 +527,7 @@ final class ChatComponents
 				g2.fillRect(0, h - 2, w, 2);
 				g2.setClip(null);
 				g2.setColor(ACCENT_DARK);
-				g2.drawRoundRect(0, 0, w - 1, h - 1, 8, 8);
+				Pixel.draw(g2, 0, 0, w, h, 4);
 			}
 			if (stop)
 			{
@@ -581,7 +582,7 @@ final class ChatComponents
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			int w = getWidth(), h = getHeight();
-			RoundRectangle2D shape = new RoundRectangle2D.Float(0, 0, w, h, 8, 8);
+			java.awt.Shape shape = Pixel.shape(0, 0, w, h, 4);
 			g2.setColor(getModel().isPressed() ? ACCENT_DARK : hover ? ACCENT.brighter() : ACCENT);
 			g2.fill(shape);
 			g2.setClip(shape);
@@ -591,7 +592,7 @@ final class ChatComponents
 			g2.fillRect(0, h - 2, w, 2);
 			g2.setClip(null);
 			g2.setColor(ACCENT_DARK);
-			g2.drawRoundRect(0, 0, w - 1, h - 1, 8, 8);
+			Pixel.draw(g2, 0, 0, w, h, 4);
 			g2.dispose();
 			super.paintComponent(g);
 		}
@@ -787,12 +788,12 @@ final class ChatComponents
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			int w = getWidth(), h = getHeight();
 			g2.setColor(OUTLINE);
-			g2.fillRoundRect(0, 0, w, h, h, h);
+			Pixel.fill(g2, 0, 0, w, h, h / 2.0);
 			int fill = (int) Math.round((w - 2) * fraction);
 			if (fill > 0)
 			{
 				g2.setColor(fraction >= 1 ? new Color(0x3FA33F) : ACCENT);
-				g2.fillRoundRect(1, 1, Math.max(fill, h - 2), h - 2, h - 2, h - 2);
+				Pixel.fill(g2, 1, 1, Math.max(fill, h - 2), h - 2, (h - 2) / 2.0);
 			}
 			g2.dispose();
 		}

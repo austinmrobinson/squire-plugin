@@ -218,7 +218,7 @@ class ChatHistoryView extends JPanel
 				Graphics2D g2 = (Graphics2D) g.create();
 				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				g2.setColor(ChatComponents.ACCENT);
-				g2.fillOval((getWidth() - 8) / 2, (getHeight() - 8) / 2, 8, 8);
+				Pixel.fill(g2, (getWidth() - 8) / 2, (getHeight() - 8) / 2, 8, 8, 2);
 				g2.dispose();
 			}
 		};

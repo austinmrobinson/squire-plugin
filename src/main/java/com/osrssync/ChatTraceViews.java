@@ -13,7 +13,6 @@ import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -436,9 +435,9 @@ final class ChatTraceViews
 		/** A round badge for where sources came from: the wiki's logo, Squire's icon, or a letter. */
 		private void paintOrigin(Graphics2D g2, String origin, int x, int y)
 		{
-			Ellipse2D circle = new Ellipse2D.Double(x, y, ICON, ICON);
+			java.awt.Shape circle = Pixel.shape(x, y, ICON, ICON, ICON / 2.0);
 			g2.setColor(ChatComponents.CARD_BG);
-			g2.fill(new Ellipse2D.Double(x - 2, y - 2, ICON + 4, ICON + 4));
+			g2.fill(Pixel.shape(x - 2, y - 2, ICON + 4, ICON + 4, ICON / 2.0 + 2));
 			g2.setColor(new Color(0xE9E9E9));
 			g2.fill(circle);
 			Graphics2D c = (Graphics2D) g2.create();
@@ -569,7 +568,7 @@ final class ChatTraceViews
 				double cx = left + barWidth / 2 + shift;
 				double dx = -radius * Math.cos(angle);
 				double dy = -radius * Math.sin(angle);
-				g2.fill(new Ellipse2D.Double(cx + dx - DOT / 2, cy + dy - DOT / 2, DOT, DOT));
+				g2.fill(new java.awt.geom.Rectangle2D.Double(Math.round(cx + dx - DOT / 2), Math.round(cy + dy - DOT / 2), DOT, DOT));
 			}
 		}
 
@@ -607,7 +606,7 @@ final class ChatTraceViews
 	private static void dot(Graphics2D g2, int x, int cy)
 	{
 		g2.setColor(ChatComponents.BORDER);
-		g2.fill(new Ellipse2D.Double(x - 1.5, cy - 1.5, 3, 3));
+		g2.fill(new java.awt.geom.Rectangle2D.Double(Math.round(x - 1.5), Math.round(cy - 1.5), 3, 3));
 	}
 
 	private ChatTraceViews()

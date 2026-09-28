@@ -324,15 +324,15 @@ class HomeView extends JPanel
 			if (image != null)
 			{
 				g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-				g2.setClip(new java.awt.geom.RoundRectangle2D.Float(0, 0, SIZE, SIZE, 12, 12));
+				g2.setClip(Pixel.shape(0, 0, SIZE, SIZE, 6));
 				g2.drawImage(image, 0, 0, SIZE, SIZE, null);
 			}
 			else
 			{
 				g2.setColor(ChatComponents.BASE_BG);
-				g2.fillRoundRect(0, 0, SIZE, SIZE, 12, 12);
+				Pixel.fill(g2, 0, 0, SIZE, SIZE, 6);
 				g2.setColor(ChatComponents.OUTLINE);
-				g2.drawRoundRect(0, 0, SIZE - 1, SIZE - 1, 12, 12);
+				Pixel.draw(g2, 0, 0, SIZE, SIZE, 6);
 				java.awt.image.BufferedImage icon = SquireIcon.create(28);
 				g2.drawImage(icon, (SIZE - icon.getWidth()) / 2, (SIZE - icon.getHeight()) / 2, null);
 			}
@@ -646,7 +646,7 @@ class HomeView extends JPanel
 				java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
 				g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
 				g2.setColor(color);
-				g2.fillRoundRect(x + 4, y + 4, 8, 8, 4, 4);
+				Pixel.fill(g2, x + 4, y + 4, 8, 8, 2);
 				g2.dispose();
 			}
 

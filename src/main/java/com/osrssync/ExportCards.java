@@ -415,7 +415,7 @@ final class ExportCards
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setColor(ChatComponents.BASE_BG);
-			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+			Pixel.fill(g2, 0, 0, getWidth(), getHeight(), 4);
 			if ("ground_markers".equals(export.kind))
 			{
 				int cx = getWidth() / 2, cy = getHeight() / 2;
@@ -496,7 +496,7 @@ final class ExportCards
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setColor(hover ? ChatComponents.HOVER_BG : ChatComponents.USER_BG);
-			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+			Pixel.fill(g2, 0, 0, getWidth(), getHeight(), 4);
 			g2.setFont(getFont());
 			g2.setColor(getForeground());
 			FontMetrics fm = g2.getFontMetrics();

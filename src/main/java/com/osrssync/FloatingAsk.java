@@ -228,7 +228,7 @@ class FloatingAsk extends JPanel
 		{
 			g2.setColor(new Color(0, 0, 0, 22));
 			int grow = i - 2;
-			g2.fillRoundRect(x - grow, i * 2 - grow, w + grow * 2, h + grow * 2, 16 + grow * 2, 16 + grow * 2);
+			Pixel.fill(g2, x - grow, i * 2 - grow, w + grow * 2, h + grow * 2, (16 + grow * 2) / 2.0);
 		}
 		g2.dispose();
 	}

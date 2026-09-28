@@ -108,13 +108,13 @@ final class ComposerTransition extends JComponent
 		{
 			g2.setColor(new Color(0, 0, 0, (int) (22 * (1 - t))));
 			int grow = i - 2;
-			g2.fillRoundRect(x - grow, y + i * 2 - grow, w + grow * 2, h + grow * 2, 16 + grow * 2, 16 + grow * 2);
+			Pixel.fill(g2, x - grow, y + i * 2 - grow, w + grow * 2, h + grow * 2, (16 + grow * 2) / 2.0);
 		}
 		g2.setColor(lerp(ChatComponents.CARD_BG, ChatComponents.PANEL_BG, t));
-		g2.fillRoundRect(x, y, w, h, 16, 16);
+		Pixel.fill(g2, x, y, w, h, 8);
 		g2.setColor(ChatComponents.BORDER);
 		g2.setStroke(new BasicStroke(1f));
-		g2.drawRoundRect(x, y, w - 1, h - 1, 16, 16);
+		Pixel.draw(g2, x, y, w, h, 8);
 
 		// The sent text fades out over the first half
 		float alpha = (float) Math.max(0, 1 - t * 2);
