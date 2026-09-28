@@ -37,7 +37,7 @@ class BuddySidebar extends PluginPanel
 {
 	private enum Page
 	{
-		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), WELCOME("Squire");
+		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), PLAN("Plan"), WELCOME("Squire");
 
 		final String title;
 
@@ -150,6 +150,12 @@ class BuddySidebar extends PluginPanel
 			{
 				show(Page.SETTINGS);
 			}
+
+			@Override
+			public void openPlan()
+			{
+				show(Page.PLAN);
+			}
 		});
 		this.panelWidth = clamp(initialWidth);
 		this.onWidthChosen = onWidthChosen;
@@ -174,6 +180,7 @@ class BuddySidebar extends PluginPanel
 		body.setOpaque(false);
 		body.add(home, Page.HOME.name());
 		body.add(progress, Page.PROGRESS.name());
+		body.add(home.planView(), Page.PLAN.name());
 		body.add(activity, Page.ACTIVITY.name());
 		chatHolder.setOpaque(false);
 		chatHolder.add(sessions.current(), sessions.current().id());
@@ -289,6 +296,10 @@ class BuddySidebar extends PluginPanel
 		else if (next == Page.HOME)
 		{
 			home.onShown();
+		}
+		else if (next == Page.PLAN)
+		{
+			home.planView().refresh();
 		}
 		else if (next == Page.ACTIVITY)
 		{

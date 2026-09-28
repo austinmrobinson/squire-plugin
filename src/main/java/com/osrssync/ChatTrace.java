@@ -198,6 +198,11 @@ class ChatTrace
 
 	/** Data the agent made for other plugins this turn (setups, tags, markers), shown as cards to copy. */
 	final List<ExportCards.Export> exports = new ArrayList<>();
+	/** Squire saved the player's plan this turn: the reply links to it, and Home and the Plan page reload it. */
+	boolean savedPlan;
+	/** Set by the plugin: reload the plan, and open the Plan page. */
+	static Runnable planSaved = () -> {};
+	static Runnable openPlan = () -> {};
 
 	void result(String callId, JsonElement output, boolean ok)
 	{
@@ -213,6 +218,12 @@ class ChatTrace
 			return;
 		}
 		JsonElement data = unwrap(output);
+		if (tool.equals("save_plan"))
+		{
+			savedPlan = true;
+			javax.swing.SwingUtilities.invokeLater(planSaved);
+			return;
+		}
 		if (tool.startsWith("create_") && data != null && data.isJsonObject() && data.getAsJsonObject().has("export"))
 		{
 			ExportCards.Export export = ExportCards.Export.from(data.getAsJsonObject());
@@ -433,6 +444,10 @@ class ChatTrace
 				return "Looked up where to get it";
 			case "check_requirements":
 				return "Checked the requirements";
+			case "get_plan":
+				return "Read your plan";
+			case "save_plan":
+				return "Saved your plan";
 			case "create_inventory_setup":
 				return "Made an inventory setup";
 			case "create_bank_tag":

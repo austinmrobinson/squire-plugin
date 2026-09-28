@@ -1238,6 +1238,14 @@ class ChatView extends JPanel
 		{
 			list.add(ChatComponents.place(new ChatTraceViews.SourcesRow(trace), Align.FILL, 6));
 		}
+		if (trace.savedPlan)
+		{
+			JLabel open = PlanView.link("Open your plan");
+			open.setHorizontalAlignment(JLabel.LEFT);
+			open.setForeground(ChatComponents.ACCENT);
+			open.addMouseListener(PlanView.click(() -> ChatTrace.openPlan.run()));
+			list.add(ChatComponents.place(open, Align.FILL, 8));
+		}
 		// Setups, tag tabs and markers the agent made, each ready to copy into its plugin
 		for (ExportCards.Export export : trace.exports)
 		{

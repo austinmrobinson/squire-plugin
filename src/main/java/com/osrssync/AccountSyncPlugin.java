@@ -336,6 +336,9 @@ public class AccountSyncPlugin extends Plugin
 			progressView, activityView, sessions, panel, config.panelWidth(),
 			w -> configManager.setConfiguration(AccountSyncConfig.GROUP, "panelWidth", w));
 		models.refresh(options -> SwingUtilities.invokeLater(() -> sessions.forEachView(ChatView::refreshModelLabel)));
+		// When Squire saves a plan in chat, Home and the Plan page reload it; the reply links to the page
+		ChatTrace.planSaved = () -> sidebar.home().planView().refresh();
+		ChatTrace.openPlan = () -> sidebar.showPage("plan");
 		// Nothing is sent until the player turns Squire on from the Welcome page
 		sidebar.setTurnedOn(isTurnedOn(), new WelcomeView(serverUrl() + "/privacy", this::turnOn));
 		// Other AI apps (MCP connectors): Settings lists them, the Connect page pairs a new one

@@ -60,6 +60,20 @@ class AccountApi
 		get("api/activity", Map.of("range", range, "offset", String.valueOf(offset), "tz", ZoneId.systemDefault().getId()), callback);
 	}
 
+	/** The player's plan, checked against their account ({ plan: null } when they have none). */
+	void plan(Consumer<Result> callback)
+	{
+		get("api/plan", Map.of(), callback);
+	}
+
+	/** Tick a step or checkpoint, remove a checkpoint, or delete the plan: {op, checkpoint?, step?}. */
+	void editPlan(JsonObject edit, Consumer<Result> callback)
+	{
+		String name = accountName.get();
+		String query = name == null || name.isBlank() ? "" : "?account=" + java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8);
+		send("PATCH", "api/plan" + query, edit, callback);
+	}
+
 	/** This install's daily allowance and linked accounts. */
 	void me(Consumer<Result> callback)
 	{

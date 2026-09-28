@@ -66,6 +66,9 @@ class HomeView extends JPanel
 		void newChat();
 
 		void openSettings();
+
+		/** The player's plan. */
+		void openPlan();
 	}
 
 	private static final long REFRESH_AFTER_MS = 60_000;
@@ -80,6 +83,8 @@ class HomeView extends JPanel
 	/** Conversation starters for what the player is doing right now (see Scenarios); may be empty. */
 	private final Supplier<List<Scenarios.Prompt>> livePrompts;
 	private final MessageList list = new MessageList(null, 0);
+	// The plan lives on its own page; Home shows a card for it and owns its data
+	private final PlanView plan;
 	private JsonObject overview;
 	private String overviewError;
 	private JsonObject today;
@@ -93,6 +98,14 @@ class HomeView extends JPanel
 		this.actions = actions;
 		this.sessions = sessions;
 		this.livePrompts = livePrompts;
+		this.plan = new PlanView(api);
+		plan.setActions(actions::startChat, () ->
+		{
+			if (isShowing())
+			{
+				render();
+			}
+		});
 		// Keep the chat card current (a chat finishing, a new one) while Home is on screen
 		sessions.addListener(this::chatMaybeChanged);
 		setOpaque(false);
@@ -148,6 +161,12 @@ class HomeView extends JPanel
 			today = result.json;
 			render();
 		}));
+		plan.refresh();
+	}
+
+	PlanView planView()
+	{
+		return plan;
 	}
 
 	/** For previews: show this data without fetching. */
@@ -193,6 +212,7 @@ class HomeView extends JPanel
 		renderedChatKey = chatCardKey();
 		list.removeAll();
 		list.add(ChatComponents.place(profileCard(), Align.FILL, 0));
+		list.add(ChatComponents.place(planCard(), Align.FILL, 4));
 		list.add(ChatComponents.place(progressCard(), Align.FILL, 4));
 		list.add(ChatComponents.place(activityCard(), Align.FILL, 4));
 		list.add(ChatComponents.place(chatCard(), Align.FILL, 4));
@@ -335,6 +355,117 @@ class HomeView extends JPanel
 				Pixel.draw(g2, 0, 0, SIZE, SIZE, 6);
 				java.awt.image.BufferedImage icon = SquireIcon.create(28);
 				g2.drawImage(icon, (SIZE - icon.getWidth()) / 2, (SIZE - icon.getHeight()) / 2, null);
+			}
+			g2.dispose();
+		}
+	}
+
+	/** The plan's current checkpoint and what's left on it; or an invitation to make one. */
+	private JComponent planCard()
+	{
+		Surface c = homeCard();
+		c.setBorder(BorderFactory.createEmptyBorder(10, 12, 12, 12));
+		JsonObject p = plan.plan();
+		if (p == null)
+		{
+			c.add(header("Plan", null));
+			c.add(Box.createVerticalStrut(8));
+			c.add(row(text(plan.loaded() ? "No plan yet" : "Loading...", ChatComponents.MUTED), null));
+			if (plan.loaded())
+			{
+				c.add(row(small("Ask Squire to make you one"), null));
+				Ui.clickable(c, () -> actions.startChat("Help me make a plan for my account"));
+			}
+			return c;
+		}
+		int completed = (int) num(p, "completed"), total = (int) num(p, "total");
+		c.add(header("Plan", completed + " of " + total));
+		c.add(Box.createVerticalStrut(10));
+		JsonElement cur = p.get("current");
+		if (cur == null || cur.isJsonNull())
+		{
+			c.add(row(bold(str(p, "title")), null));
+			c.add(row(text("All done. Ask Squire what's next.", PlanView.DONE), null));
+			Ui.clickable(c, actions::openPlan);
+			return c;
+		}
+		JsonObject cp = p.getAsJsonArray("checkpoints").get(cur.getAsInt()).getAsJsonObject();
+		JPanel top = new JPanel(new BorderLayout(10, 0));
+		top.setOpaque(false);
+		top.add(new PlanNode(cp), BorderLayout.WEST);
+		JPanel words = new JPanel();
+		words.setOpaque(false);
+		words.setLayout(new BoxLayout(words, BoxLayout.Y_AXIS));
+		JLabel name = bold(str(cp, "title"));
+		name.setAlignmentX(LEFT_ALIGNMENT);
+		words.add(name);
+		JLabel pct = small("Next up · " + Math.round(num(cp, "progress") * 100) + "%");
+		pct.setAlignmentX(LEFT_ALIGNMENT);
+		words.add(pct);
+		words.add(Box.createVerticalStrut(4));
+		PlanView.Bar bar = new PlanView.Bar(num(cp, "progress"), ChatComponents.ACCENT);
+		bar.setAlignmentX(LEFT_ALIGNMENT);
+		bar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 6));
+		words.add(bar);
+		top.add(words, BorderLayout.CENTER);
+		top.setAlignmentX(LEFT_ALIGNMENT);
+		top.setMaximumSize(new Dimension(Integer.MAX_VALUE, top.getPreferredSize().height));
+		c.add(top);
+		// The next couple of things to do on it
+		int shown = 0;
+		for (JsonElement e : cp.getAsJsonArray("goals"))
+		{
+			JsonObject g = e.getAsJsonObject();
+			if (shown < 2 && !g.get("met").getAsBoolean())
+			{
+				c.add(Box.createVerticalStrut(4));
+				c.add(row(text("· " + str(g, "label"), ChatComponents.MUTED), null));
+				shown++;
+			}
+		}
+		for (JsonElement e : cp.getAsJsonArray("steps"))
+		{
+			JsonObject st = e.getAsJsonObject();
+			if (shown < 2 && !st.get("done").getAsBoolean())
+			{
+				c.add(Box.createVerticalStrut(4));
+				c.add(row(text("· " + str(st, "text"), ChatComponents.MUTED), null));
+				shown++;
+			}
+		}
+		Ui.clickable(c, actions::openPlan);
+		return c;
+	}
+
+	/** A checkpoint's item in a small pixel frame, as on the plan's rail. */
+	private static final class PlanNode extends JComponent
+	{
+		private final int itemId;
+
+		PlanNode(JsonObject cp)
+		{
+			JsonElement icon = cp.get("icon");
+			int id = -1;
+			if (icon != null && icon.isJsonObject() && icon.getAsJsonObject().has("id") && !icon.getAsJsonObject().get("id").isJsonNull())
+			{
+				id = icon.getAsJsonObject().get("id").getAsInt();
+			}
+			itemId = id;
+			setPreferredSize(new Dimension(36, 36));
+		}
+
+		@Override
+		protected void paintComponent(java.awt.Graphics g)
+		{
+			java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+			g2.setColor(ChatComponents.PANEL_BG);
+			Pixel.fill(g2, 0, 0, 36, 36, 4);
+			g2.setColor(ChatComponents.ACCENT);
+			Pixel.draw(g2, 0, 0, 36, 36, 4);
+			java.awt.image.BufferedImage img = itemId > 0 ? Crest.itemImage(itemId, this) : null;
+			if (img != null)
+			{
+				g2.drawImage(img, (36 - img.getWidth()) / 2, (36 - img.getHeight()) / 2, null);
 			}
 			g2.dispose();
 		}
