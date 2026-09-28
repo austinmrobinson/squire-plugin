@@ -332,6 +332,40 @@ public class AccountSyncPlugin extends Plugin
 		models.refresh(options -> SwingUtilities.invokeLater(() -> sessions.forEachView(ChatView::refreshModelLabel)));
 		// Nothing is sent until the player turns RS Buddy on from the Welcome page
 		sidebar.setTurnedOn(isTurnedOn(), new WelcomeView(serverUrl() + "/privacy", this::turnOn));
+		// Other AI apps (MCP connectors): Settings lists them, the Connect page pairs a new one
+		sidebar.setConnectView(new ConnectView(new ConnectView.Source()
+		{
+			@Override
+			public void newCode(ConnectView.PairingCallback callback)
+			{
+				accountApi.pairingCode(r ->
+				{
+					if (r.json == null || !r.json.has("code"))
+					{
+						callback.done(null, null, null, r.error != null ? r.error : "Couldn't get a code.");
+						return;
+					}
+					callback.done(r.json.get("code").getAsString(), java.time.Instant.parse(r.json.get("expiresAt").getAsString()),
+						r.json.get("mcpUrl").getAsString(), null);
+				});
+			}
+
+			@Override
+			public void connectedApps(java.util.function.Consumer<List<String>> callback)
+			{
+				accountApi.connections(r ->
+				{
+					List<String[]> apps = connectedAppsOf(r);
+					if (apps != null)
+					{
+						panel.setConnectedApps(apps);
+					}
+					callback.accept(apps == null ? null : apps.stream().map(a -> a[1]).collect(java.util.stream.Collectors.toList()));
+				});
+			}
+		}));
+		panel.setConnectActions(() -> sidebar.showPage("connect"),
+			id -> accountApi.disconnect(id, r -> refreshConnections()));
 		navButton = NavigationButton.builder()
 			.tooltip("RS Buddy")
 			.icon(BuddyIcon.create())
@@ -1864,9 +1898,43 @@ public class AccountSyncPlugin extends Plugin
 		accountApi.setGatewayKey(null, r -> refreshUsage());
 	}
 
+	/** {id, name} for each connected AI app, or null if the server couldn't say. */
+	private static List<String[]> connectedAppsOf(AccountApi.Result r)
+	{
+		if (r.json == null || !r.json.has("apps"))
+		{
+			return null;
+		}
+		List<String[]> out = new ArrayList<>();
+		for (com.google.gson.JsonElement e : r.json.getAsJsonArray("apps"))
+		{
+			com.google.gson.JsonObject o = e.getAsJsonObject();
+			out.add(new String[]{o.get("id").getAsString(), o.get("name").getAsString()});
+		}
+		return out;
+	}
+
+	private void refreshConnections()
+	{
+		if (!isConfigured())
+		{
+			panel.setConnectedApps(List.of());
+			return;
+		}
+		accountApi.connections(r ->
+		{
+			List<String[]> apps = connectedAppsOf(r);
+			if (apps != null)
+			{
+				panel.setConnectedApps(apps);
+			}
+		});
+	}
+
 	/** Today's message count (or unlimited with the player's own key) for the Settings page. */
 	private void refreshUsage()
 	{
+		refreshConnections();
 		if (!isConfigured())
 		{
 			panel.setUsage("RS Buddy is off", false);

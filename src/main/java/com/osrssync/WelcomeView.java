@@ -180,7 +180,7 @@ class WelcomeView extends JPanel
 	}
 
 	/** Word-wrapped small text whose height follows the width it's given. */
-	private static class Wrapped extends JTextArea implements HeightForWidth
+	static class Wrapped extends JTextArea implements HeightForWidth
 	{
 		private final boolean centered;
 

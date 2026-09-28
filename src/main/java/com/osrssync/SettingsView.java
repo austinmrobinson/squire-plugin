@@ -35,6 +35,35 @@ class SettingsView extends javax.swing.JPanel
 	private Runnable onDeleteData = () -> {};
 	private Runnable onRemoveKey = () -> {};
 	private Runnable onShownHook = () -> {};
+	// Other AI apps connected over MCP: {id, name}
+	private List<String[]> apps = List.of();
+	private Runnable onConnect = () -> {};
+	private java.util.function.Consumer<String> onDisconnect = id -> {};
+
+	/** Open the Connect page, and disconnect an app by id. */
+	void setConnectActions(Runnable onConnect, java.util.function.Consumer<String> onDisconnect)
+	{
+		this.onConnect = onConnect;
+		this.onDisconnect = onDisconnect;
+	}
+
+	/** The connected apps as {id, name} pairs. Any thread. */
+	void setConnectedApps(List<String[]> connected)
+	{
+		Runnable apply = () ->
+		{
+			apps = List.copyOf(connected);
+			render();
+		};
+		if (SwingUtilities.isEventDispatchThread())
+		{
+			apply.run();
+		}
+		else
+		{
+			SwingUtilities.invokeLater(apply);
+		}
+	}
 
 	/** Account actions and a hook to refresh the usage line when the page opens. */
 	void setAccountActions(Runnable onDeleteData, Runnable onRemoveKey, Runnable onShown)
@@ -162,6 +191,27 @@ class SettingsView extends javax.swing.JPanel
 			list.add(ChatComponents.place(c, Align.FILL, 4));
 		}
 		note("Change the shortcut and sync delay, or add your own AI Gateway key, in RuneLite's plugin settings (the wrench icon, then RS Buddy).");
+
+		// Other AI apps using RS Buddy's tools (MCP connectors)
+		group("Connected apps");
+		Surface conn = HomeView.listCard();
+		for (String[] app : apps)
+		{
+			conn.add(row(app[1], null, "Disconnect " + app[1], () ->
+			{
+				int answer = javax.swing.JOptionPane.showConfirmDialog(this,
+					"Disconnect " + app[1] + "? It will no longer be able to read your account.",
+					"Disconnect app", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.QUESTION_MESSAGE);
+				if (answer == javax.swing.JOptionPane.OK_OPTION)
+				{
+					onDisconnect.accept(app[0]);
+				}
+			}));
+			conn.add(HomeView.divider());
+		}
+		conn.add(row("Connect an AI app", null, "Use your account in Claude, ChatGPT, Cursor and other AI apps", onConnect));
+		list.add(ChatComponents.place(conn, Align.FILL, 4));
+		note("Let Claude, ChatGPT, Cursor or another AI app read your synced account with RS Buddy's tools.");
 
 		// Your data on the RS Buddy server
 		group("Your data");

@@ -399,6 +399,24 @@ public class PanelPreview
 				sidebar.showPage("settings");
 				renderSized(sidebar, new File(out, "11b-settings-data.png"), BuddySidebar.DEFAULT_WIDTH, 760);
 				ImageIO.write(BuddyIcon.create(48), "png", new File(out, "icon.png"));
+				settings.setConnectedApps(java.util.List.<String[]>of(new String[]{"c1", "Claude"}));
+				renderSized(sidebar, new File(out, "11c-settings-apps.png"), BuddySidebar.DEFAULT_WIDTH, 1100);
+				sidebar.setConnectView(new ConnectView(new ConnectView.Source()
+				{
+					@Override
+					public void newCode(ConnectView.PairingCallback callback)
+					{
+						callback.done("KX7P-M2QD", java.time.Instant.now().plusSeconds(583), "https://rs-buddy.vercel.app/api/mcp", null);
+					}
+
+					@Override
+					public void connectedApps(java.util.function.Consumer<java.util.List<String>> callback)
+					{
+						callback.accept(java.util.List.of());
+					}
+				}));
+				sidebar.showPage("connect");
+				renderSized(sidebar, new File(out, "12-connect.png"), BuddySidebar.DEFAULT_WIDTH, 760);
 
 
 				JComponent card = WikiCards.preview(new WikiCards.Card("Vorkath", WikiCards.WIKI + "Vorkath",

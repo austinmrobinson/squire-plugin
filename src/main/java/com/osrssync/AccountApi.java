@@ -80,6 +80,24 @@ class AccountApi
 		send("PUT", "api/me/gateway-key", body, callback);
 	}
 
+	/** A one-time code (10 minutes) for connecting another AI app, plus the MCP URL to add. */
+	void pairingCode(Consumer<Result> callback)
+	{
+		send("POST", "api/me/pairing", null, callback);
+	}
+
+	/** AI apps connected to this install. */
+	void connections(Consumer<Result> callback)
+	{
+		send("GET", "api/me/connections", null, callback);
+	}
+
+	/** Disconnect an AI app: its tokens stop working. */
+	void disconnect(String appId, Consumer<Result> callback)
+	{
+		send("DELETE", "api/me/connections?app=" + java.net.URLEncoder.encode(appId, java.nio.charset.StandardCharsets.UTF_8), null, callback);
+	}
+
 	/** Sign this install up; the reply carries its token. No token needed. */
 	void register(Consumer<Result> callback)
 	{
@@ -106,11 +124,23 @@ class AccountApi
 		}
 		okhttp3.RequestBody payload = body == null ? null : okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"), gson.toJson(body));
 		Request request = new Request.Builder()
-			.url(base.newBuilder().addPathSegments(path).build())
+			.url(withPath(base, path))
 			.header("Authorization", "Bearer " + token.get().trim())
 			.method(method, payload == null && !method.equals("GET") && !method.equals("DELETE") ? okhttp3.RequestBody.create(null, new byte[0]) : payload)
 			.build();
 		http.newCall(request).enqueue(handler(callback));
+	}
+
+	/** base + "a/b?x=y" (the query is kept, not encoded into the path). */
+	private static HttpUrl withPath(HttpUrl base, String path)
+	{
+		int q = path.indexOf('?');
+		HttpUrl.Builder b = base.newBuilder().addPathSegments(q < 0 ? path : path.substring(0, q));
+		if (q >= 0)
+		{
+			b.encodedQuery(path.substring(q + 1));
+		}
+		return b.build();
 	}
 
 	private Callback handler(Consumer<Result> callback)

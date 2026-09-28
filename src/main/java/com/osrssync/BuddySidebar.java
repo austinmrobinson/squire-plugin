@@ -37,7 +37,7 @@ class BuddySidebar extends PluginPanel
 {
 	private enum Page
 	{
-		HOME("RS Buddy"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), WELCOME("RS Buddy");
+		HOME("RS Buddy"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), WELCOME("RS Buddy");
 
 		final String title;
 
@@ -56,6 +56,8 @@ class BuddySidebar extends PluginPanel
 					return null;
 				case CHAT:
 					return CHATS;
+				case CONNECT:
+					return SETTINGS;
 				default:
 					return HOME;
 			}
@@ -233,9 +235,22 @@ class BuddySidebar extends PluginPanel
 		show(on ? Page.HOME : Page.WELCOME);
 	}
 
+	private ConnectView connect;
+
+	/** The Connect an AI app page (opened from Settings). */
+	void setConnectView(ConnectView view)
+	{
+		connect = view;
+		body.add(view, Page.CONNECT.name());
+	}
+
 	/** Go to a page. Home has no bar (its profile row stands in); the rest get back, title and actions. */
 	private void show(Page next)
 	{
+		if (page == Page.CONNECT && next != Page.CONNECT && connect != null)
+		{
+			connect.onHidden();
+		}
 		page = next;
 		cards.show(body, next.name());
 		nav.setVisible(next != Page.HOME && next != Page.WELCOME);
@@ -256,7 +271,7 @@ class BuddySidebar extends PluginPanel
 			actions.add(newChatButton);
 		}
 		nav.set(titleOf(next), ancestors, actions);
-		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME);
+		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME && next != Page.CONNECT);
 
 		if (next == Page.CHAT)
 		{
@@ -278,6 +293,10 @@ class BuddySidebar extends PluginPanel
 		else if (next == Page.SETTINGS)
 		{
 			settings.onShown();
+		}
+		else if (next == Page.CONNECT && connect != null)
+		{
+			connect.onShown();
 		}
 		revalidate();
 		repaint();

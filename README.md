@@ -11,6 +11,7 @@ An AI sidekick in your RuneLite sidebar that knows your account. Ask what to do 
 - **In-game chat**: type `::buddy <question>` or press Ctrl+B to ask from the chatbox
 - **Progress**: time played, recent XP and activity at a glance
 - **Chat history**: several chats, each can run at the same time
+- **Use it in other AI apps**: connect Claude, ChatGPT, Cursor or any MCP client to your account from Settings, Connect an AI app. Sign-in uses a one-time code from the plugin; disconnect any time
 
 ## Data and privacy
 
