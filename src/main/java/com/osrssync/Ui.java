@@ -101,6 +101,56 @@ final class Ui
 
 
 
+	/** Starts a new chat with a question; set by the sidebar. */
+	static java.util.function.Consumer<String> askSquire = q -> {};
+
+	/**
+	 * "Ask Squire" lines at the bottom of a card: a pre-written question about what the card shows, in the accent
+	 * colour with Squire's helm, that opens a chat with it.
+	 */
+	static JComponent askLines(String... questions)
+	{
+		JPanel p = new JPanel();
+		p.setOpaque(false);
+		p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+		p.setAlignmentX(Component.LEFT_ALIGNMENT);
+		ImageIcon helm = new ImageIcon(SquireIcon.create(13));
+		for (String q : questions)
+		{
+			JLabel l = new JLabel(q, helm, JLabel.LEFT);
+			l.setFont(FontManager.getRunescapeSmallFont());
+			l.setForeground(ChatComponents.ACCENT.brighter());
+			l.setIconTextGap(6);
+			l.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
+			l.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+			l.setToolTipText("Ask Squire");
+			l.setAlignmentX(Component.LEFT_ALIGNMENT);
+			l.addMouseListener(new java.awt.event.MouseAdapter()
+			{
+				@Override
+				public void mouseClicked(java.awt.event.MouseEvent e)
+				{
+					askSquire.accept(q);
+				}
+
+				@Override
+				public void mouseEntered(java.awt.event.MouseEvent e)
+				{
+					l.setText("<html><u>" + MarkdownLite.escape(q) + "</u></html>");
+				}
+
+				@Override
+				public void mouseExited(java.awt.event.MouseEvent e)
+				{
+					l.setText(q);
+				}
+			});
+			p.add(l);
+		}
+		p.setMaximumSize(new Dimension(Integer.MAX_VALUE, p.getPreferredSize().height));
+		return p;
+	}
+
 	// ---- JSON and formatting
 
 	static JsonObject obj(JsonObject o, String key)

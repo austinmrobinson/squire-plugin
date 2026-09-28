@@ -333,6 +333,8 @@ class ActivityView extends JPanel
 			right.add(pct, BorderLayout.EAST);
 			c.add(row(name, right));
 		}
+		c.add(Box.createVerticalStrut(10));
+		c.add(Ui.askLines("Review my playtime " + (range == 0 ? "today" : "this " + RANGES[range]), "How can I make my playtime count for more?"));
 		return c;
 	}
 

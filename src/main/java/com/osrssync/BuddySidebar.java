@@ -157,6 +157,12 @@ class BuddySidebar extends PluginPanel
 				show(Page.PLAN);
 			}
 		});
+		// "Ask Squire" lines on the Progress and Activity cards start a chat with their question
+		Ui.askSquire = message ->
+		{
+			sessions.startWith(message);
+			show(Page.CHAT);
+		};
 		this.panelWidth = clamp(initialWidth);
 		this.onWidthChosen = onWidthChosen;
 

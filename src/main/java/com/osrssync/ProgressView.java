@@ -196,6 +196,8 @@ class ProgressView extends JPanel
 			label.setToolTipText(tip);
 			c.add(row(label, pair(oneDecimal(num(part, "points")), " / " + (int) num(part, "weight"))));
 		}
+		c.add(Box.createVerticalStrut(10));
+		c.add(Ui.askLines(next == null ? new String[]{"What's left for me to max out my score?"} : new String[]{"How do I reach " + str(next, "name") + " fastest?"}));
 		return c;
 	}
 
@@ -214,6 +216,8 @@ class ProgressView extends JPanel
 		JComponent grid = skillGrid(skills);
 		grid.setAlignmentX(LEFT_ALIGNMENT);
 		c.add(grid);
+		c.add(Box.createVerticalStrut(10));
+		c.add(Ui.askLines(new String[]{"What should I train next, and how?"}));
 		return c;
 	}
 
@@ -231,6 +235,8 @@ class ProgressView extends JPanel
 		c.add(HomeView.listRow(HomeView.dotIcon(ChatComponents.ACCENT), "In progress", value(fmt(inProgress)), null));
 		c.add(HomeView.divider());
 		c.add(HomeView.listRow(HomeView.dotIcon(ChatComponents.BORDER), "Not started", value(fmt(Math.max(0, total - done - inProgress))), null));
+		c.add(Box.createVerticalStrut(10));
+		c.add(Ui.askLines(new String[]{"Which quests should I do next?"}));
 		return c;
 	}
 
@@ -251,6 +257,8 @@ class ProgressView extends JPanel
 			tiersComplete.forEach(e -> unlocked.add(e.getAsString().toLowerCase(Locale.ROOT)));
 		}
 		addTierRows(c, ca.getAsJsonArray("tiers"), unlocked);
+		c.add(Box.createVerticalStrut(10));
+		c.add(Ui.askLines(new String[]{"Which combat achievements are easiest for me?"}));
 		return c;
 	}
 
@@ -264,6 +272,8 @@ class ProgressView extends JPanel
 		Surface c = HomeView.listCard();
 		c.add(top("Achievement diaries", fmt(num(d, "done")) + " / " + fmt(num(d, "total")), "tiers done", null, null, num(d, "done") / num(d, "total")));
 		addTierRows(c, d.getAsJsonArray("tiers"), java.util.Collections.emptySet());
+		c.add(Box.createVerticalStrut(10));
+		c.add(Ui.askLines(new String[]{"Which diary should I do next?"}));
 		return c;
 	}
 
@@ -284,6 +294,8 @@ class ProgressView extends JPanel
 			c.add(HomeView.divider());
 			c.add(HomeView.listRow(null, "Open the log in game to see the total", null, null));
 		}
+		c.add(Box.createVerticalStrut(10));
+		c.add(Ui.askLines(new String[]{"Which collection log slots are quickest for me?"}));
 		return c;
 	}
 
@@ -326,6 +338,8 @@ class ProgressView extends JPanel
 		}
 		grid.setAlignmentX(LEFT_ALIGNMENT);
 		c.add(grid);
+		c.add(Box.createVerticalStrut(10));
+		c.add(Ui.askLines(new String[]{"Which boss should I learn next?"}));
 		return c;
 	}
 
