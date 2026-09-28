@@ -502,6 +502,21 @@ class ChatTrace
 				return "Found your best gear";
 			case "gear_upgrades":
 				return "Ranked gear upgrades";
+			// The agent framework's own sandbox tools: Squire reading its guides (skills) and scratch notes
+			case "Bash":
+			case "bash":
+			case "Read":
+			case "read":
+			case "Glob":
+			case "glob":
+			case "Grep":
+			case "grep":
+				return "Checked its guides";
+			case "Write":
+			case "write":
+			case "Edit":
+			case "edit":
+				return "Made some notes";
 			default:
 				String words = tool.replace('_', ' ').trim();
 				return words.isEmpty() ? "Used a tool" : Character.toUpperCase(words.charAt(0)) + words.substring(1);
