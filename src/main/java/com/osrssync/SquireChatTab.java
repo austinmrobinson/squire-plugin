@@ -28,7 +28,7 @@ class SquireChatTab
 		InterfaceID.Chatbox.CHAT_FRIENDSCHAT, InterfaceID.Chatbox.CHAT_CLAN, InterfaceID.Chatbox.CHAT_TRADE,
 	};
 	private static final int REPORT = InterfaceID.Chatbox.REPORTABUSE;
-	private static final int GREEN = 0x00FF00, YELLOW = 0xFFFF00, ORANGE = 0xFF981F, WHITE = 0xFFFFFF;
+	private static final int YELLOW = 0xFFFF00, ORANGE = 0xFF981F, WHITE = 0xFFFFFF;
 
 	private final Client client;
 	private final Runnable openPrompt;
@@ -37,7 +37,14 @@ class SquireChatTab
 
 	private Widget graphic;
 	private Widget name;
+	/** The status icon left of the name (Ready, Thinking, Observing, New). */
 	private Widget status;
+
+	// Status icons, drawn here and registered as sprites under ids the game doesn't use
+	private static final int SPRITE_BASE = 0x5C0100;
+	private static final int READY = SPRITE_BASE, THINKING = SPRITE_BASE + 1, OBSERVING = SPRITE_BASE + 2, NEW = SPRITE_BASE + 3;
+	private static final int ICON = 13;
+	private boolean spritesAdded;
 	private Widget parent;
 	/** The tabs' own positions, to put back when the tab is turned off. */
 	private final Map<Integer, int[]> original = new HashMap<>();
@@ -108,6 +115,7 @@ class SquireChatTab
 		}
 		graphic = name = status = null;
 		parent = null;
+		removeSprites();
 	}
 
 	/** Called for every chat line while filtering: false hides it (focused mode shows only Squire's lines). */
@@ -164,7 +172,6 @@ class SquireChatTab
 	{
 		Widget sampleGraphic = child(TABS[TABS.length - 1], 0);
 		Widget sampleName = client.getWidget(InterfaceID.Chatbox.CHAT_TRADE_TEXT);
-		Widget sampleFilter = client.getWidget(InterfaceID.Chatbox.CHAT_TRADE_FILTER);
 		graphic = bar.createChild(-1, WidgetType.GRAPHIC);
 		learnSprites();
 		if (normalSprite >= 0)
@@ -178,8 +185,11 @@ class SquireChatTab
 		name = bar.createChild(-1, WidgetType.TEXT);
 		name.setText("Squire");
 		styleText(name, sampleName, WHITE);
-		status = bar.createChild(-1, WidgetType.TEXT);
-		styleText(status, sampleFilter, GREEN);
+		// One centred line, like a tab without a filter label
+		name.setYTextAlignment(WidgetTextAlignment.CENTER);
+		addSprites();
+		status = bar.createChild(-1, WidgetType.GRAPHIC);
+		status.setSpriteId(READY);
 
 		// No target name: the game's own tabs show just the option ("Switch tab"), not "Option Target"
 		graphic.setName("");
@@ -263,13 +273,15 @@ class SquireChatTab
 		int squireX = left + TABS.length * w;
 		place(report, squireX + w, right - (squireX + w));
 
-		// Squire's pieces sit where a tab's graphic and two text lines would
+		// The stone, then the status icon and "Squire" side by side, centred
 		int y = natural[2], h = natural[3];
-		Widget sampleName = client.getWidget(InterfaceID.Chatbox.CHAT_TRADE_TEXT);
-		Widget sampleFilter = client.getWidget(InterfaceID.Chatbox.CHAT_TRADE_FILTER);
 		put(graphic, squireX, y, w, h);
-		put(name, squireX, y + (sampleName != null ? sampleName.getRelativeY() : 0), w, sampleName != null ? sampleName.getHeight() : h / 2);
-		put(status, squireX, y + (sampleFilter != null ? sampleFilter.getRelativeY() : h / 2), w, sampleFilter != null ? sampleFilter.getHeight() : h / 2);
+		int textWidth = 36;
+		int group = ICON + 3 + textWidth;
+		int gx = squireX + Math.max(2, (w - group) / 2);
+		put(status, gx, y + (h - ICON) / 2, ICON, ICON);
+		put(name, gx + ICON + 3, y, Math.min(textWidth + 4, squireX + w - (gx + ICON + 3)), h);
+		name.setXTextAlignment(WidgetTextAlignment.LEFT);
 
 		learnSprites();
 		// While focused, no game tab looks selected: the Squire stone is
@@ -330,28 +342,11 @@ class SquireChatTab
 			return;
 		}
 		String busy = busyStatus.get();
-		String text;
-		int color;
-		if (busy != null)
+		int icon = "Observing".equals(busy) ? OBSERVING : busy != null ? THINKING : unread > 0 && !focused ? NEW : READY;
+		if (status.getSpriteId() != icon)
 		{
-			text = busy;
-			color = YELLOW;
+			status.setSpriteId(icon);
 		}
-		else if (unread > 0 && !focused)
-		{
-			text = "New";
-			color = ORANGE;
-		}
-		else
-		{
-			text = "Ready";
-			color = GREEN;
-		}
-		if (!text.equals(status.getText()))
-		{
-			status.setText(text);
-		}
-		status.setTextColor(color);
 		name.setTextColor(WHITE);
 		if (graphic != null)
 		{
@@ -362,6 +357,84 @@ class SquireChatTab
 				graphic.setSpriteId(sprite);
 			}
 		}
+	}
+
+	/** Draw the status icons (13px pixel art) and register them as sprites. */
+	private void addSprites()
+	{
+		if (spritesAdded)
+		{
+			return;
+		}
+		java.util.Map<Integer, net.runelite.api.SpritePixels> overrides = client.getSpriteOverrides();
+		overrides.put(READY, net.runelite.client.util.ImageUtil.getImageSpritePixels(SquireIcon.create(ICON), client));
+		overrides.put(THINKING, net.runelite.client.util.ImageUtil.getImageSpritePixels(dots(), client));
+		overrides.put(OBSERVING, net.runelite.client.util.ImageUtil.getImageSpritePixels(redDot(), client));
+		overrides.put(NEW, net.runelite.client.util.ImageUtil.getImageSpritePixels(helmWithBadge(), client));
+		spritesAdded = true;
+	}
+
+	private void removeSprites()
+	{
+		if (spritesAdded)
+		{
+			for (int id : new int[]{READY, THINKING, OBSERVING, NEW})
+			{
+				client.getSpriteOverrides().remove(id);
+			}
+			spritesAdded = false;
+		}
+	}
+
+	private static java.awt.image.BufferedImage canvas()
+	{
+		return new java.awt.image.BufferedImage(ICON, ICON, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+	}
+
+	/** Thinking: three yellow dots with a dark outline. */
+	private static java.awt.image.BufferedImage dots()
+	{
+		java.awt.image.BufferedImage img = canvas();
+		java.awt.Graphics2D g = img.createGraphics();
+		for (int x : new int[]{0, 5, 10})
+		{
+			g.setColor(java.awt.Color.BLACK);
+			g.fillRect(x, 5, 3, 4);
+			g.setColor(new java.awt.Color(YELLOW));
+			g.fillRect(x, 5, 3, 3);
+		}
+		g.dispose();
+		return img;
+	}
+
+	/** Observing: a red dot, like a recording light. */
+	private static java.awt.image.BufferedImage redDot()
+	{
+		java.awt.image.BufferedImage img = canvas();
+		java.awt.Graphics2D g = img.createGraphics();
+		g.setColor(java.awt.Color.BLACK);
+		g.fillRect(3, 2, 7, 9);
+		g.fillRect(2, 3, 9, 7);
+		g.setColor(new java.awt.Color(0xE5534B));
+		g.fillRect(4, 3, 5, 7);
+		g.fillRect(3, 4, 7, 5);
+		g.setColor(new java.awt.Color(0xFF8A80));
+		g.fillRect(4, 4, 2, 2);
+		g.dispose();
+		return img;
+	}
+
+	/** New reply: the helm with an orange badge in the corner. */
+	private static java.awt.image.BufferedImage helmWithBadge()
+	{
+		java.awt.image.BufferedImage img = SquireIcon.create(ICON);
+		java.awt.Graphics2D g = img.createGraphics();
+		g.setColor(java.awt.Color.BLACK);
+		g.fillRect(8, 0, 5, 5);
+		g.setColor(new java.awt.Color(ORANGE));
+		g.fillRect(9, 1, 3, 3);
+		g.dispose();
+		return img;
 	}
 
 	/** The game's own geometry for a tab and its children: {xMode, x, widthMode, width} each. */
