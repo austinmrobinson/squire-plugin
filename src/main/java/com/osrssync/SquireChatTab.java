@@ -15,9 +15,9 @@ import net.runelite.api.widgets.WidgetType;
 
 /**
  * A "Squire" stone among the chatbox's bottom tabs, between Trade and Report: the other tabs narrow a little to
- * make room. Its second line shows Squire's status (Ready, Thinking, Observing, New). Clicking it focuses the
- * chatbox on Squire (only Squire's lines show) and opens the Ask prompt; clicking any game tab goes back.
- * Nothing is typed for the player: questions go through RuneLite's own chatbox prompt, and never to the game.
+ * make room. An icon beside the name shows Squire's status (Ready, Thinking, Observing, New). Clicking it focuses
+ * the chatbox on Squire: only Squire's lines show, and what the player types goes to Squire instead of the game;
+ * clicking any game tab goes back. Nothing is ever typed for the player.
  * All methods run on the client thread.
  */
 class SquireChatTab
@@ -201,9 +201,8 @@ class SquireChatTab
 			switch (ev.getOp())
 			{
 				case 1:
-					// View: show only Squire's lines (and ask, since that's why you'd look)
+					// View: only Squire's lines, and the chatbox talks to Squire (see onChatboxInput)
 					setFocused(true);
-					openPrompt.run();
 					break;
 				case 2:
 					openPrompt.run();

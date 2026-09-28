@@ -2209,6 +2209,27 @@ public class AccountSyncPlugin extends Plugin
 		}
 	}
 
+	/**
+	 * While the Squire tab is selected, the chatbox talks to Squire: pressing Enter sends the message to Squire, and
+	 * the game gets nothing (RuneLite's own chat input hook blanks a consumed message; it isn't changed or resent).
+	 * Channel prefixes ("/" for friends or clan chat) and "::" commands still go where they normally would.
+	 */
+	@Subscribe
+	public void onChatboxInput(net.runelite.client.events.ChatboxInput input)
+	{
+		if (chatTab == null || !chatTab.focused() || inGameChat == null || !config.squireChatTab())
+		{
+			return;
+		}
+		String text = input.getValue() == null ? "" : input.getValue().trim();
+		if (text.isEmpty() || text.startsWith("/") || text.startsWith("::"))
+		{
+			return;
+		}
+		input.consume();
+		inGameChat.ask(text);
+	}
+
 	/** Clicking one of the game's own chat tabs leaves the Squire view. */
 	@Subscribe
 	public void onMenuOptionClicked(net.runelite.api.events.MenuOptionClicked event)
