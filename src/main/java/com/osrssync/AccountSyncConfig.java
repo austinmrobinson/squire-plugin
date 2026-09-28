@@ -101,7 +101,7 @@ public interface AccountSyncConfig extends Config
 	}
 
 	/** The public Squire server. Self-hosters set their own in Advanced. */
-	String DEFAULT_SERVER = "https://rs-buddy.vercel.app";
+	String DEFAULT_SERVER = "https://squire-osrs.vercel.app";
 
 	@ConfigSection(
 		name = "Advanced",
