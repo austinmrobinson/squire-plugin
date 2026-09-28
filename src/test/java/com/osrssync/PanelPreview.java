@@ -398,6 +398,7 @@ public class PanelPreview
 				settings.setUsage("12 of 30 free", false);
 				sidebar.showPage("settings");
 				renderSized(sidebar, new File(out, "11b-settings-data.png"), BuddySidebar.DEFAULT_WIDTH, 760);
+				ImageIO.write(BuddyIcon.create(48), "png", new File(out, "icon.png"));
 
 
 				JComponent card = WikiCards.preview(new WikiCards.Card("Vorkath", WikiCards.WIKI + "Vorkath",
