@@ -52,23 +52,26 @@ class WelcomeView extends JPanel
 		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		add(scroll);
 
-		JLabel icon = new JLabel(new ImageIcon(SquireIcon.create(52)), SwingConstants.CENTER);
+		// Left-aligned and quiet, like the website: the helm, a title, then the four things Squire does as numbered cards
+		JLabel icon = new JLabel(new ImageIcon(SquireIcon.create(40)), SwingConstants.LEFT);
 		list.add(ChatComponents.place(icon, Align.FILL, 0));
-		JLabel title = new JLabel("Meet Squire", SwingConstants.CENTER);
-		title.setFont(FontManager.getRunescapeBoldFont());
+		JLabel title = new JLabel("Meet Squire", SwingConstants.LEFT);
+		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
 		title.setForeground(Color.WHITE);
-		list.add(ChatComponents.place(title, Align.FILL, 10));
-		Wrapped intro = new Wrapped("Your OSRS companion. It knows your account and helps you gear up and prepare.", ChatComponents.MUTED, true);
+		list.add(ChatComponents.place(title, Align.FILL, 12));
+		Wrapped intro = new Wrapped("A squire for your account. It knows your stats, bank, quests and gear.", ChatComponents.MUTED, false);
 		list.add(ChatComponents.place(intro, Align.FILL, 4));
 
-		list.add(ChatComponents.place(new Feature("progress", "Know what to do next",
-			"Quests, diaries and skills, checked against your actual levels and account type."), Align.FILL, 22));
-		list.add(ChatComponents.place(new Feature("sword", "Gear and DPS upgrades",
-			"Realistic upgrades for mains, ironmen and hardcores, compared with a DPS calculator."), Align.FILL, 16));
-		list.add(ChatComponents.place(new Feature("skull", "Boss setups",
-			"Inventories for your next boss that you can export to Inventory Setups and Bank Tags."), Align.FILL, 16));
-		list.add(ChatComponents.place(new Feature("chat-bubble", "Ask from the game",
-			"Type ::squire or press Ctrl+B to ask without leaving the chatbox."), Align.FILL, 16));
+		list.add(ChatComponents.place(new Feature("01", "Know", "It knows your account",
+			"Answers from your own stats, bank and quests, checked against the wiki and a DPS calculator."), Align.FILL, 18));
+		list.add(ChatComponents.place(new Feature("02", "Plan", "A plan that keeps itself",
+			"Checkpoints like Barrows gloves or a fire cape that tick off as you play."), Align.FILL, 6));
+		list.add(ChatComponents.place(new Feature("03", "Gear", "Gear you can act on",
+			"Swap a slot, see the DPS change, and copy the trip to Inventory Setups."), Align.FILL, 6));
+		list.add(ChatComponents.place(new Feature("04", "Improve", "Reviews of your runs",
+			"Ask it to watch your next run, play, and get what to change after."), Align.FILL, 6));
+		Wrapped where = new Wrapped("Ask here, from the Squire chat tab, or with ::squire in the chatbox.", ChatComponents.MUTED, false);
+		list.add(ChatComponents.place(where, Align.FILL, 14));
 
 		// Bottom: the disclosure sits just above the button, like a system onboarding sheet
 		MessageList bottom = new MessageList(null, 0);
@@ -76,10 +79,10 @@ class WelcomeView extends JPanel
 		Wrapped disclosure = new Wrapped(
 			"Squire sends your character name, progress, bank, gear, location and messages to the Squire server, "
 				+ "where an AI model answers you. Never your password or other players' data. "
-				+ "You can delete it all from Settings.", ChatComponents.MUTED, true);
+				+ "You can delete it all from Settings.", ChatComponents.MUTED, false);
 		bottom.add(ChatComponents.place(disclosure, Align.FILL, 0));
 
-		JLabel privacy = new JLabel("<html><u>What's sent and why</u></html>", SwingConstants.CENTER);
+		JLabel privacy = new JLabel("<html><u>What's sent and why</u></html>", SwingConstants.LEFT);
 		privacy.setFont(FontManager.getRunescapeSmallFont());
 		privacy.setForeground(ChatComponents.MUTED);
 		privacy.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -121,24 +124,26 @@ class WelcomeView extends JPanel
 		add(bottom, BorderLayout.SOUTH);
 	}
 
-	/** A feature: accent icon on the left, a bold title and a wrapped description beside it. */
-	private static class Feature extends JPanel implements HeightForWidth
+	/** A numbered card: "01 · KNOW" in Squire blue, a bold title and a wrapped description. */
+	private static class Feature extends ChatComponents.Surface implements HeightForWidth
 	{
-		private static final int ICON_COL = 28;
-		private final JLabel icon;
+		private static final int PAD_X = 10, PAD_Y = 8;
+		private static final Color LABEL = new Color(0x8E98FF);
+		private final JLabel label;
 		private final JLabel title;
 		private final Wrapped body;
 
-		Feature(String iconName, String titleText, String bodyText)
+		Feature(String number, String tag, String titleText, String bodyText)
 		{
-			setOpaque(false);
-			icon = new JLabel(SvgIcon.load(iconName, 16, ChatComponents.ACCENT));
-			icon.setVerticalAlignment(SwingConstants.TOP);
+			super(ChatComponents.CARD_BG, 6, true);
+			label = new JLabel(number + "  " + tag.toUpperCase());
+			label.setFont(FontManager.getRunescapeSmallFont());
+			label.setForeground(LABEL);
 			title = new JLabel(titleText);
 			title.setFont(FontManager.getRunescapeBoldFont());
 			title.setForeground(Color.WHITE);
 			body = new Wrapped(bodyText, ChatComponents.MUTED, false);
-			add(icon);
+			add(label);
 			add(title);
 			add(body);
 			setLayout(new LayoutManager()
@@ -168,11 +173,15 @@ class WelcomeView extends JPanel
 				@Override
 				public void layoutContainer(Container parent)
 				{
-					int w = parent.getWidth();
+					int w = parent.getWidth() - PAD_X * 2;
+					int y = PAD_Y;
+					int lh = label.getPreferredSize().height;
+					label.setBounds(PAD_X, y, w, lh);
+					y += lh + 2;
 					int th = title.getPreferredSize().height;
-					icon.setBounds(0, 1, ICON_COL, 18);
-					title.setBounds(ICON_COL, 0, w - ICON_COL, th);
-					body.setBounds(ICON_COL, th + 2, w - ICON_COL, body.heightForWidth(w - ICON_COL));
+					title.setBounds(PAD_X, y, w, th);
+					y += th + 1;
+					body.setBounds(PAD_X, y, w, body.heightForWidth(w));
 				}
 			});
 		}
@@ -180,7 +189,8 @@ class WelcomeView extends JPanel
 		@Override
 		public int heightForWidth(int width)
 		{
-			return title.getPreferredSize().height + 2 + body.heightForWidth(Math.max(40, width - ICON_COL));
+			return PAD_Y * 2 + label.getPreferredSize().height + 2 + title.getPreferredSize().height + 1
+				+ body.heightForWidth(Math.max(40, width - PAD_X * 2));
 		}
 	}
 
