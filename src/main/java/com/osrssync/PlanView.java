@@ -150,6 +150,10 @@ class PlanView extends JPanel
 		{
 			JsonElement p = reply.get("plan");
 			plan = p == null || p.isJsonNull() ? null : p.getAsJsonObject();
+			if (plan != null)
+			{
+				saveCopy(plan);
+			}
 		}
 		// Open the current checkpoint the first time a plan shows
 		if (plan != null && expanded.isEmpty() && plan.has("current") && !plan.get("current").isJsonNull())
@@ -212,6 +216,12 @@ class PlanView extends JPanel
 		top.add(Ui.small(completed == total ? "All " + total + " checkpoints done" : completed + " of " + total + " checkpoints done"), 10);
 		top.add(new Bar(total == 0 ? 0 : completed / (double) total, completed == total ? DONE : ChatComponents.ACCENT), 4);
 		head.add(top);
+		javax.swing.JButton more = ChatComponents.iconButton("more", "More");
+		more.addActionListener(e -> showMenu(more));
+		JPanel corner = new JPanel(new BorderLayout());
+		corner.setOpaque(false);
+		corner.add(more, BorderLayout.NORTH);
+		head.add(corner, BorderLayout.EAST);
 		list.add(ChatComponents.place(head, Align.FILL, 0));
 
 		// The chart: one tile per checkpoint on a rail
@@ -226,6 +236,56 @@ class PlanView extends JPanel
 
 		list.revalidate();
 		list.repaint();
+	}
+
+	/** The plan's "..." menu: copy its ID (to reference it when reporting a problem) or delete it. */
+	private void showMenu(JComponent anchor)
+	{
+		javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+		javax.swing.JMenuItem copyId = new javax.swing.JMenuItem("Copy plan ID");
+		copyId.addActionListener(e -> java.awt.Toolkit.getDefaultToolkit().getSystemClipboard()
+			.setContents(new java.awt.datatransfer.StringSelection(Ui.str(plan, "id")), null));
+		javax.swing.JMenuItem delete = new javax.swing.JMenuItem("Delete plan");
+		delete.addActionListener(e ->
+		{
+			int answer = javax.swing.JOptionPane.showConfirmDialog(this, "Delete \"" + Ui.str(plan, "title") + "\"? This can't be undone.",
+				"Delete plan", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE);
+			if (answer == javax.swing.JOptionPane.OK_OPTION)
+			{
+				JsonObject op = new JsonObject();
+				op.addProperty("op", "delete");
+				edit(op);
+			}
+		});
+		for (javax.swing.JMenuItem item : new javax.swing.JMenuItem[]{copyId, delete})
+		{
+			item.setFont(FontManager.getRunescapeFont());
+		}
+		copyId.setEnabled(!Ui.str(plan, "id").isEmpty());
+		menu.add(copyId);
+		menu.addSeparator();
+		menu.add(delete);
+		menu.show(anchor, anchor.getWidth() - menu.getPreferredSize().width, anchor.getHeight());
+	}
+
+	/** Keep a copy of each plan shown in ~/.runelite/account-sync/plans/<id>.json, like chats, so it can be looked at later. */
+	private static void saveCopy(JsonObject plan)
+	{
+		String id = Ui.str(plan, "id");
+		if (!id.matches("[A-Za-z0-9-]{4,40}"))
+		{
+			return;
+		}
+		try
+		{
+			java.nio.file.Path dir = new java.io.File(net.runelite.client.RuneLite.RUNELITE_DIR, "account-sync/plans").toPath();
+			java.nio.file.Files.createDirectories(dir);
+			java.nio.file.Files.writeString(dir.resolve(id + ".json"), plan.toString());
+		}
+		catch (java.io.IOException | RuntimeException ignored)
+		{
+			// Only a convenience copy; the server has the plan
+		}
 	}
 
 	private JComponent emptyCard()
