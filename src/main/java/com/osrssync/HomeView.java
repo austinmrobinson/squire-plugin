@@ -322,10 +322,21 @@ class HomeView extends JPanel
 		return p;
 	}
 
-	/** The chathead in a sunken square, like the game's dialogue portrait; the Squire icon until it's ready. */
+	/**
+	 * The chathead in a round pixel frame, like a medallion: a gold ring with a dark outline, lit from the top left,
+	 * and small studs at the compass points. The Squire icon until the chathead is ready.
+	 */
 	private static final class Portrait extends JComponent
 	{
-		private static final int SIZE = 56;
+		/** The frame is drawn at half resolution (one art pixel = 2 screen pixels) and scaled up without smoothing. */
+		private static final int ART = 38, SCALE = 2, SIZE = ART * SCALE;
+		private static final java.awt.Color OUTLINE = new java.awt.Color(0x14100A);
+		private static final java.awt.Color GOLD = new java.awt.Color(0xB39457);
+		private static final java.awt.Color GOLD_LIGHT = new java.awt.Color(0xE3C47F);
+		private static final java.awt.Color GOLD_DARK = new java.awt.Color(0x6F5A33);
+		private static final java.awt.image.BufferedImage FRAME = frame();
+		/** Radius (in art pixels) of the window the chathead shows through. */
+		private static final double HOLE = 14.5;
 		private final java.awt.image.BufferedImage image;
 
 		Portrait(java.awt.image.BufferedImage image)
@@ -336,26 +347,83 @@ class HomeView extends JPanel
 			setToolTipText(image == null ? "Your chathead appears once you're logged in" : null);
 		}
 
+		private static java.awt.image.BufferedImage frame()
+		{
+			java.awt.image.BufferedImage f = new java.awt.image.BufferedImage(ART, ART, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+			double c = (ART - 1) / 2.0;
+			for (int y = 0; y < ART; y++)
+			{
+				for (int x = 0; x < ART; x++)
+				{
+					double dx = x - c, dy = y - c, d = Math.sqrt(dx * dx + dy * dy);
+					java.awt.Color col = null;
+					if (d >= HOLE - 1 && d < HOLE)
+					{
+						col = OUTLINE; // inner edge
+					}
+					else if (d >= HOLE && d < HOLE + 3)
+					{
+						// The band: lit from the top left, shaded bottom right, with a darker middle groove
+						double light = -(dx + dy) / d;
+						col = d >= HOLE + 1 && d < HOLE + 2 ? GOLD_DARK : light > 0.45 ? GOLD_LIGHT : light < -0.45 ? GOLD_DARK : GOLD;
+					}
+					else if (d >= HOLE + 3 && d < HOLE + 4)
+					{
+						col = OUTLINE; // outer edge
+					}
+					if (col != null)
+					{
+						f.setRGB(x, y, col.getRGB());
+					}
+				}
+			}
+			// Studs at north, east, south and west: a small outlined diamond sitting on the band
+			int mid = ART / 2 - 1, r = (int) Math.round(HOLE + 1.5);
+			int[][] at = {{mid, (int) (c - r)}, {(int) (c + r), mid}, {mid, (int) (c + r)}, {(int) (c - r), mid}};
+			for (int[] p : at)
+			{
+				for (int oy = -2; oy <= 3; oy++)
+				{
+					for (int ox = -2; ox <= 3; ox++)
+					{
+						int m = Math.abs(ox * 2 - 1) + Math.abs(oy * 2 - 1); // diamond distance around the 2x2 centre
+						int px = p[0] + ox, py = p[1] + oy;
+						if (px < 0 || py < 0 || px >= ART || py >= ART || m > 6)
+						{
+							continue;
+						}
+						f.setRGB(px, py, (m > 4 ? OUTLINE : m > 2 ? GOLD : GOLD_LIGHT).getRGB());
+					}
+				}
+			}
+			return f;
+		}
+
 		@Override
 		protected void paintComponent(Graphics g)
 		{
 			java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
-			g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+			double hole = HOLE * SCALE, cx = SIZE / 2.0;
+			java.awt.geom.Ellipse2D window = new java.awt.geom.Ellipse2D.Double(cx - hole, cx - hole, hole * 2, hole * 2);
+			g2.setColor(ChatComponents.BASE_BG);
+			g2.fill(window);
 			if (image != null)
 			{
 				g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-				g2.setClip(Pixel.shape(0, 0, SIZE, SIZE, 6));
-				g2.drawImage(image, 0, 0, SIZE, SIZE, null);
+				java.awt.Shape clip = g2.getClip();
+				g2.clip(window);
+				int s = (int) Math.round(hole * 2);
+				g2.drawImage(image, (int) (cx - hole), (int) (cx - hole), s, s, null);
+				g2.setClip(clip);
 			}
 			else
 			{
-				g2.setColor(ChatComponents.BASE_BG);
-				Pixel.fill(g2, 0, 0, SIZE, SIZE, 6);
-				g2.setColor(ChatComponents.OUTLINE);
-				Pixel.draw(g2, 0, 0, SIZE, SIZE, 6);
 				java.awt.image.BufferedImage icon = SquireIcon.create(28);
 				g2.drawImage(icon, (SIZE - icon.getWidth()) / 2, (SIZE - icon.getHeight()) / 2, null);
 			}
+			// The frame on top, scaled up pixel for pixel
+			g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+			g2.drawImage(FRAME, 0, 0, SIZE, SIZE, null);
 			g2.dispose();
 		}
 	}
