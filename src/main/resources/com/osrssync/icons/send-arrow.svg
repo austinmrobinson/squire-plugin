@@ -1,6 +1,5 @@
-<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g id="Frame">
-<path id="Vector" d="M7.33334 13.3334H8.66668V2.66669H7.33334V13.3334ZM8.66668 5.33335H10V4.00002H8.66668V5.33335ZM10 6.66669H11.3333V5.33335H10V6.66669ZM11.3333 8.00002H12.6667V6.66669H11.3333V8.00002ZM7.33334 5.33335H6.00001V4.00002H7.33334V5.33335Z" fill="white"/>
-<path id="Vector_2" d="M9.99999 6.66665H4.66666V5.33331H9.99999V6.66665ZM11.3333 7.99998H3.33332V6.66665H11.3333V7.99998Z" fill="white"/>
-</g>
+<!-- Pixelarticons "arrow-up" (pixelarticons.com, MIT) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+  <path d="M11 20h2V4h-2zm2-12h2V6h-2zm2 2h2V8h-2zm2 2h2v-2h-2zm-6-4H9V6h2z"/>
+  <path d="M15 10H7V8h8zm2 2H5v-2h12z"/>
 </svg>

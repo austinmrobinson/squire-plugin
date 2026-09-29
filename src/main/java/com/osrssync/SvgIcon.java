@@ -18,13 +18,16 @@ import java.util.regex.Pattern;
 import javax.swing.ImageIcon;
 
 /**
- * Renders the plugin's SVG icons (exported from the Figma design) without an SVG library.
- * Supports what those icons use: paths with absolute M/L/H/V/Z commands, circles, fill colours and opacity.
+ * Renders the plugin's SVG icons without an SVG library: our own (exported from the Figma design) and Pixelarticons
+ * (pixelarticons.com, MIT). Supports what those use: paths with M/L/H/V/Z commands (absolute or relative), circles,
+ * fill colours ("currentColor" draws in the default icon grey) and opacity.
  */
 final class SvgIcon
 {
 	private static final Pattern VIEWBOX = Pattern.compile("viewBox=\"([\\d.\\s-]+)\"");
-	private static final Pattern PATH = Pattern.compile("<path[^>]*?\\sd=\"([^\"]+)\"[^>]*?fill=\"(#[0-9A-Fa-f]{6}|white|black)\"[^>]*/?>");
+	private static final Pattern PATH = Pattern.compile("<path([^>]*)/?>");
+	/** The grey our icons are drawn in when they don't say (Pixelarticons use currentColor). */
+	private static final Color DEFAULT = new Color(0xA5A5A5);
 	private static final Pattern CIRCLE = Pattern.compile("<circle([^>]*)/?>");
 	private static final Pattern ATTR = Pattern.compile("(\\w+)=\"([^\"]*)\"");
 	private static final Pattern TOKEN = Pattern.compile("[MLHVZmlhvz]|-?\\d*\\.?\\d+(?:e-?\\d+)?");
@@ -76,11 +79,28 @@ final class SvgIcon
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g.scale(scale, scale);
 
+		java.util.List<Path2D> paths = new java.util.ArrayList<>();
+		java.util.List<Color> colors = new java.util.ArrayList<>();
 		Matcher pm = PATH.matcher(svg);
 		while (pm.find())
 		{
-			g.setColor(tint != null ? tint : color(pm.group(2)));
-			g.fill(path(pm.group(1)));
+			Map<String, String> a = attrs(pm.group(1));
+			if (a.containsKey("d"))
+			{
+				paths.add(path(a.get("d")));
+				colors.add(tint != null ? tint : color(a.getOrDefault("fill", "currentColor")));
+			}
+		}
+		// Pixelarticons draw 2-unit pixels on a 24 grid, some starting on odd units: shift those a unit so every
+		// pixel lands on the 12-cell grid our 16px icons use, keeping edges as sharp as our own icons.
+		if (vbW == 24 && vbH == 24)
+		{
+			g.translate(snap(paths, true), snap(paths, false));
+		}
+		for (int i = 0; i < paths.size(); i++)
+		{
+			g.setColor(colors.get(i));
+			g.fill(paths.get(i));
 		}
 		Matcher cm = CIRCLE.matcher(svg);
 		while (cm.find())
@@ -110,8 +130,36 @@ final class SvgIcon
 		return out;
 	}
 
+	/** -1 or +1 when every vertex sits on an odd coordinate along this axis, else 0. */
+	private static int snap(java.util.List<Path2D> paths, boolean horizontal)
+	{
+		double min = Double.MAX_VALUE;
+		for (Path2D p : paths)
+		{
+			double[] c = new double[6];
+			for (java.awt.geom.PathIterator it = p.getPathIterator(null); !it.isDone(); it.next())
+			{
+				if (it.currentSegment(c) == java.awt.geom.PathIterator.SEG_CLOSE)
+				{
+					continue;
+				}
+				double v = horizontal ? c[0] : c[1];
+				if (v != Math.floor(v) || ((long) v) % 2 == 0)
+				{
+					return 0;
+				}
+				min = Math.min(min, v);
+			}
+		}
+		return min == Double.MAX_VALUE ? 0 : min >= 1 ? -1 : 1;
+	}
+
 	private static Color color(String c)
 	{
+		if (c == null || "currentColor".equals(c) || "none".equals(c))
+		{
+			return DEFAULT;
+		}
 		if ("white".equals(c))
 		{
 			return Color.WHITE;
@@ -128,7 +176,7 @@ final class SvgIcon
 		Path2D.Double p = new Path2D.Double(Path2D.WIND_NON_ZERO);
 		Matcher m = TOKEN.matcher(d);
 		String cmd = "M";
-		double x = 0, y = 0;
+		double x = 0, y = 0, startX = 0, startY = 0;
 		java.util.List<String> tokens = new java.util.ArrayList<>();
 		while (m.find())
 		{
@@ -144,28 +192,34 @@ final class SvgIcon
 				if (cmd.equalsIgnoreCase("Z"))
 				{
 					p.closePath();
+					x = startX;
+					y = startY;
 				}
 				continue;
 			}
-			switch (cmd)
+			// Lower-case commands are relative to the current point
+			boolean rel = Character.isLowerCase(cmd.charAt(0));
+			switch (cmd.toUpperCase())
 			{
 				case "M":
-					x = Double.parseDouble(tokens.get(i++));
-					y = Double.parseDouble(tokens.get(i++));
+					x = (rel ? x : 0) + Double.parseDouble(tokens.get(i++));
+					y = (rel ? y : 0) + Double.parseDouble(tokens.get(i++));
 					p.moveTo(x, y);
-					cmd = "L"; // subsequent pairs are line-tos
+					startX = x;
+					startY = y;
+					cmd = rel ? "l" : "L"; // subsequent pairs are line-tos
 					break;
 				case "L":
-					x = Double.parseDouble(tokens.get(i++));
-					y = Double.parseDouble(tokens.get(i++));
+					x = (rel ? x : 0) + Double.parseDouble(tokens.get(i++));
+					y = (rel ? y : 0) + Double.parseDouble(tokens.get(i++));
 					p.lineTo(x, y);
 					break;
 				case "H":
-					x = Double.parseDouble(tokens.get(i++));
+					x = (rel ? x : 0) + Double.parseDouble(tokens.get(i++));
 					p.lineTo(x, y);
 					break;
 				case "V":
-					y = Double.parseDouble(tokens.get(i++));
+					y = (rel ? y : 0) + Double.parseDouble(tokens.get(i++));
 					p.lineTo(x, y);
 					break;
 				default:

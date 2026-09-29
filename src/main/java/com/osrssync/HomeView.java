@@ -373,8 +373,8 @@ class HomeView extends JPanel
 			c.add(row(text(plan.loaded() ? "No plan yet" : "Loading...", ChatComponents.MUTED), null));
 			if (plan.loaded())
 			{
-				c.add(row(small("Ask Squire to make you one"), null));
-				Ui.clickable(c, () -> actions.startChat("Help me make a plan for my account"));
+				c.add(row(small("Make one with Squire, or start from the guide"), null));
+				Ui.clickable(c, actions::openPlan);
 			}
 			return c;
 		}

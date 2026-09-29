@@ -37,3 +37,7 @@ Everyone gets a number of free messages a day. For unlimited use, add your own [
 ## Server
 
 The server (Next.js, Postgres, the agent and its tools) is open source at https://github.com/austinmrobinson/rs-buddy.
+
+## Credits
+
+Interface icons are from [Pixelarticons](https://pixelarticons.com) (MIT). The progression guide follows [Ladlor's Ironman Progression Chart](https://ladlorchart.com/) and [Yazi's Ironman Gear Progression 2025](https://oldschool.runescape.wiki/w/Guide:Yazi%27s_Ironman_Gear_Progression_2025) on the OSRS Wiki.

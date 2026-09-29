@@ -481,7 +481,7 @@ final class ChatComponents
 	/** The design's 24px beveled orange send button; shows a stop square while a reply is streaming. */
 	static class SendButton extends JButton
 	{
-		private final Icon arrow = SvgIcon.load("send-arrow", 16, null);
+		private final Icon arrow = SvgIcon.load("send-arrow", 16, Color.WHITE);
 		private boolean stop;
 		private boolean hover;
 		/** Grey instead of orange (Home's compact composer). */
@@ -570,10 +570,19 @@ final class ChatComponents
 	static class AccentButton extends JButton
 	{
 		private boolean hover;
+		private final Color fill, edge;
 
 		AccentButton(String text)
 		{
+			this(text, false);
+		}
+
+		/** A secondary button is the same shape in grey, for the less important of two actions. */
+		AccentButton(String text, boolean secondary)
+		{
 			super(text);
+			fill = secondary ? USER_BG : ACCENT;
+			edge = secondary ? new Color(0x2A2A2A) : ACCENT_DARK;
 			setFont(FontManager.getRunescapeBoldFont());
 			setForeground(Color.WHITE);
 			setContentAreaFilled(false);
@@ -607,9 +616,9 @@ final class ChatComponents
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			int w = getWidth(), h = getHeight();
 			boolean down = getModel().isPressed();
-			g2.setColor(!isEnabled() ? ACCENT_DARK : hover && !down ? ACCENT.brighter() : ACCENT);
+			g2.setColor(!isEnabled() ? edge : hover && !down ? fill.brighter() : fill);
 			Pixel.fill(g2, 0, 0, w, h, 4);
-			g2.setColor(ACCENT_DARK);
+			g2.setColor(edge);
 			Pixel.draw(g2, 0, 0, w, h, 4);
 			Pixel.bevel(g2, 1, 1, w - 2, h - 2, 3, down ? BEVEL_DARK : BEVEL_LIGHT, down ? BEVEL_LIGHT : BEVEL_DARK);
 			g2.dispose();

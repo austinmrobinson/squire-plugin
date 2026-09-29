@@ -231,6 +231,18 @@ class PlanView extends JPanel
 			ChatComponents.AccentButton make = new ChatComponents.AccentButton("Make a plan with Squire");
 			make.addActionListener(e -> askSquire.accept("Help me make a plan for my account"));
 			s.add(make, 14);
+			// Or start from the next steps on Squire's progression guide (Ladlor's chart and Yazi's gear progression)
+			ChatComponents.AccentButton guide = new ChatComponents.AccentButton("Start from the guide", true);
+			guide.setToolTipText("The next 10 steps on Squire's progression guide that you haven't done yet");
+			guide.addActionListener(e ->
+			{
+				guide.setEnabled(false);
+				guide.setText("Starting...");
+				JsonObject op = new JsonObject();
+				op.addProperty("op", "from_guide");
+				edit(op);
+			});
+			s.add(guide, 8);
 		}
 		c.add(s);
 		return c;
