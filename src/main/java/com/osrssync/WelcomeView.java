@@ -62,13 +62,13 @@ class WelcomeView extends JPanel
 		Wrapped intro = new Wrapped("A squire for your account. It knows your stats, bank, quests and gear.", ChatComponents.MUTED, false);
 		list.add(ChatComponents.place(intro, Align.FILL, 4));
 
-		list.add(ChatComponents.place(new Feature("01", "Know", "It knows your account",
+		list.add(ChatComponents.place(new Feature("01", "Sync", "sync", "It knows your account",
 			"Answers from your own stats, bank and quests, checked against the wiki and a DPS calculator."), Align.FILL, 18));
-		list.add(ChatComponents.place(new Feature("02", "Plan", "A plan that keeps itself",
+		list.add(ChatComponents.place(new Feature("02", "Plan", "map", "A plan that keeps itself",
 			"Checkpoints like Barrows gloves or a fire cape that tick off as you play."), Align.FILL, 6));
-		list.add(ChatComponents.place(new Feature("03", "Gear", "Gear you can act on",
+		list.add(ChatComponents.place(new Feature("03", "Gear", "shield", "Gear you can act on",
 			"Swap a slot, see the DPS change, and copy the trip to Inventory Setups."), Align.FILL, 6));
-		list.add(ChatComponents.place(new Feature("04", "Improve", "Reviews of your runs",
+		list.add(ChatComponents.place(new Feature("04", "Improve", "trending-up", "Reviews of your runs",
 			"Ask it to watch your next run, play, and get what to change after."), Align.FILL, 6));
 		Wrapped where = new Wrapped("Ask here, from the Squire chat tab, or with ::squire in the chatbox.", ChatComponents.MUTED, false);
 		list.add(ChatComponents.place(where, Align.FILL, 14));
@@ -124,7 +124,7 @@ class WelcomeView extends JPanel
 		add(bottom, BorderLayout.SOUTH);
 	}
 
-	/** A numbered card: "01 · KNOW" in Squire blue, a bold title and a wrapped description. */
+	/** A numbered card: its icon and "01  SYNC" in Squire blue, a bold title and a wrapped description. */
 	private static class Feature extends ChatComponents.Surface implements HeightForWidth
 	{
 		private static final int PAD_X = 10, PAD_Y = 8;
@@ -133,10 +133,11 @@ class WelcomeView extends JPanel
 		private final JLabel title;
 		private final Wrapped body;
 
-		Feature(String number, String tag, String titleText, String bodyText)
+		Feature(String number, String tag, String iconName, String titleText, String bodyText)
 		{
 			super(ChatComponents.CARD_BG, 6, true);
-			label = new JLabel(number + "  " + tag.toUpperCase());
+			label = new JLabel(number + "  " + tag.toUpperCase(), SvgIcon.load(iconName, 16, LABEL), SwingConstants.LEFT);
+			label.setIconTextGap(6);
 			label.setFont(FontManager.getRunescapeSmallFont());
 			label.setForeground(LABEL);
 			title = new JLabel(titleText);
