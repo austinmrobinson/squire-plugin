@@ -161,6 +161,14 @@ class PlanView extends JPanel
 		onChanged.run();
 	}
 
+	private void checkpointOp(String name, String checkpoint)
+	{
+		JsonObject op = new JsonObject();
+		op.addProperty("op", name);
+		op.addProperty("checkpoint", checkpoint);
+		edit(op);
+	}
+
 	private void edit(JsonObject op)
 	{
 		api.editPlan(op, r -> SwingUtilities.invokeLater(() ->
@@ -168,6 +176,11 @@ class PlanView extends JPanel
 			if (r.json != null)
 			{
 				show(r.json, null);
+			}
+			else if (r.error != null)
+			{
+				// e.g. starting from the guide before the bank has synced
+				show(null, r.error);
 			}
 		}));
 	}
@@ -260,6 +273,8 @@ class PlanView extends JPanel
 			setOpaque(false);
 			String id = Ui.str(cp, "id");
 			boolean complete = cp.get("complete").getAsBoolean();
+			boolean skipped = cp.has("skipped") && cp.get("skipped").getAsBoolean();
+			boolean outgrown = cp.has("outgrown") && cp.get("outgrown").getAsBoolean();
 			boolean open = expanded.contains(id);
 			rail = new Rail(cp, index, complete, current, first, last, prevDone);
 			add(rail);
@@ -273,13 +288,14 @@ class PlanView extends JPanel
 			card.setBorder(BorderFactory.createEmptyBorder(8, 10, 10, 10));
 			Stack inner = new Stack();
 			JLabel name = Ui.bold(Ui.str(cp, "title"));
-			name.setForeground(complete ? ChatComponents.MUTED : java.awt.Color.WHITE);
+			name.setForeground(complete || skipped ? ChatComponents.MUTED : java.awt.Color.WHITE);
 			inner.add(name);
 			double progress = Ui.num(cp, "progress");
-			JLabel sub = Ui.small(complete ? "Done" : current ? "In progress · " + Math.round(progress * 100) + "%" : Math.round(progress * 100) + "%");
-			sub.setForeground(complete ? DONE : ChatComponents.MUTED);
+			JLabel sub = Ui.small(skipped ? "Skipped" : outgrown ? "Done · you're past this" : complete ? "Done"
+				: current ? "In progress · " + Math.round(progress * 100) + "%" : Math.round(progress * 100) + "%");
+			sub.setForeground(complete && !skipped ? DONE : ChatComponents.MUTED);
 			inner.add(sub, 2);
-			if (!complete && progress > 0)
+			if (!complete && !skipped && progress > 0)
 			{
 				inner.add(new Bar(progress, ChatComponents.ACCENT), 6);
 			}
@@ -380,18 +396,27 @@ class PlanView extends JPanel
 			}
 			boolean manual = cp.get("manuallyDone").getAsBoolean();
 			boolean complete = cp.get("complete").getAsBoolean();
-			if (manual || !complete)
+			boolean skipped = cp.has("skipped") && cp.get("skipped").getAsBoolean();
+			JPanel actions = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
+			actions.setOpaque(false);
+			if (!skipped && (manual || !complete))
 			{
 				JLabel mark = link(manual ? "Mark as not done" : "Mark as done");
-				mark.setHorizontalAlignment(JLabel.LEFT);
-				mark.addMouseListener(click(() ->
-				{
-					JsonObject op = new JsonObject();
-					op.addProperty("op", "toggle_checkpoint");
-					op.addProperty("checkpoint", id);
-					edit(op);
-				}));
-				inner.add(mark, 10);
+				mark.addMouseListener(click(() -> checkpointOp("toggle_checkpoint", id)));
+				actions.add(mark);
+				actions.add(javax.swing.Box.createHorizontalStrut(14));
+			}
+			if (skipped || !complete)
+			{
+				// Skipping takes it off the path: it stops being current and isn't counted
+				JLabel skip = link(skipped ? "Don't skip" : "Skip");
+				skip.setToolTipText(skipped ? "Put this back on your path" : "Leave this out of your plan; Squire won't add it back from the guide");
+				skip.addMouseListener(click(() -> checkpointOp("skip_checkpoint", id)));
+				actions.add(skip);
+			}
+			if (actions.getComponentCount() > 0)
+			{
+				inner.add(actions, 10);
 			}
 		}
 
