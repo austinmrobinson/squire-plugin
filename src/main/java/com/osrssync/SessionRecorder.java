@@ -29,6 +29,8 @@ class SessionRecorder
 {
 	private static final int MAX_SECONDS = 60 * 60;
 	private static final int MAX_HITS = 400;
+	/** Ticks inside an instance (about 30 seconds) before leaving it counts as the run ending. */
+	private static final int MIN_INSTANCE_TICKS = 50;
 	private static final Pattern DOSE = Pattern.compile("\\s*\\(\\d\\)$");
 	private static final Pattern FOOD = Pattern.compile("(?i)^(shark|paddlefish|manta ray|anglerfish|dark crab|sea turtle|tuna potato|"
 		+ "cooked karambwan|karambwan|monkfish|lobster|swordfish|pineapple pizza|.*pie|.*pizza|cooked .*|.*potato.*|crystal paddlefish|"
@@ -53,7 +55,7 @@ class SessionRecorder
 	private int taken, whileProtected, unprotected, dealt, hitCount, zeros, maxHit, attacks, deaths, prayerSwitches, gearSwitches;
 	private int hpMin = Integer.MAX_VALUE, hpStart = -1, hpEnd = -1;
 	private long hpSum;
-	private int lastRegion = -1, lastWeapon = -2;
+	private int lastRegion = -1, lastWeapon = -2, instanceTicks;
 	private String lastPrayer;
 
 	SessionRecorder(Client client, IntFunction<String> itemName, Consumer<Map<String, Object>> onFinished)
@@ -151,6 +153,17 @@ class SessionRecorder
 			gearSwitches++;
 		}
 		lastWeapon = weaponId;
+		// Leaving the instance the fight happened in (the Gauntlet, Vorkath, a raid) ends the run
+		boolean instanced = client.getTopLevelWorldView().isInstance();
+		if (instanced)
+		{
+			instanceTicks++;
+		}
+		else if (instanceTicks >= MIN_INSTANCE_TICKS)
+		{
+			stop("left the instance");
+			return;
+		}
 		if (seconds() >= MAX_SECONDS)
 		{
 			stop("an hour passed");
@@ -383,6 +396,7 @@ class SessionRecorder
 		hpSum = 0;
 		lastRegion = -1;
 		lastWeapon = -2;
+		instanceTicks = 0;
 		lastPrayer = null;
 	}
 }

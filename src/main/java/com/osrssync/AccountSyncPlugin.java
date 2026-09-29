@@ -1295,6 +1295,15 @@ public class AccountSyncPlugin extends Plugin
 			c.put("inventorySetups", setups);
 			ExportCards.knownSetups(setups);
 		}
+		// An observed session still running: its review only exists once it stops (leaving the instance, dying, an hour, or ::squire stop)
+		if (recorder != null && recorder.recording())
+		{
+			Map<String, Object> obs = new LinkedHashMap<>();
+			obs.put("label", recorder.label());
+			obs.put("minutes", (System.currentTimeMillis() - recorder.startedAt()) / 60000);
+			obs.put("howToStop", "Stop in the Squire panel's Observing bar, or ::squire stop");
+			c.put("observingSession", obs);
+		}
 		c.put("note", "Live state from the player's RuneLite client at the time of this message; fresher than the synced data.");
 		return c;
 	}
