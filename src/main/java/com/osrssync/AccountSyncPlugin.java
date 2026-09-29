@@ -833,8 +833,8 @@ public class AccountSyncPlugin extends Plugin
 		{
 			int id = itemManager.canonicalize(stack.getId());
 			ItemComposition comp = itemManager.getItemComposition(id);
-			int price = itemManager.getItemPrice(id);
-			total += (long) price * stack.getQuantity();
+			long price = itemManager.getItemPrice(id);
+			total += price * stack.getQuantity();
 
 			Map<String, Object> item = new LinkedHashMap<>();
 			item.put("id", id);
