@@ -60,6 +60,18 @@ class AccountApi
 		get("api/activity", Map.of("range", range, "offset", String.valueOf(offset), "tz", ZoneId.systemDefault().getId()), callback);
 	}
 
+	/** Gains over a period: everything gained, or one metric's values and per-day gains (metric null for the list). */
+	void gained(String period, String metric, Consumer<Result> callback)
+	{
+		Map<String, String> q = new java.util.HashMap<>();
+		q.put("period", period);
+		if (metric != null)
+		{
+			q.put("metric", metric);
+		}
+		get("api/gained", q, callback);
+	}
+
 	/** The player's plan, checked against their account ({ plan: null } when they have none). */
 	void plan(Consumer<Result> callback)
 	{

@@ -38,7 +38,7 @@ class BuddySidebar extends PluginPanel
 {
 	private enum Page
 	{
-		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), WELCOME("Squire");
+		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), GAINED("Gained"), WELCOME("Squire");
 
 		final String title;
 
@@ -78,6 +78,7 @@ class BuddySidebar extends PluginPanel
 	private final ChatHistoryView history;
 	private final HomeView home;
 	private final ActivityView activity;
+	private final GainedView gained;
 	private final SettingsView settings;
 	private final CardLayout cards = new CardLayout();
 	private final JPanel body = new JPanel(cards);
@@ -99,6 +100,7 @@ class BuddySidebar extends PluginPanel
 		super(false);
 		this.sessions = sessions;
 		this.activity = activity;
+		this.gained = new GainedView(activity.api());
 		this.settings = settings;
 		this.progressView = progress;
 		this.home = homeFactory.apply(new HomeView.Actions()
@@ -113,6 +115,12 @@ class BuddySidebar extends PluginPanel
 			public void openActivity()
 			{
 				show(Page.ACTIVITY);
+			}
+
+			@Override
+			public void openGained()
+			{
+				show(Page.GAINED);
 			}
 
 			@Override
@@ -194,6 +202,7 @@ class BuddySidebar extends PluginPanel
 		body.add(progress, Page.PROGRESS.name());
 		body.add(home.planView(), Page.PLAN.name());
 		body.add(activity, Page.ACTIVITY.name());
+		body.add(gained, Page.GAINED.name());
 		chatHolder.setOpaque(false);
 		chatHolder.add(sessions.current(), sessions.current().id());
 		body.add(chatHolder, Page.CHAT.name());
@@ -418,6 +427,10 @@ class BuddySidebar extends PluginPanel
 		{
 			activity.refresh();
 		}
+		else if (next == Page.GAINED)
+		{
+			gained.refresh();
+		}
 		else if (next == Page.SETTINGS)
 		{
 			settings.onShown();
@@ -445,6 +458,8 @@ class BuddySidebar extends PluginPanel
 				return "Ask about your progress...";
 			case ACTIVITY:
 				return "Ask about your playtime...";
+			case GAINED:
+				return "Ask about your gains...";
 			default:
 				return "Ask anything...";
 		}
@@ -535,6 +550,10 @@ class BuddySidebar extends PluginPanel
 		if (page == Page.ACTIVITY)
 		{
 			activity.refresh();
+		}
+		else if (page == Page.GAINED)
+		{
+			gained.refresh();
 		}
 	}
 

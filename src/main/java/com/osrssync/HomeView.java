@@ -51,6 +51,9 @@ class HomeView extends JPanel
 
 		void openActivity();
 
+		/** What was gained over a day, week, month or year. */
+		void openGained();
+
 		void openChat();
 
 		/** Open a conversation from the history. */
@@ -675,6 +678,8 @@ class HomeView extends JPanel
 			}
 			c.add(listRow(dotIcon(p.color), p.name, text(duration(p.value), Color.WHITE), actions::openActivity));
 		}
+		c.add(divider());
+		c.add(listRow(SvgIcon.load("progress", 16, null), "Gains", text("XP, kills, loot", ChatComponents.MUTED), actions::openGained));
 		c.add(divider());
 		c.add(listRow(SvgIcon.load("more", 16, null), "See more", null, actions::openActivity));
 		return c;

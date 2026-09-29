@@ -108,6 +108,11 @@ class ActivityView extends JPanel
 		render(null, "Loading your activity...");
 	}
 
+	AccountApi api()
+	{
+		return api;
+	}
+
 	/** Reload the period on screen (e.g. when the page opens or after a sync). */
 	void refresh()
 	{

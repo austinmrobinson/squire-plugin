@@ -249,15 +249,42 @@ final class ActivityCharts
 		private final List<Column> columns;
 		private final double max;
 		private final boolean xp;
+		private final boolean count;
 
 		/** xp: the columns hold XP rather than minutes (changes the axis scale and labels). */
 		ColumnChart(List<Column> columns, boolean xp)
 		{
+			this(columns, xp, false);
+		}
+
+		/** count: the columns hold plain counts (kills, completions), with a whole-number axis. */
+		ColumnChart(List<Column> columns, boolean xp, boolean count)
+		{
 			this.columns = columns;
 			this.xp = xp;
+			this.count = count;
 			double biggest = columns.stream().mapToDouble(Column::total).max().orElse(0);
-			this.max = xp ? niceXp(biggest) : niceMax(biggest);
+			this.max = count ? niceCount(biggest) : xp ? niceXp(biggest) : niceMax(biggest);
 			setToolTipText("");
+		}
+
+		/** An even number at least 2 (so the middle gridline is whole), rounded to 1, 2 or 5 times a power of ten above 10. */
+		private static double niceCount(double value)
+		{
+			double v = Math.max(2, Math.ceil(value));
+			if (v <= 10)
+			{
+				return v % 2 == 0 ? v : v + 1;
+			}
+			double pow = Math.pow(10, Math.floor(Math.log10(v)));
+			for (double m : new double[]{1, 2, 5, 10})
+			{
+				if (v <= m * pow)
+				{
+					return m * pow;
+				}
+			}
+			return 10 * pow;
 		}
 
 		/** Round up to 1, 2 or 5 times a power of ten (at least 10K). */
@@ -362,7 +389,7 @@ final class ActivityCharts
 				int y = bottom - (bottom - top) * k / 2;
 				g2.setColor(k == 0 ? ChatComponents.BORDER : ChatComponents.OUTLINE);
 				g2.drawLine(0, y, plotW, y);
-				String label = k == 0 ? "0" : xp ? Ui.shortNumber(max * k / 2) : axisLabel(max * k / 2);
+				String label = k == 0 ? "0" : count ? Ui.shortNumber(max * k / 2) : xp ? Ui.shortNumber(max * k / 2) : axisLabel(max * k / 2);
 				g2.setColor(ChatComponents.MUTED);
 				g2.drawString(label, getWidth() - fm.stringWidth(label), y + fm.getAscent() / 2 - 1);
 			}
