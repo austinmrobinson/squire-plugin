@@ -349,37 +349,52 @@ class SettingsView extends javax.swing.JPanel
 		final String tooltip;
 		final Runnable onClick;
 		final java.util.function.Consumer<net.runelite.client.config.Keybind> onShortcut;
+		/** Non-null for on/off settings, drawn as a switch. */
+		final Boolean on;
 
-		private Item(String label, String value, String tooltip, Runnable onClick, java.util.function.Consumer<net.runelite.client.config.Keybind> onShortcut)
+		private Item(String label, String value, String tooltip, Runnable onClick, java.util.function.Consumer<net.runelite.client.config.Keybind> onShortcut, Boolean on)
 		{
 			this.label = label;
 			this.value = value;
 			this.tooltip = tooltip;
 			this.onClick = onClick;
 			this.onShortcut = onShortcut;
+			this.on = on;
+		}
+
+		/** An on/off setting, shown as a switch. */
+		static Item toggle(String label, boolean on, String tooltip, Runnable onClick)
+		{
+			return new Item(label, null, tooltip, onClick, null, on);
 		}
 
 		/** A value that changes when clicked (a toggle, or the next option). */
 		static Item choice(String label, String value, String tooltip, Runnable onClick)
 		{
-			return new Item(label, value, tooltip, onClick, null);
+			return new Item(label, value, tooltip, onClick, null, null);
 		}
 
 		/** A keyboard shortcut: click, then press the new combination (Esc cancels, Backspace clears). */
 		static Item shortcut(String label, String value, String tooltip, java.util.function.Consumer<net.runelite.client.config.Keybind> onShortcut)
 		{
-			return new Item(label, value, tooltip, null, onShortcut);
+			return new Item(label, value, tooltip, null, onShortcut, null);
 		}
 
 		/** Read-only. */
 		static Item info(String label, String value)
 		{
-			return new Item(label, value, null, null, null);
+			return new Item(label, value, null, null, null, null);
 		}
 	}
 
 	private JComponent itemRow(Item item)
 	{
+		if (item.on != null)
+		{
+			JComponent r = HomeView.listRow(null, item.label, new ChatComponents.Switch(item.on), item.onClick);
+			r.setToolTipText(item.tooltip);
+			return r;
+		}
 		JLabel value = Ui.text(item.value == null ? "" : item.value, ChatComponents.MUTED);
 		if (item.onShortcut == null)
 		{

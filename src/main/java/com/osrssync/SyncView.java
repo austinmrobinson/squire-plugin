@@ -86,8 +86,7 @@ class SyncView extends JPanel
 				kinds.add(HomeView.divider());
 			}
 			boolean on = controller.isOn(k[0]);
-			JLabel value = Ui.text(on ? "On" : "Off", on ? ChatComponents.MUTED : ChatComponents.MUTED.darker());
-			JComponent row = HomeView.listRow(null, k[2], value, () ->
+			JComponent row = HomeView.listRow(null, k[2], new ChatComponents.Switch(on), () ->
 			{
 				if (on)
 				{

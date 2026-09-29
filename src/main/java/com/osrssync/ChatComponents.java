@@ -633,6 +633,44 @@ final class ChatComponents
 		}
 	}
 
+	/**
+	 * An on/off switch drawn in the pixel style: a stepped track (Squire blue when on) with a bevelled knob. It only
+	 * shows the state; the row it sits in handles the click.
+	 */
+	static final class Switch extends javax.swing.JComponent
+	{
+		private static final int W = 30, H = 16;
+		private final boolean on;
+
+		Switch(boolean on)
+		{
+			this.on = on;
+			setOpaque(false);
+			Dimension d = new Dimension(W, H);
+			setPreferredSize(d);
+			setMinimumSize(d);
+			setMaximumSize(d);
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			Graphics2D g2 = (Graphics2D) g.create();
+			int y = (getHeight() - H) / 2, x = getWidth() - W;
+			g2.setColor(on ? ACCENT : USER_BG);
+			Pixel.fill(g2, x, y, W, H, 4);
+			g2.setColor(on ? ACCENT_DARK : new Color(0x2A2A2A));
+			Pixel.draw(g2, x, y, W, H, 4);
+			// Inset shadow on the track, like a sunken slot
+			Pixel.bevel(g2, x + 1, y + 1, W - 2, H - 2, 3, BEVEL_DARK, BEVEL_LIGHT);
+			int k = H - 6, kx = on ? x + W - k - 3 : x + 3;
+			g2.setColor(on ? Color.WHITE : new Color(0xBDBDBD));
+			Pixel.fill(g2, kx, y + 3, k, k, 2);
+			Pixel.bevel(g2, kx, y + 3, k, k, 2, BEVEL_LIGHT, BEVEL_DARK);
+			g2.dispose();
+		}
+	}
+
 	/** 32px square button holding a 16px icon from the design; brightens on hover. */
 	static JButton iconButton(String icon, String tooltip)
 	{

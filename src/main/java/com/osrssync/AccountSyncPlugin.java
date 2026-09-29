@@ -344,7 +344,9 @@ public class AccountSyncPlugin extends Plugin
 		keyManager.registerKeyListener(panelHotkey);
 		// In-game chat settings, editable right in the panel; each change re-renders Settings with the new value
 		panel = new SettingsView(this::requestFullUpdate, () -> List.of(
-			SettingsView.Item.choice("::squire command", config.chatCommand() ? "On" : "Off", "Click to turn ::squire on or off",
+			SettingsView.Item.toggle("Squire chat tab", config.squireChatTab(), "A Squire tab next to the game's chat tabs",
+				() -> setChatSetting("squireChatTab", !config.squireChatTab())),
+			SettingsView.Item.toggle("::squire command", config.chatCommand(), "Ask Squire by typing ::squire in the chatbox",
 				() -> setChatSetting("chatCommand", !config.chatCommand())),
 			SettingsView.Item.shortcut("Ask shortcut", shortcutText(config.askHotkey()),
 				"Click, then press a new shortcut (Esc cancels, Backspace clears)", k -> setChatSetting("askHotkey", k)),
@@ -2402,6 +2404,15 @@ public class AccountSyncPlugin extends Plugin
 		if (AccountSyncConfig.GROUP.equals(event.getGroup()) && ("token".equals(event.getKey()) || "endpoint".equals(event.getKey())) && sidebar != null)
 		{
 			SwingUtilities.invokeLater(() -> sidebar.setTurnedOn(isTurnedOn(), welcome));
+		}
+		if (AccountSyncConfig.GROUP.equals(event.getGroup()) && "squireChatTab".equals(event.getKey()))
+		{
+			// Add or remove the tab right away, and let the game lay its own tabs out again
+			clientThread.invokeLater(() ->
+			{
+				updateChatTab();
+				client.runScript(net.runelite.api.ScriptID.BUILD_CHATBOX);
+			});
 		}
 		if (!AccountSyncConfig.GROUP.equals(event.getGroup()) || !"gatewayKey".equals(event.getKey()))
 		{
