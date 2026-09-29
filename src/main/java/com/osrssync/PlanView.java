@@ -200,7 +200,7 @@ class PlanView extends JPanel
 			return;
 		}
 
-		// Title, summary and overall progress
+		// Title, summary, and progress by phase
 		Surface head = HomeView.homeCard();
 		head.setLayout(new BorderLayout());
 		Stack top = new Stack();
@@ -212,9 +212,8 @@ class PlanView extends JPanel
 		{
 			top.add(new Wrapped(summary, ChatComponents.MUTED, false), 4);
 		}
-		int completed = (int) Ui.num(plan, "completed"), total = (int) Ui.num(plan, "total");
-		top.add(Ui.small(completed == total ? "All " + total + " checkpoints done" : completed + " of " + total + " checkpoints done"), 10);
-		top.add(new Bar(total == 0 ? 0 : completed / (double) total, completed == total ? DONE : ChatComponents.ACCENT), 4);
+		JsonArray phases = plan.has("phases") && plan.get("phases").isJsonArray() ? plan.getAsJsonArray("phases") : new JsonArray();
+		top.add(new PhaseBar(phases), 12);
 		head.add(top);
 		javax.swing.JButton more = ChatComponents.iconButton("more", "More");
 		more.addActionListener(e -> showMenu(more));
@@ -224,15 +223,46 @@ class PlanView extends JPanel
 		head.add(corner, BorderLayout.EAST);
 		list.add(ChatComponents.place(head, Align.FILL, 0));
 
-		// The chart: one tile per checkpoint on a rail
 		JsonArray cps = plan.getAsJsonArray("checkpoints");
 		int current = plan.has("current") && !plan.get("current").isJsonNull() ? plan.get("current").getAsInt() : -1;
-		for (int i = 0; i < cps.size(); i++)
+		// Phases on a dotted line; each opens to show its checkpoints
+		for (int p = 0; p < phases.size(); p++)
 		{
-			JsonObject cp = cps.get(i).getAsJsonObject();
-			boolean prevDone = i > 0 && cps.get(i - 1).getAsJsonObject().get("complete").getAsBoolean();
-			list.add(ChatComponents.place(new Tile(cp, i, i == current, i == 0, i == cps.size() - 1, prevDone), Align.FILL, i == 0 ? 12 : 0));
+			JsonObject ph = phases.get(p).getAsJsonObject();
+			String key = "phase:" + Ui.str(ph, "name") + ":" + (int) Ui.num(ph, "start");
+			boolean open = expanded.contains(key);
+			boolean isCurrent = ph.get("current").getAsBoolean();
+			list.add(ChatComponents.place(new Connector(), Align.FILL, 0));
+			Runnable toggle = () ->
+			{
+				if (!expanded.remove(key))
+				{
+					expanded.add(key);
+				}
+				render();
+			};
+			if (isCurrent || open)
+			{
+				list.add(ChatComponents.place(phaseCard(ph, cps, open, toggle), Align.FILL, 0));
+			}
+			else
+			{
+				list.add(ChatComponents.place(centred(new PhasePill(Ui.str(ph, "name"), ph.get("complete").getAsBoolean() ? PhasePill.DONE : PhasePill.LATER, toggle)), Align.FILL, 0));
+			}
+			if (open)
+			{
+				int start = (int) Ui.num(ph, "start"), end = (int) Ui.num(ph, "end");
+				for (int i = start; i <= end && i < cps.size(); i++)
+				{
+					JsonObject cp = cps.get(i).getAsJsonObject();
+					boolean prevDone = i > start && cps.get(i - 1).getAsJsonObject().get("complete").getAsBoolean();
+					list.add(ChatComponents.place(new Tile(cp, i, i == current, i == start, i == end, prevDone), Align.FILL, i == start ? 8 : 0));
+				}
+			}
 		}
+		list.add(ChatComponents.place(new Connector(), Align.FILL, 0));
+		list.add(ChatComponents.place(centred(new PhasePill("Add next phase", PhasePill.ADD,
+			() -> askSquire.accept("Add the next phase to my plan"))), Align.FILL, 0));
 
 		list.revalidate();
 		list.repaint();
@@ -905,5 +935,283 @@ class PlanView extends JPanel
 				r.run();
 			}
 		};
+	}
+
+	// ---- Phases
+
+	private static JComponent centred(JComponent c)
+	{
+		JPanel p = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 0, 0));
+		p.setOpaque(false);
+		p.add(c);
+		return p;
+	}
+
+	/** The current (or an opened) phase: its name and progress, and its checkpoints' items in a row. */
+	private JComponent phaseCard(JsonObject ph, JsonArray cps, boolean open, Runnable toggle)
+	{
+		boolean isCurrent = ph.get("current").getAsBoolean();
+		boolean complete = ph.get("complete").getAsBoolean();
+		Surface card = new Surface(ChatComponents.PANEL_BG, 6, true);
+		card.border(isCurrent ? ChatComponents.ACCENT : complete ? PhasePill.DONE_EDGE : ChatComponents.BORDER);
+		card.setLayout(new BorderLayout());
+		card.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+		Stack inner = new Stack();
+		int start = (int) Ui.num(ph, "start"), end = (int) Ui.num(ph, "end");
+		int total = end - start + 1, done = 0;
+		for (int i = start; i <= end && i < cps.size(); i++)
+		{
+			if (cps.get(i).getAsJsonObject().get("complete").getAsBoolean())
+			{
+				done++;
+			}
+		}
+		JPanel row = new JPanel(new BorderLayout(8, 0));
+		row.setOpaque(false);
+		row.add(Ui.bold(Ui.str(ph, "name")), BorderLayout.CENTER);
+		JLabel count = Ui.small(done + " of " + total);
+		count.setIcon(SvgIcon.load(open ? "chevron-down" : "chevron-right", 16, null));
+		count.setHorizontalTextPosition(JLabel.LEFT);
+		count.setIconTextGap(4);
+		row.add(count, BorderLayout.EAST);
+		inner.add(row);
+		if (!open)
+		{
+			inner.add(new NodeRow(ph), 8);
+		}
+		card.add(inner);
+		card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		MouseAdapter click = click(toggle);
+		card.addMouseListener(click);
+		for (Component c : row.getComponents())
+		{
+			c.addMouseListener(click);
+		}
+		return card;
+	}
+
+	/** A row of 32px item nodes for a phase's checkpoints, "+N" when they don't fit. */
+	private static final class NodeRow extends JComponent
+	{
+		private static final int SIZE = 32, GAP = 6;
+		private final java.util.List<Integer> ids = new java.util.ArrayList<>();
+
+		NodeRow(JsonObject ph)
+		{
+			JsonArray icons = ph.getAsJsonArray("icons");
+			for (JsonElement e : icons)
+			{
+				if (e.isJsonObject() && e.getAsJsonObject().has("id") && !e.getAsJsonObject().get("id").isJsonNull())
+				{
+					ids.add(e.getAsJsonObject().get("id").getAsInt());
+				}
+			}
+		}
+
+		@Override
+		public Dimension getPreferredSize()
+		{
+			return new Dimension(200, SIZE);
+		}
+
+		@Override
+		public Dimension getMaximumSize()
+		{
+			return new Dimension(Integer.MAX_VALUE, SIZE);
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			Graphics2D g2 = (Graphics2D) g.create();
+			int fit = Math.max(1, (getWidth() + GAP) / (SIZE + GAP));
+			boolean overflow = ids.size() > fit;
+			int shown = overflow ? fit - 1 : ids.size();
+			int slots = overflow ? fit : shown;
+			// Spread across the row, like the design
+			double step = slots <= 1 ? 0 : (getWidth() - SIZE) / (double) (Math.max(fit, slots) - 1);
+			for (int i = 0; i < slots; i++)
+			{
+				int x = (int) Math.round(i * step);
+				g2.setColor(ChatComponents.BASE_BG);
+				Pixel.fill(g2, x, 0, SIZE, SIZE, 4);
+				g2.setColor(ChatComponents.BORDER);
+				Pixel.draw(g2, x, 0, SIZE, SIZE, 4);
+				if (i < shown)
+				{
+					java.awt.image.BufferedImage img = Crest.itemImage(ids.get(i), this);
+					if (img != null)
+					{
+						g2.drawImage(img, x + (SIZE - img.getWidth()) / 2, (SIZE - img.getHeight()) / 2, null);
+					}
+				}
+				else
+				{
+					String more = "+" + (ids.size() - shown);
+					g2.setFont(FontManager.getRunescapeBoldFont());
+					java.awt.FontMetrics fm = g2.getFontMetrics();
+					g2.setColor(java.awt.Color.WHITE);
+					g2.drawString(more, x + (SIZE - fm.stringWidth(more)) / 2, (SIZE + fm.getAscent()) / 2 - 2);
+				}
+			}
+			g2.dispose();
+		}
+	}
+
+	/** A compact phase: done (green, with a tick), later (outlined), or the "Add next phase" button. */
+	private static final class PhasePill extends JComponent
+	{
+		static final int DONE = 0, LATER = 1, ADD = 2;
+		static final java.awt.Color DONE_FILL = new java.awt.Color(0x2E4A26);
+		static final java.awt.Color DONE_EDGE = new java.awt.Color(0x5FB548);
+		private final String text;
+		private final int kind;
+		private boolean hover;
+
+		PhasePill(String text, int kind, Runnable onClick)
+		{
+			this.text = text;
+			this.kind = kind;
+			setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+			setToolTipText(kind == ADD ? "Ask Squire to add the next phase" : "Show this phase's checkpoints");
+			addMouseListener(new MouseAdapter()
+			{
+				@Override
+				public void mouseEntered(MouseEvent e)
+				{
+					hover = true;
+					repaint();
+				}
+
+				@Override
+				public void mouseExited(MouseEvent e)
+				{
+					hover = false;
+					repaint();
+				}
+
+				@Override
+				public void mouseReleased(MouseEvent e)
+				{
+					if (javax.swing.SwingUtilities.isLeftMouseButton(e) && contains(e.getPoint()))
+					{
+						onClick.run();
+					}
+				}
+			});
+		}
+
+		@Override
+		public Dimension getPreferredSize()
+		{
+			java.awt.FontMetrics fm = getFontMetrics(FontManager.getRunescapeBoldFont());
+			return new Dimension(12 + (kind == LATER ? 0 : 20) + fm.stringWidth(text) + 12, 32);
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			Graphics2D g2 = (Graphics2D) g.create();
+			int w = getWidth(), h = getHeight();
+			java.awt.Color fill = kind == DONE ? DONE_FILL : hover ? ChatComponents.HOVER_BG : ChatComponents.BASE_BG;
+			java.awt.Color edge = kind == DONE ? DONE_EDGE : ChatComponents.BORDER;
+			g2.setColor(fill);
+			Pixel.fill(g2, 0, 0, w, h, 6);
+			g2.setColor(edge);
+			Pixel.draw(g2, 0, 0, w, h, 6);
+			int x = 12;
+			if (kind == DONE)
+			{
+				// Green badge with a white tick
+				g2.setColor(DONE_EDGE);
+				g2.fillRect(x, (h - 12) / 2, 12, 12);
+				javax.swing.Icon tick = SvgIcon.load("tick", 6, java.awt.Color.WHITE);
+				tick.paintIcon(this, g2, x + 2, (h - 12) / 2 + 3);
+				x += 20;
+			}
+			else if (kind == ADD)
+			{
+				javax.swing.Icon plus = SvgIcon.load("plus", 16, java.awt.Color.WHITE);
+				plus.paintIcon(this, g2, x - 2, (h - 16) / 2);
+				x += 20;
+			}
+			g2.setFont(FontManager.getRunescapeBoldFont());
+			java.awt.FontMetrics fm = g2.getFontMetrics();
+			g2.setColor(kind == LATER && !hover ? ChatComponents.MUTED.brighter() : java.awt.Color.WHITE);
+			g2.drawString(text, x, (h + fm.getAscent()) / 2 - 2);
+			g2.dispose();
+		}
+	}
+
+	/** The dotted line between phases: a stretch, three dots, a stretch. */
+	private static final class Connector extends JComponent
+	{
+		@Override
+		public Dimension getPreferredSize()
+		{
+			return new Dimension(10, 46);
+		}
+
+		@Override
+		public Dimension getMaximumSize()
+		{
+			return new Dimension(Integer.MAX_VALUE, 46);
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			int x = getWidth() / 2 - 1;
+			g.setColor(ChatComponents.BORDER);
+			g.fillRect(x, 3, 2, 14);
+			for (int i = 0; i < 3; i++)
+			{
+				g.fillRect(x, 19 + i * 4, 2, 2);
+			}
+			g.fillRect(x, 31, 2, 12);
+		}
+	}
+
+	/** The plan's progress, one segment per phase: done phases full, the current one by its progress. */
+	private static final class PhaseBar extends JComponent
+	{
+		private final JsonArray phases;
+
+		PhaseBar(JsonArray phases)
+		{
+			this.phases = phases;
+		}
+
+		@Override
+		public Dimension getPreferredSize()
+		{
+			return new Dimension(100, 6);
+		}
+
+		@Override
+		public Dimension getMaximumSize()
+		{
+			return new Dimension(Integer.MAX_VALUE, 6);
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			int n = Math.max(1, phases.size()), gap = 2;
+			double w = (getWidth() - gap * (n - 1)) / (double) n;
+			for (int i = 0; i < n; i++)
+			{
+				int x = (int) Math.round(i * (w + gap)), x2 = (int) Math.round(i * (w + gap) + w);
+				g.setColor(ChatComponents.BASE_BG);
+				g.fillRect(x, 0, x2 - x, 6);
+				if (i < phases.size())
+				{
+					JsonObject ph = phases.get(i).getAsJsonObject();
+					double f = ph.get("complete").getAsBoolean() ? 1 : ph.get("progress").getAsDouble();
+					g.setColor(ChatComponents.ACCENT);
+					g.fillRect(x, 0, (int) Math.round((x2 - x) * f), 6);
+				}
+			}
+		}
 	}
 }

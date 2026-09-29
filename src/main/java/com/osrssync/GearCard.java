@@ -57,6 +57,8 @@ class GearCard extends Surface implements HeightForWidth
 	private JsonObject export;
 	private boolean busy;
 	private boolean edited;
+	/** 0: equipment, 1: inventory */
+	private int tab;
 	private final PlanView.Stack body = new PlanView.Stack();
 	private final JLabel status = new JLabel(" ");
 
@@ -86,45 +88,87 @@ class GearCard extends Surface implements HeightForWidth
 	private void render()
 	{
 		body.removeAll();
-		body.add(Ui.bold(Ui.str(gear, "name")));
 		String target = Ui.str(gear, "target");
 		String style = Ui.str(gear, "style");
-		body.add(Ui.small((target.isEmpty() ? "" : "vs " + target + " · ") + Ui.title(style) + (edited ? " · edited" : "")), 2);
-
 		JsonObject dps = gear.has("dps") && gear.get("dps").isJsonObject() ? gear.getAsJsonObject("dps") : null;
+
+		// Header: the setup and what it's for on the left; DPS, max hit and kill time on the right
+		JPanel head = new JPanel(new BorderLayout(4, 0));
+		head.setOpaque(false);
+		PlanView.Stack left = new PlanView.Stack();
+		left.add(Ui.bold(Ui.str(gear, "name") + (edited ? " (edited)" : "")));
+		JPanel meta = metaRow();
+		if (!target.isEmpty())
+		{
+			meta.add(chip("gear-target", target));
+		}
+		if (!style.isEmpty())
+		{
+			meta.add(chip("gear-style", Ui.title(style)));
+		}
+		left.add(meta);
+		head.add(left, BorderLayout.CENTER);
 		if (dps != null)
 		{
-			JLabel line = Ui.bold(String.format("%.2f DPS", Ui.num(dps, "dps")));
-			JPanel row = new JPanel(new BorderLayout(8, 0));
-			row.setOpaque(false);
-			row.add(line, BorderLayout.WEST);
-			row.add(Ui.small("max " + (int) Ui.num(dps, "maxHit") + " · " + Ui.oneDecimal(Ui.num(dps, "hitChance")) + "% · "
-				+ killTime((int) Ui.num(dps, "secondsToKill")) + " a kill"), BorderLayout.CENTER);
-			body.add(row, 8);
+			PlanView.Stack right = new PlanView.Stack();
+			JLabel value = Ui.bold(String.format("%.2f DPS", Ui.num(dps, "dps")));
+			value.setHorizontalAlignment(JLabel.RIGHT);
+			value.setToolTipText(bonusLine(gear.getAsJsonObject("bonuses"), style) + " · " + Ui.oneDecimal(Ui.num(dps, "hitChance")) + "% to hit");
+			right.add(value);
+			JPanel stats = metaRow();
+			((FlowLayout) stats.getLayout()).setAlignment(FlowLayout.RIGHT);
+			JLabel max = chip("gear-maxhit", String.valueOf((int) Ui.num(dps, "maxHit")));
+			max.setToolTipText("Max hit");
+			JLabel time = chip("gear-time", killTime((int) Ui.num(dps, "secondsToKill")));
+			time.setToolTipText("Time to kill");
+			stats.add(max);
+			stats.add(time);
+			right.add(stats);
+			right.setPreferredSize(new Dimension(Math.max(value.getPreferredSize().width, stats.getPreferredSize().width), right.getPreferredSize().height));
+			head.add(right, BorderLayout.EAST);
 		}
+		body.add(head);
 
-		// The equipment screen, centred
-		JPanel eqRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-		eqRow.setOpaque(false);
-		eqRow.add(new Equipment());
-		body.add(eqRow, 10);
-
-		JLabel bonus = Ui.small(bonusLine(gear.getAsJsonObject("bonuses"), style));
-		bonus.setHorizontalAlignment(JLabel.CENTER);
-		body.add(bonus, 8);
-
+		// Equipment | Inventory
 		JsonArray inv = gear.has("inventory") && gear.get("inventory").isJsonArray() ? gear.getAsJsonArray("inventory") : null;
-		if (inv != null && inv.size() > 0)
+		ActivityCharts.Segmented tabs = new ActivityCharts.Segmented(new String[]{"Equipment", "Inventory"}, tab, new Dimension(200, 32), i ->
+		{
+			tab = i;
+			render();
+		});
+		body.add(tabs, 16);
+
+		if (tab == 0)
+		{
+			JPanel eqRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+			eqRow.setOpaque(false);
+			eqRow.setBorder(BorderFactory.createEmptyBorder(8, 0, 16, 0));
+			eqRow.add(new Equipment());
+			body.add(eqRow, 0);
+		}
+		else if (inv != null && inv.size() > 0)
 		{
 			JPanel invRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
 			invRow.setOpaque(false);
+			invRow.setBorder(BorderFactory.createEmptyBorder(8, 0, 16, 0));
 			invRow.add(new Inventory(inv));
-			body.add(invRow, 12);
+			body.add(invRow, 0);
+		}
+		else
+		{
+			JLabel none = Ui.small("No inventory in this setup yet.");
+			none.setHorizontalAlignment(JLabel.CENTER);
+			body.add(none, 16);
+			JLabel full = PlanView.link("Make it a full trip setup");
+			full.setHorizontalAlignment(JLabel.CENTER);
+			full.setForeground(ChatComponents.ACCENT.brighter());
+			full.addMouseListener(PlanView.click(() -> Ui.askSquire.accept(
+				"Make this into a full inventory setup" + (target.isEmpty() ? "" : " for " + target) + ": " + wornList())));
+			body.add(full, 6);
+			body.add(javax.swing.Box.createVerticalStrut(16), 0);
 		}
 
-		// Copy to Inventory Setups, and reset after edits
-		JPanel actions = new JPanel(new BorderLayout(8, 0));
-		actions.setOpaque(false);
+		// Copy to Inventory Setups (full width), and reset after edits
 		ExportCards.PillButton copy = new ExportCards.PillButton("Copy to Inventory Setups");
 		copy.setEnabled(export != null && !busy);
 		copy.addActionListener(e ->
@@ -133,9 +177,18 @@ class GearCard extends Surface implements HeightForWidth
 			{
 				Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(Ui.str(export, "text")), null);
 				status.setText("Copied. In Inventory Setups, click Import and paste.");
+				render();
 			}
 		});
-		actions.add(copy, BorderLayout.WEST);
+		JPanel actions = new JPanel(new BorderLayout());
+		actions.setOpaque(false);
+		actions.add(copy, BorderLayout.CENTER);
+		body.add(actions, 0);
+		JPanel foot = new JPanel(new BorderLayout(8, 0));
+		foot.setOpaque(false);
+		status.setFont(FontManager.getRunescapeSmallFont());
+		status.setForeground(ChatComponents.MUTED);
+		foot.add(status, BorderLayout.CENTER);
 		if (edited)
 		{
 			JLabel reset = PlanView.link("Reset");
@@ -147,20 +200,11 @@ class GearCard extends Surface implements HeightForWidth
 				status.setText(" ");
 				render();
 			}));
-			actions.add(reset, BorderLayout.EAST);
+			foot.add(reset, BorderLayout.EAST);
 		}
-		body.add(actions, 12);
-		status.setFont(FontManager.getRunescapeSmallFont());
-		status.setForeground(ChatComponents.MUTED);
-		body.add(status, 4);
-		if (inv == null || inv.size() == 0)
+		if (edited || !" ".equals(status.getText()))
 		{
-			JLabel full = PlanView.link("Make it a full trip setup");
-			full.setHorizontalAlignment(JLabel.LEFT);
-			full.setForeground(ChatComponents.ACCENT.brighter());
-			full.addMouseListener(PlanView.click(() -> Ui.askSquire.accept(
-				"Make this into a full inventory setup" + (target.isEmpty() ? "" : " for " + target) + ": " + wornList())));
-			body.add(full, 6);
+			body.add(foot, 6);
 		}
 		body.revalidate();
 		body.repaint();
@@ -170,6 +214,23 @@ class GearCard extends Surface implements HeightForWidth
 			p.revalidate();
 			p.repaint();
 		}
+	}
+
+	private static JPanel metaRow()
+	{
+		JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+		row.setOpaque(false);
+		return row;
+	}
+
+	/** A small muted label with a 12px pixel icon, like "(fist) Vorkath" or "(clock) 2:02". */
+	private static JLabel chip(String icon, String text)
+	{
+		JLabel l = new JLabel(text, SvgIcon.load(icon, 12, ChatComponents.MUTED), JLabel.LEFT);
+		l.setFont(FontManager.getRunescapeSmallFont());
+		l.setForeground(ChatComponents.MUTED);
+		l.setIconTextGap(2);
+		return l;
 	}
 
 	private static String killTime(int seconds)
@@ -392,14 +453,24 @@ class GearCard extends Surface implements HeightForWidth
 		}
 	}
 
-	/** A sunken stone slot, like the game's worn-equipment boxes. */
+	/** A sunken slot like the design's: dark fill, grey border, bronze stepped corners, lit from the bottom right. */
 	private static void paintSlot(Graphics2D g, int x, int y, boolean hover)
 	{
-		g.setColor(hover ? SLOT_BG.brighter() : SLOT_BG);
+		g.setColor(hover ? ChatComponents.HOVER_BG : ChatComponents.BASE_BG);
 		Pixel.fill(g, x, y, CELL, CELL, 4);
-		g.setColor(SLOT_EDGE);
+		g.setColor(ChatComponents.BORDER);
 		Pixel.draw(g, x, y, CELL, CELL, 4);
-		Pixel.bevel(g, x + 1, y + 1, CELL - 2, CELL - 2, 3, ChatComponents.CARD_DARK, ChatComponents.CARD_LIGHT);
+		// The stepped corners in bronze
+		java.awt.Shape clip = g.getClip();
+		g.setColor(SLOT_EDGE);
+		for (int[] c : new int[][]{{x, y}, {x + CELL - 4, y}, {x, y + CELL - 4}, {x + CELL - 4, y + CELL - 4}})
+		{
+			g.setClip(clip);
+			g.clipRect(c[0], c[1], 4, 4);
+			Pixel.draw(g, x, y, CELL, CELL, 4);
+		}
+		g.setClip(clip);
+		Pixel.bevel(g, x + 1, y + 1, CELL - 2, CELL - 2, 3, new Color(0, 0, 0, 61), new Color(255, 255, 255, 18));
 	}
 
 	// ---- The inventory
@@ -439,11 +510,12 @@ class GearCard extends Surface implements HeightForWidth
 		protected void paintComponent(Graphics g)
 		{
 			Graphics2D g2 = (Graphics2D) g.create();
-			// The inventory's stone background
-			g2.setColor(SLOT_BG);
+			// The inventory's panel, in the same style as the equipment slots
+			g2.setColor(ChatComponents.BASE_BG);
 			Pixel.fill(g2, 0, 0, getWidth(), getHeight(), 6);
-			g2.setColor(SLOT_EDGE);
+			g2.setColor(ChatComponents.BORDER);
 			Pixel.draw(g2, 0, 0, getWidth(), getHeight(), 6);
+			Pixel.bevel(g2, 1, 1, getWidth() - 2, getHeight() - 2, 5, new Color(0, 0, 0, 61), new Color(255, 255, 255, 18));
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
 			g2.setFont(FontManager.getRunescapeSmallFont());
 			FontMetrics fm = g2.getFontMetrics();
