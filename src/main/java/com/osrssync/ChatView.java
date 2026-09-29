@@ -279,8 +279,13 @@ class ChatView extends JPanel
 			earlier.addMouseListener(new MouseAdapter()
 			{
 				@Override
-				public void mouseClicked(MouseEvent e)
+				public void mouseReleased(MouseEvent e)
 				{
+					// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+					if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+					{
+						return;
+					}
 					renderTurnsFrom(Math.max(0, renderedFrom - RESTORE_WINDOW));
 					SwingUtilities.invokeLater(() -> scroll.getVerticalScrollBar().setValue(0));
 				}
@@ -623,8 +628,13 @@ class ChatView extends JPanel
 		modelPicker.addMouseListener(new MouseAdapter()
 		{
 			@Override
-			public void mouseClicked(MouseEvent e)
+			public void mouseReleased(MouseEvent e)
 			{
+				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+				if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+				{
+					return;
+				}
 				showModelMenu();
 			}
 
@@ -648,8 +658,13 @@ class ChatView extends JPanel
 		attachButton.addMouseListener(new MouseAdapter()
 		{
 			@Override
-			public void mouseClicked(MouseEvent e)
+			public void mouseReleased(MouseEvent e)
 			{
+				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+				if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+				{
+					return;
+				}
 				chooseFiles();
 			}
 

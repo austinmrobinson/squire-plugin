@@ -294,8 +294,13 @@ class SettingsView extends javax.swing.JPanel
 		java.awt.event.MouseAdapter m = new java.awt.event.MouseAdapter()
 		{
 			@Override
-			public void mouseClicked(java.awt.event.MouseEvent e)
+			public void mouseReleased(java.awt.event.MouseEvent e)
 			{
+				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+				if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+				{
+					return;
+				}
 				onClick.run();
 			}
 

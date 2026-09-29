@@ -155,8 +155,13 @@ class ChatHistoryView extends JPanel
 		MouseAdapter hover = new MouseAdapter()
 		{
 			@Override
-			public void mouseClicked(MouseEvent e)
+			public void mouseReleased(MouseEvent e)
 			{
+				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+				if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+				{
+					return;
+				}
 				open.accept(chat.id);
 			}
 
@@ -185,8 +190,13 @@ class ChatHistoryView extends JPanel
 		delete.addMouseListener(new MouseAdapter()
 		{
 			@Override
-			public void mouseClicked(MouseEvent e)
+			public void mouseReleased(MouseEvent e)
 			{
+				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+				if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+				{
+					return;
+				}
 				// Two clicks: "x" becomes "Delete?", then it goes
 				if ("x".equals(delete.getText()))
 				{

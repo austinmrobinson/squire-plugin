@@ -281,8 +281,13 @@ class GearCard extends Surface implements HeightForWidth
 				}
 
 				@Override
-				public void mouseClicked(MouseEvent e)
+				public void mouseReleased(MouseEvent e)
 				{
+					// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+					if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+					{
+						return;
+					}
 					int i = slotAt(e.getX(), e.getY());
 					if (i >= 0)
 					{

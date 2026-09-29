@@ -690,8 +690,13 @@ final class ChatComponents
 			MouseAdapter click = new MouseAdapter()
 			{
 				@Override
-				public void mouseClicked(MouseEvent e)
+				public void mouseReleased(MouseEvent e)
 				{
+					// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+					if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+					{
+						return;
+					}
 					action.run();
 				}
 
@@ -750,8 +755,13 @@ final class ChatComponents
 			addMouseListener(new MouseAdapter()
 			{
 				@Override
-				public void mouseClicked(MouseEvent e)
+				public void mouseReleased(MouseEvent e)
 				{
+					// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+					if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+					{
+						return;
+					}
 					onClick.run();
 				}
 
@@ -848,8 +858,13 @@ final class ChatComponents
 		s.addMouseListener(new MouseAdapter()
 		{
 			@Override
-			public void mouseClicked(MouseEvent e)
+			public void mouseReleased(MouseEvent e)
 			{
+				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+				if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+				{
+					return;
+				}
 				onClick.run();
 			}
 

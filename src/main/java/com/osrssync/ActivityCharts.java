@@ -86,8 +86,13 @@ final class ActivityCharts
 			MouseAdapter m = new MouseAdapter()
 			{
 				@Override
-				public void mouseClicked(MouseEvent e)
+				public void mouseReleased(MouseEvent e)
 				{
+					// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+					if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
+					{
+						return;
+					}
 					int i = indexAt(e.getX());
 					if (i != Segmented.this.selected)
 					{
