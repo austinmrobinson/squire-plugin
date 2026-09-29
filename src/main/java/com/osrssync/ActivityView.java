@@ -53,6 +53,8 @@ class ActivityView extends JPanel
 	/** Show XP gained instead of time played. */
 	private boolean xp;
 	private JsonObject shown;
+	/** Set by the sidebar: open the Gained page on a metric (a skill or boss tapped here). */
+	static java.util.function.Consumer<String> openGained = m -> {};
 
 	ActivityView(AccountApi api)
 	{
@@ -172,6 +174,10 @@ class ActivityView extends JPanel
 		}
 		Map<String, Color> colors = ActivityCharts.colorMap(names);
 
+		if (a.has("totals"))
+		{
+			list.add(ChatComponents.place(tiles(a), Align.FILL, 8));
+		}
 		list.add(ChatComponents.place(chartCard(a, colors, names), Align.FILL, 8));
 		if (num(a, "totalMinutes") > 0)
 		{
@@ -183,6 +189,13 @@ class ActivityView extends JPanel
 				+ " yet. Squire notes what you're doing each minute you play: the monster you're fighting, the skill you're training, or **Other**. "
 				+ "Idle minutes aren't counted."), Align.FILL, 8));
 		}
+		String when = range == 0 ? "today" : "this " + RANGES[range];
+		addIf(skillsCard(a), "Which skills did I train most " + when + "?");
+		addIf(killsCard(a), "How did my bossing go " + when + "?");
+		addIf(lootCard(a), "What was my best loot " + when + "?");
+		addIf(sessionsCard(a), "Summarise my play sessions " + when);
+		addIf(milestonesCard(a), null);
+		list.add(ChatComponents.place(HomeView.listRow(SvgIcon.load("progress", 16, null), "Gains over a month or year", null, () -> openGained.accept("overall")), Align.FILL, 8));
 		relayout();
 	}
 
@@ -281,11 +294,11 @@ class ActivityView extends JPanel
 		String valueKey = xp ? "xp" : "minutes";
 		if (xp)
 		{
-			c.add(row(small(range == 0 ? "XP gained" : "XP gained, total"), bold("+" + fmt(num(a, "totalXp")))));
+			c.add(row(small(range == 0 ? "XP gained" : "XP gained, total"), clearOfAsk(bold("+" + fmt(num(a, "totalXp"))))));
 		}
 		else
 		{
-			c.add(row(small(range == 0 ? "Time played" : "Time played, total"), bold(duration(num(a, "totalMinutes")))));
+			c.add(row(small(range == 0 ? "Time played" : "Time played, total"), clearOfAsk(bold(duration(num(a, "totalMinutes"))))));
 		}
 		c.add(Box.createVerticalStrut(8));
 		// XP view: only activities that gained XP, biggest first
@@ -339,6 +352,295 @@ class ActivityView extends JPanel
 			c.add(row(name, right));
 		}
 		return c;
+	}
+
+	private void addIf(JComponent card, String ask)
+	{
+		if (card != null)
+		{
+			list.add(ChatComponents.place(ask == null ? card : Ui.withAsk(card, ask), Align.FILL, 8));
+		}
+	}
+
+	// ---- Tiles: time, XP, kills, loot, each against the period before
+
+	private JComponent tiles(JsonObject a)
+	{
+		JsonObject h = obj(a, "headline");
+		JsonObject t = obj(a, "totals");
+		JPanel grid = new JPanel(new java.awt.GridLayout(2, 2, 6, 6));
+		grid.setOpaque(false);
+		grid.add(new ActivityCharts.Tile("Time played", duration(num(a, "totalMinutes")), pct(h, "changePct")));
+		// XP from the skill snapshots when there are any (what the XP by skill card adds up), else from activity minutes
+		double xpTotal = 0;
+		JsonArray skills = a.getAsJsonArray("skills");
+		if (skills != null)
+		{
+			for (JsonElement e : skills)
+			{
+				xpTotal += num(e.getAsJsonObject(), "xp");
+			}
+		}
+		grid.add(new ActivityCharts.Tile("XP gained", "+" + shortNumber(xpTotal > 0 ? xpTotal : num(a, "totalXp")), pct(h, "xpChangePct")));
+		grid.add(new ActivityCharts.Tile("Kills", fmt(num(t, "kills")), pct(t, "killsChangePct")));
+		grid.add(new ActivityCharts.Tile("Loot", shortNumber(num(t, "loot")) + " gp", pct(t, "lootChangePct")));
+		return grid;
+	}
+
+	private static Integer pct(JsonObject o, String key)
+	{
+		return o != null && o.has(key) && !o.get(key).isJsonNull() ? (int) num(o, key) : null;
+	}
+
+	private static JComponent header(Surface c, String title, String right)
+	{
+		c.add(row(small(title), right == null ? null : clearOfAsk(bold(right))));
+		c.add(Box.createVerticalStrut(8));
+		return c;
+	}
+
+	/** Keep a header value clear of the ask-Squire button in the card's top-right corner. */
+	private static JComponent clearOfAsk(JLabel value)
+	{
+		value.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 26));
+		return value;
+	}
+
+	/** A bar that opens the Gained page on its metric. */
+	private static JComponent tappable(ActivityCharts.HBar bar, String metric)
+	{
+		bar.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+		bar.setToolTipText("See " + metric + " over time");
+		bar.addMouseListener(new java.awt.event.MouseAdapter()
+		{
+			@Override
+			public void mouseReleased(java.awt.event.MouseEvent e)
+			{
+				if (javax.swing.SwingUtilities.isLeftMouseButton(e) && e.getComponent().contains(e.getPoint()))
+				{
+					openGained.accept(metric);
+				}
+			}
+		});
+		bar.setAlignmentX(LEFT_ALIGNMENT);
+		return bar;
+	}
+
+	// ---- XP by skill
+
+	private JComponent skillsCard(JsonObject a)
+	{
+		JsonArray skills = a.getAsJsonArray("skills");
+		if (skills == null || skills.size() == 0)
+		{
+			return null;
+		}
+		Surface c = card();
+		double total = 0, top = num(skills.get(0).getAsJsonObject(), "xp");
+		for (JsonElement e : skills)
+		{
+			total += num(e.getAsJsonObject(), "xp");
+		}
+		header(c, "XP by skill", "+" + shortNumber(total));
+		for (int i = 0; i < Math.min(8, skills.size()); i++)
+		{
+			JsonObject sk = skills.get(i).getAsJsonObject();
+			String name = str(sk, "skill");
+			c.add(tappable(new ActivityCharts.HBar(name, "+" + shortNumber(num(sk, "xp")), "Level " + (int) num(sk, "level"),
+				num(sk, "xp") / top, Ui.activityColor(i, name), null), name));
+			c.add(Box.createVerticalStrut(6));
+		}
+		return c;
+	}
+
+	// ---- Kills by boss, with rates and kill times from the kill log
+
+	private JComponent killsCard(JsonObject a)
+	{
+		JsonArray kills = a.getAsJsonArray("kills");
+		if (kills == null || kills.size() == 0)
+		{
+			return null;
+		}
+		Surface c = card();
+		double top = num(kills.get(0).getAsJsonObject(), "kills");
+		header(c, "Kills", fmt(num(obj(a, "totals"), "kills")));
+		for (JsonElement e : kills)
+		{
+			JsonObject k = e.getAsJsonObject();
+			List<String> bits = new ArrayList<>();
+			if (k.has("perHour") && !k.get("perHour").isJsonNull())
+			{
+				bits.add(num(k, "perHour") + "/hr");
+			}
+			if (k.has("avgSeconds") && !k.get("avgSeconds").isJsonNull())
+			{
+				bits.add("avg " + clock(num(k, "avgSeconds")));
+			}
+			if (k.has("bestSeconds") && !k.get("bestSeconds").isJsonNull())
+			{
+				bits.add("best " + clock(num(k, "bestSeconds")));
+			}
+			if (num(k, "minutes") > 0)
+			{
+				bits.add(duration(num(k, "minutes")));
+			}
+			c.add(tappable(new ActivityCharts.HBar(str(k, "boss"), fmt(num(k, "kills")), bits.isEmpty() ? null : String.join("  ·  ", bits),
+				num(k, "kills") / top, ChatComponents.ACCENT, null), str(k, "boss")));
+			c.add(Box.createVerticalStrut(6));
+		}
+		return c;
+	}
+
+	private static String clock(double seconds)
+	{
+		int s = (int) Math.round(seconds);
+		return s >= 3600 ? String.format("%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) : String.format("%d:%02d", s / 60, s % 60);
+	}
+
+	// ---- Loot: by source, and the best drops
+
+	private static final Color GOLD = new Color(0xC8A24A);
+
+	private JComponent lootCard(JsonObject a)
+	{
+		JsonObject loot = obj(a, "loot");
+		if (loot == null || num(loot, "value") <= 0)
+		{
+			return null;
+		}
+		Surface c = card();
+		header(c, "Loot  ·  " + fmt(num(loot, "drops")) + " drops", shortNumber(num(loot, "value")) + " gp");
+		JsonArray sources = loot.getAsJsonArray("sources");
+		double top = sources.size() > 0 ? num(sources.get(0).getAsJsonObject(), "value") : 1;
+		for (JsonElement e : sources)
+		{
+			JsonObject src = e.getAsJsonObject();
+			ActivityCharts.HBar bar = new ActivityCharts.HBar(str(src, "source"), shortNumber(num(src, "value")) + " gp",
+				fmt(num(src, "drops")) + " drops", num(src, "value") / Math.max(1, top), GOLD, null);
+			bar.setAlignmentX(LEFT_ALIGNMENT);
+			c.add(bar);
+			c.add(Box.createVerticalStrut(6));
+		}
+		JsonArray items = loot.getAsJsonArray("items");
+		if (items.size() > 0)
+		{
+			c.add(Box.createVerticalStrut(4));
+			c.add(row(small("Best drops"), null));
+			c.add(Box.createVerticalStrut(4));
+			for (JsonElement e : items)
+			{
+				JsonObject it = e.getAsJsonObject();
+				JLabel name = text((num(it, "quantity") > 1 ? fmt(num(it, "quantity")) + " x " : "") + str(it, "name"), ColorScheme.LIGHT_GRAY_COLOR);
+				java.awt.image.BufferedImage img = Crest.itemImage((int) num(it, "id"), name);
+				if (img != null)
+				{
+					name.setIcon(new javax.swing.ImageIcon(img.getScaledInstance(img.getWidth() * 2 / 3, img.getHeight() * 2 / 3, java.awt.Image.SCALE_FAST)));
+					name.setIconTextGap(6);
+				}
+				c.add(row(name, text(shortNumber(num(it, "value")), Color.WHITE)));
+			}
+		}
+		return c;
+	}
+
+	// ---- Play sessions (runs of active minutes, split by breaks of 15+ minutes)
+
+	private JComponent sessionsCard(JsonObject a)
+	{
+		JsonArray sessions = a.getAsJsonArray("sessions");
+		if (sessions == null || sessions.size() == 0)
+		{
+			return null;
+		}
+		Surface c = card();
+		header(c, "Sessions", sessions.size() + (sessions.size() == 1 ? " session" : " sessions"));
+		double longest = 1;
+		for (JsonElement e : sessions)
+		{
+			longest = Math.max(longest, num(e.getAsJsonObject(), "minutes"));
+		}
+		java.time.format.DateTimeFormatter f = java.time.format.DateTimeFormatter.ofPattern(range == 0 ? "h:mma" : "EEE h:mma", java.util.Locale.US)
+			.withZone(java.time.ZoneId.systemDefault());
+		for (JsonElement e : sessions)
+		{
+			JsonObject ses = e.getAsJsonObject();
+			String start;
+			try
+			{
+				start = f.format(java.time.Instant.parse(str(ses, "start"))).toLowerCase(java.util.Locale.US).replace("am", "am").replace("pm", "pm");
+				start = Character.toUpperCase(start.charAt(0)) + start.substring(1);
+			}
+			catch (RuntimeException ex)
+			{
+				start = "";
+			}
+			List<String> bits = new ArrayList<>();
+			bits.add(str(ses, "main"));
+			if (num(ses, "xp") > 0)
+			{
+				bits.add("+" + shortNumber(num(ses, "xp")) + " xp");
+			}
+			if (num(ses, "kills") > 0)
+			{
+				bits.add(fmt(num(ses, "kills")) + " kills");
+			}
+			if (num(ses, "loot") > 0)
+			{
+				bits.add(shortNumber(num(ses, "loot")) + " gp");
+			}
+			ActivityCharts.HBar bar = new ActivityCharts.HBar(start, duration(num(ses, "minutes")), String.join("  ·  ", bits),
+				num(ses, "minutes") / longest, Ui.activityColor(0, str(ses, "main")), null);
+			bar.setAlignmentX(LEFT_ALIGNMENT);
+			c.add(bar);
+			c.add(Box.createVerticalStrut(6));
+		}
+		return c;
+	}
+
+	// ---- Milestones: levels, collection log, pets, combat achievements, quests, deaths
+
+	private JComponent milestonesCard(JsonObject a)
+	{
+		JsonArray ms = a.getAsJsonArray("milestones");
+		if (ms == null || ms.size() == 0)
+		{
+			return null;
+		}
+		Surface c = card();
+		header(c, "Milestones", String.valueOf(ms.size()));
+		for (JsonElement e : ms)
+		{
+			JsonObject m = e.getAsJsonObject();
+			JLabel label = text(str(m, "summary"), ColorScheme.LIGHT_GRAY_COLOR);
+			label.setIcon(swatch(milestoneColor(str(m, "type"))));
+			label.setIconTextGap(8);
+			label.setToolTipText(str(m, "type").replace('_', ' '));
+			c.add(row(label, null));
+			c.add(Box.createVerticalStrut(4));
+		}
+		return c;
+	}
+
+	private static Color milestoneColor(String type)
+	{
+		switch (type)
+		{
+			case "level_up":
+				return new Color(0x5FBF6A);
+			case "collection_log":
+				return new Color(0xB072E0);
+			case "pet":
+				return new Color(0xE07AB6);
+			case "combat_achievement":
+				return new Color(0xE0A34A);
+			case "quest_complete":
+				return ChatComponents.ACCENT;
+			case "death":
+				return new Color(0xE06A5A);
+			default:
+				return ChatComponents.MUTED;
+		}
 	}
 
 	private static Bubble message(String markdown)

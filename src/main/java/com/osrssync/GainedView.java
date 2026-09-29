@@ -74,6 +74,12 @@ class GainedView extends JPanel
 		render("Loading your gains...");
 	}
 
+	/** Choose the metric to show next time the page loads (e.g. a skill tapped on the Activity page). */
+	void setMetric(String metricName)
+	{
+		metric = metricName == null ? "overall" : metricName;
+	}
+
 	/** Show a metric (e.g. from Home or a chat link), then load it. */
 	void show(String metricName)
 	{

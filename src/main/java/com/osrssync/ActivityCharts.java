@@ -459,6 +459,132 @@ final class ActivityCharts
 	}
 
 	/** Tooltip for a column: its total, then each part. */
+	/**
+	 * A labelled horizontal bar for ranked lists (XP by skill, kills by boss, loot by source): the name and value on one
+	 * line, a pixel bar under it scaled to the biggest row, and an optional muted detail line.
+	 */
+	static final class HBar extends JComponent
+	{
+		private final String name;
+		private final String value;
+		private final String detail;
+		private final double fraction;
+		private final Color color;
+		private final java.awt.image.BufferedImage icon;
+
+		HBar(String name, String value, String detail, double fraction, Color color, java.awt.image.BufferedImage icon)
+		{
+			this.name = name;
+			this.value = value;
+			this.detail = detail;
+			this.fraction = Math.max(0, Math.min(1, fraction));
+			this.color = color;
+			this.icon = icon;
+		}
+
+		private int line()
+		{
+			return getFontMetrics(FontManager.getRunescapeSmallFont()).getHeight();
+		}
+
+		@Override
+		public Dimension getPreferredSize()
+		{
+			return new Dimension(200, line() + 8 + (detail != null ? line() : 0) + 2);
+		}
+
+		@Override
+		public Dimension getMaximumSize()
+		{
+			return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setFont(FontManager.getRunescapeSmallFont());
+			FontMetrics fm = g2.getFontMetrics();
+			int x = 0;
+			if (icon != null)
+			{
+				int s = fm.getHeight() + 6;
+				g2.drawImage(icon, 0, 0, s, s * icon.getHeight() / Math.max(1, icon.getWidth()), null);
+				x = s + 6;
+			}
+			int w = getWidth() - x;
+			g2.setColor(ChatComponents.MUTED.brighter());
+			g2.drawString(name, x, fm.getAscent());
+			g2.setColor(Color.WHITE);
+			g2.drawString(value, getWidth() - fm.stringWidth(value), fm.getAscent());
+			int by = fm.getHeight() + 2;
+			g2.setColor(ChatComponents.BASE_BG);
+			g2.fillRect(x, by, w, 4);
+			g2.setColor(color);
+			g2.fillRect(x, by, (int) Math.max(2, Math.round(w * fraction)), 4);
+			g2.setColor(new Color(255, 255, 255, 50));
+			g2.fillRect(x, by, (int) Math.max(2, Math.round(w * fraction)), 1);
+			if (detail != null)
+			{
+				g2.setColor(ChatComponents.MUTED);
+				g2.drawString(detail, x, by + 6 + fm.getAscent());
+			}
+			g2.dispose();
+		}
+	}
+
+	/** A stat tile: small label, big value, and the change against the previous period (green up, red down). */
+	static final class Tile extends JComponent
+	{
+		private final String label;
+		private final String value;
+		private final Integer changePct;
+
+		Tile(String label, String value, Integer changePct)
+		{
+			this.label = label;
+			this.value = value;
+			this.changePct = changePct;
+		}
+
+		@Override
+		public Dimension getPreferredSize()
+		{
+			int small = getFontMetrics(FontManager.getRunescapeSmallFont()).getHeight();
+			int big = getFontMetrics(FontManager.getRunescapeBoldFont().deriveFont(18f)).getHeight();
+			return new Dimension(100, 8 + small + big + small + 8);
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setColor(ChatComponents.CARD_BG);
+			Pixel.fill(g2, 0, 0, getWidth(), getHeight(), 6);
+			Pixel.bevel(g2, 0, 0, getWidth(), getHeight(), 6, ChatComponents.CARD_LIGHT, ChatComponents.CARD_DARK);
+			java.awt.Font small = FontManager.getRunescapeSmallFont();
+			java.awt.Font big = FontManager.getRunescapeBoldFont().deriveFont(18f);
+			FontMetrics fs = g2.getFontMetrics(small), fb = g2.getFontMetrics(big);
+			int y = 8 + fs.getAscent();
+			g2.setFont(small);
+			g2.setColor(ChatComponents.MUTED);
+			g2.drawString(label, 9, y);
+			y += fs.getDescent() + fb.getAscent();
+			g2.setFont(big);
+			g2.setColor(Color.WHITE);
+			g2.drawString(value, 9, y);
+			if (changePct != null)
+			{
+				y += fb.getDescent() + fs.getAscent();
+				g2.setFont(small);
+				g2.setColor(changePct >= 0 ? new Color(0x5FBF6A) : new Color(0xE06A5A));
+				g2.drawString((changePct >= 0 ? "+" : "") + changePct + "% vs before", 9, y);
+			}
+			g2.dispose();
+		}
+	}
+
 	static String tooltip(String title, List<Part> parts, java.util.function.DoubleFunction<String> format)
 	{
 		double total = parts.stream().mapToDouble(p -> p.value).sum();

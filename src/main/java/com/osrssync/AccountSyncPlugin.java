@@ -142,6 +142,8 @@ public class AccountSyncPlugin extends Plugin
 
 	private static final Pattern KILL_COUNT = Pattern.compile(
 		"^Your (?:completed |subdued )?(.+?) (?:kill |chest |harvest |lap |completion |success |rescue )?count is: ([\\d,]+)");
+	/** "Fight duration: 1:23.40", "Challenge duration: 7:12", "Duration: 18:04" (sent next to a kill count). */
+	private static final Pattern KILL_DURATION = Pattern.compile("^(?:Fight|Challenge|Corrupted challenge|Duration|Lap|Subdued in)(?: duration)?:? ([\\d:.]+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern CLUE_COUNT = Pattern.compile("^You have completed ([\\d,]+) (\\w+) Treasure Trails?");
 	private static final Pattern COLLECTION_LOG = Pattern.compile("^New item added to your collection log: (.+)$");
 	private static final Pattern COMBAT_TASK = Pattern.compile("^Congratulations, you've completed an? (\\w+) combat task: (.+?)(?: \\(\\d+ points?\\))?\\.?$");
@@ -554,6 +556,10 @@ public class AccountSyncPlugin extends Plugin
 	public void onGameTick(GameTick tick)
 	{
 		updateChatTab();
+		if (pendingKill != null && ++pendingKillTicks > 2)
+		{
+			finishKill();
+		}
 		if (recorder != null)
 		{
 			recorder.onTick();
@@ -787,6 +793,28 @@ public class AccountSyncPlugin extends Plugin
 		if (m.find())
 		{
 			recordKillCount(m.group(1), parseCount(m.group(2)));
+			startKill(m.group(1), parseCount(m.group(2)));
+			return;
+		}
+
+		m = KILL_DURATION.matcher(message);
+		if (m.find())
+		{
+			double seconds = parseDuration(m.group(1));
+			if (pendingKill != null)
+			{
+				if (seconds > 0)
+				{
+					pendingKill.put("seconds", seconds);
+				}
+				finishKill();
+			}
+			else if (seconds > 0)
+			{
+				// Raids say their duration before the completion count
+				recentDuration = seconds;
+				recentDurationTick = client.getTickCount();
+			}
 			return;
 		}
 
@@ -895,6 +923,62 @@ public class AccountSyncPlugin extends Plugin
 		data.put("plane", wp.getPlane());
 		data.put("regionId", wp.getRegionID());
 		addEvent("death", "Died at region " + wp.getRegionID(), data);
+	}
+
+	// ---- The kill log: each kill as an event, with its duration when the game gives one
+
+	private Map<String, Object> pendingKill;
+	private int pendingKillTicks;
+	private double recentDuration;
+	private int recentDurationTick = -100;
+
+	private void startKill(String name, int count)
+	{
+		if (!KillCountNames.isKillCount(name))
+		{
+			return;
+		}
+		finishKill();
+		pendingKill = new LinkedHashMap<>();
+		pendingKill.put("boss", KillCountNames.canonicalize(name));
+		pendingKill.put("count", count);
+		pendingKillTicks = 0;
+		if (client.getTickCount() - recentDurationTick <= 3)
+		{
+			pendingKill.put("seconds", recentDuration);
+			recentDurationTick = -100;
+			finishKill();
+		}
+	}
+
+	/** Log the kill (the duration message, when there is one, arrives within a tick or two of the kill count). */
+	private void finishKill()
+	{
+		if (pendingKill == null)
+		{
+			return;
+		}
+		Map<String, Object> kill = pendingKill;
+		pendingKill = null;
+		addEvent("kill", kill.get("boss") + " kill " + kill.get("count"), kill);
+	}
+
+	/** "1:23.40" or "1:02:03" or "45.6" to seconds. */
+	static double parseDuration(String s)
+	{
+		try
+		{
+			double total = 0;
+			for (String part : s.replaceAll("\\.$", "").split(":"))
+			{
+				total = total * 60 + Double.parseDouble(part);
+			}
+			return total;
+		}
+		catch (NumberFormatException e)
+		{
+			return -1;
+		}
 	}
 
 	private void recordKillCount(String name, int count)

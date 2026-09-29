@@ -101,6 +101,12 @@ class BuddySidebar extends PluginPanel
 		this.sessions = sessions;
 		this.activity = activity;
 		this.gained = new GainedView(activity.api());
+		// A skill or boss tapped on the Activity page opens it on the Gained page
+		ActivityView.openGained = m ->
+		{
+			gained.setMetric(m);
+			show(Page.GAINED);
+		};
 		this.settings = settings;
 		this.progressView = progress;
 		this.home = homeFactory.apply(new HomeView.Actions()
