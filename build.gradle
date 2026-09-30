@@ -26,7 +26,7 @@ dependencies {
 	testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
 }
 
-group = 'com.osrssync'
+group = 'com.squire'
 version = '1.0.0'
 
 tasks.withType(JavaCompile).configureEach {
@@ -38,7 +38,7 @@ tasks.withType(JavaCompile).configureEach {
 tasks.register('run', JavaExec) {
 	description = 'Launches RuneLite in developer mode with this plugin loaded'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.AccountSyncPluginTest'
+	mainClass = 'com.squire.SquirePluginTest'
 	args '--developer-mode'
 	jvmArgs '-ea'
 	// macOS: RuneLite's fullscreen support subclasses an Apple-internal AWT class
@@ -48,7 +48,7 @@ tasks.register('run', JavaExec) {
 tasks.register('shadowJar', Jar) {
 	dependsOn configurations.testRuntimeClasspath
 	manifest {
-		attributes('Main-Class': 'com.osrssync.AccountSyncPluginTest', 'Multi-Release': true)
+		attributes('Main-Class': 'com.squire.SquirePluginTest', 'Multi-Release': true)
 	}
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 	from sourceSets.main.output
@@ -67,13 +67,13 @@ tasks.register('shadowJar', Jar) {
 tasks.register('chatSmoke', JavaExec) {
 	description = 'Sends two chat messages to a running local server'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.ChatClientSmoke'
+	mainClass = 'com.squire.ChatClientSmoke'
 }
 
 tasks.register('panelPreview', JavaExec) {
 	description = 'Renders the sidebar to PNGs in build/preview'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.PanelPreview'
+	mainClass = 'com.squire.PanelPreview'
 	jvmArgs '--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED', '-Dapple.awt.UIElement=true'
 	// e.g. ./gradlew panelPreview -Ppreview.height=740
 	['preview.width', 'preview.height', 'preview.scale'].each { key ->
@@ -84,7 +84,7 @@ tasks.register('panelPreview', JavaExec) {
 tasks.register('panelPerf', JavaExec) {
 	description = 'Times sidebar page switches, Home rebuilds, long chats and streaming, offscreen'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.PanelPerf'
+	mainClass = 'com.squire.PanelPerf'
 	jvmArgs '--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED', '-Dapple.awt.UIElement=true'
 	// ./gradlew panelPerf -Pperf.sample prints where the Swing thread spends a streaming update
 	if (project.hasProperty('perf.sample')) systemProperty 'perf.sample', 'true'
@@ -93,7 +93,7 @@ tasks.register('panelPerf', JavaExec) {
 tasks.register('chatHistoryCheck', JavaExec) {
 	description = 'End-to-end chat history and concurrency check against the local server (npm run dev)'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.ChatHistoryCheck'
+	mainClass = 'com.squire.ChatHistoryCheck'
 	workingDir = projectDir
 	jvmArgs '--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED', '-Dapple.awt.UIElement=true'
 }
@@ -101,13 +101,13 @@ tasks.register('chatHistoryCheck', JavaExec) {
 tasks.register('scenariosCheck', JavaExec) {
 	description = 'Prints the live chat starters for a few sample situations'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.ScenariosCheck'
+	mainClass = 'com.squire.ScenariosCheck'
 }
 
 tasks.register('inGameCheck', JavaExec) {
 	description = 'Checks in-game chat formatting and a chatbox question against the local server'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.InGameCheck'
+	mainClass = 'com.squire.InGameCheck'
 	workingDir = projectDir
 	jvmArgs '-Dapple.awt.UIElement=true'
 }
@@ -115,7 +115,7 @@ tasks.register('inGameCheck', JavaExec) {
 tasks.register('transitionCheck', JavaExec) {
 	description = 'Captures frames of the floating composer settling into the chat (build/preview/10-transition-strip.png)'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.TransitionCheck'
+	mainClass = 'com.squire.TransitionCheck'
 	workingDir = projectDir
 	jvmArgs '--add-exports=java.desktop/com.apple.eawt=ALL-UNNAMED', '-Dapple.awt.UIElement=true'
 }
@@ -123,8 +123,8 @@ tasks.register('transitionCheck', JavaExec) {
 tasks.register('portraitTune', JavaExec) {
 	description = 'Renders a saved player model (portrait-model.json) at several framings, into build/preview'
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.osrssync.PortraitTune'
+	mainClass = 'com.squire.PortraitTune'
 	jvmArgs '-Dapple.awt.UIElement=true'
-	// e.g. ./gradlew portraitTune -PportraitModel=~/.runelite/account-sync/Name/portrait-model.json
+	// e.g. ./gradlew portraitTune -PportraitModel=~/.runelite/squire/Name/portrait-model.json
 	if (project.hasProperty('portraitModel')) args([project.property('portraitModel')] + (project.hasProperty('portraitOut') ? [project.property('portraitOut')] : []))
 }
