@@ -39,7 +39,7 @@ class SquireSidebar extends PluginPanel
 	private enum Page
 	{
 		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), GAINED("Gained"),
-		PROGRESS_DETAIL("Progress"), BOSS("Boss"), WELCOME("Squire");
+		PROGRESS_DETAIL("Progress"), BOSS("Boss"), WELCOME("Squire"), SETUP("Set up");
 
 		final String title;
 
@@ -187,6 +187,12 @@ class SquireSidebar extends PluginPanel
 			public void openPlan()
 			{
 				show(Page.PLAN);
+			}
+
+			@Override
+			public void openSetup()
+			{
+				showSetup();
 			}
 		});
 		// "Ask Squire" lines on the Progress and Activity cards start a chat with their question
@@ -392,6 +398,28 @@ class SquireSidebar extends PluginPanel
 		body.add(view, Page.SYNC.name());
 	}
 
+	private SetupView setup;
+
+	/** The Set up page, shown after Continue and reachable from Home until it's done. */
+	void setSetupView(SetupView view)
+	{
+		setup = view;
+		body.add(view, Page.SETUP.name());
+	}
+
+	void showSetup()
+	{
+		if (setup != null)
+		{
+			show(Page.SETUP);
+		}
+	}
+
+	void showHome()
+	{
+		show(Page.HOME);
+	}
+
 	/** The Connect an AI app page (opened from Settings). */
 	void setConnectView(ConnectView view)
 	{
@@ -405,6 +433,10 @@ class SquireSidebar extends PluginPanel
 		if (page == Page.CONNECT && next != Page.CONNECT && connect != null)
 		{
 			connect.onHidden();
+		}
+		if (page == Page.SETUP && next != Page.SETUP && setup != null)
+		{
+			setup.onHidden();
 		}
 		page = next;
 		cards.show(body, next.name());
@@ -427,7 +459,7 @@ class SquireSidebar extends PluginPanel
 		}
 		nav.set(titleOf(next), ancestors, actions);
 		ask.setPlaceholder(placeholderFor(next));
-		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME && next != Page.CONNECT && next != Page.SYNC);
+		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME && next != Page.CONNECT && next != Page.SYNC && next != Page.SETUP);
 
 		if (next == Page.CHAT)
 		{
@@ -465,6 +497,10 @@ class SquireSidebar extends PluginPanel
 		else if (next == Page.CONNECT && connect != null)
 		{
 			connect.onShown();
+		}
+		else if (next == Page.SETUP && setup != null)
+		{
+			setup.onShown();
 		}
 		revalidate();
 		repaint();

@@ -4,12 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.inject.Provides;
-import java.io.File;
 import javax.swing.SwingUtilities;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -49,7 +46,6 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.gameval.VarbitID;
-import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -68,6 +64,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.Filepath;
 import net.runelite.client.util.Text;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -83,7 +80,10 @@ import okhttp3.ResponseBody;
 @PluginDescriptor(
 	name = "Squire",
 	description = "Your OSRS companion: an AI that knows your account and helps you plan, gear up and prepare for bosses",
-	tags = {"sync", "database", "export", "api", "mcp"}
+	tags = {"sync", "database", "export", "api", "mcp"},
+	// Its data folder under RuneLite's plugin data; earlier versions used ~/.runelite/squire, which RuneLite moves over
+	internalName = "squire",
+	legacyDataDirectory = "squire"
 )
 public class SquirePlugin extends Plugin
 {
@@ -319,23 +319,29 @@ public class SquirePlugin extends Plugin
 		return configManager.getConfig(SquireConfig.class);
 	}
 
-	/** Everything Squire keeps on this computer: chat history, plans, portraits and ACCOUNT.md copies. */
-	static final File DATA_DIR = new File(RuneLite.RUNELITE_DIR, "squire");
+	/**
+	 * Everything Squire keeps on this computer (chat history, plans, portraits and ACCOUNT.md copies), in RuneLite's
+	 * plugin data folder. Null if RuneLite couldn't make it: then nothing is kept between sessions.
+	 */
+	private static volatile Filepath dataDir;
 
-	/** Earlier versions kept it in ~/.runelite/account-sync: move it once so nothing is lost. */
-	private static void moveOldDataDir()
+	static Filepath dataDir()
 	{
-		File old = new File(RuneLite.RUNELITE_DIR, "account-sync");
-		if (old.isDirectory() && !DATA_DIR.exists() && !old.renameTo(DATA_DIR))
-		{
-			log.warn("Squire: couldn't move {} to {}", old, DATA_DIR);
-		}
+		return dataDir;
 	}
 
 	@Override
 	protected void startUp()
 	{
-		moveOldDataDir();
+		try
+		{
+			dataDir = getPluginDirectory();
+		}
+		catch (IOException | RuntimeException e)
+		{
+			log.warn("Squire: no data folder, so chats and copies won't be kept", e);
+			dataDir = null;
+		}
 		models = new ModelCatalog(okHttpClient, gson, this::serverUrl, config::token);
 		// Export cards can open an imported setup in Inventory Setups (its "view" message, like picking it in its panel)
 		ExportCards.openSetup = name -> eventBus.post(new net.runelite.client.events.PluginMessage(
@@ -349,7 +355,7 @@ public class SquirePlugin extends Plugin
 				id -> configManager.setConfiguration(SquireConfig.GROUP, "model", id));
 			view.setSuggestions(() -> livePrompts);
 			return view;
-		}, new ChatStore(new File(DATA_DIR, "chats"), gson));
+		}, new ChatStore(dataDir == null ? null : dataDir.joinSegment("chats"), gson));
 		sessions.load();
 		inGameChat = new InGameChat(client, chatMessageManager, chatboxPanelManager, () -> sessions);
 		// The Squire stone among the chatbox tabs: status, and a Squire-only view of the chat
@@ -396,6 +402,45 @@ public class SquirePlugin extends Plugin
 		// Nothing is sent until the player turns Squire on from the Welcome page
 		welcome = new WelcomeView(serverUrl() + "/privacy", this::turnOn);
 		sidebar.setTurnedOn(isTurnedOn(), welcome);
+		// Set up, after Continue: the account's sync and history, then the bank and collection log
+		sidebar.setSetupView(new SetupView(new SetupView.Controller()
+		{
+			@Override
+			public void fetch(java.util.function.Consumer<AccountApi.Result> callback)
+			{
+				accountApi.setup(callback);
+			}
+
+			@Override
+			public boolean loggedIn()
+			{
+				return client.getGameState() == GameState.LOGGED_IN;
+			}
+
+			@Override
+			public void visible(boolean visible)
+			{
+				// While it's on screen, opening the collection log syncs it without the Search menu
+				if (visible)
+				{
+					clientThread.invokeLater(() -> clogRequested = true);
+				}
+			}
+
+			@Override
+			public void completed()
+			{
+				setupFinished();
+			}
+
+			@Override
+			public void leave()
+			{
+				sidebar.showHome();
+			}
+		}));
+		sidebar.home().setSetupPending(isTurnedOn() && !isSetupDone());
+		checkSetup();
 		// Other AI apps (MCP connectors): Settings lists them, the Connect page pairs a new one
 		sidebar.setConnectView(new ConnectView(new ConnectView.Source()
 		{
@@ -1968,12 +2013,18 @@ public class SquirePlugin extends Plugin
 		{
 			java.awt.image.BufferedImage image = PlayerPortrait.draw(mesh, 128, PlayerPortrait.DEFAULT_FRAMING);
 			javax.swing.SwingUtilities.invokeLater(() -> sidebar.home().setChathead(image));
-			if (name != null)
+			Filepath dir = name == null ? null : accountDir(name);
+			if (dir != null)
 			{
-				Path dir = accountDir(name);
-				Files.createDirectories(dir);
-				javax.imageio.ImageIO.write(image, "png", dir.resolve("portrait.png").toFile());
-				PlayerPortrait.dump(mesh, dir.resolve("portrait-model.json").toFile(), gson);
+				dir.createDirectories();
+				try (java.io.OutputStream out = dir.joinSegment("portrait.png").openOutputStream())
+				{
+					javax.imageio.ImageIO.write(image, "png", out);
+				}
+				try (java.io.Writer w = dir.joinSegment("portrait-model.json").openBufferedWriter())
+				{
+					PlayerPortrait.dump(mesh, w, gson);
+				}
 			}
 		}
 		catch (Exception e)
@@ -1982,40 +2033,48 @@ public class SquirePlugin extends Plugin
 		}
 	}
 
-	private static Path accountDir(String name)
+	/** This character's folder in the data folder (null without one). */
+	private static Filepath accountDir(String name)
 	{
-		return DATA_DIR.toPath().resolve(name.replaceAll("[^A-Za-z0-9 _-]", "_"));
+		Filepath root = dataDir;
+		return root == null ? null : root.joinSegment(name.replaceAll("[^A-Za-z0-9_-]", "_"));
 	}
 
 	/** Show a portrait saved by an earlier session: this account's, or with no name the most recent one. */
 	private void loadCachedPortrait(String name)
 	{
+		Filepath root = dataDir;
+		if (root == null)
+		{
+			return;
+		}
 		try
 		{
-			Path file = null;
+			Filepath file = null;
 			if (name != null)
 			{
-				file = accountDir(name).resolve("portrait.png");
+				file = accountDir(name).joinSegment("portrait.png");
 			}
-			else
+			else if (root.isDirectory())
 			{
-				Path root = DATA_DIR.toPath();
-				if (Files.isDirectory(root))
+				try (java.util.stream.Stream<Filepath> dirs = root.walk(1))
 				{
-					try (java.util.stream.Stream<Path> dirs = Files.list(root))
-					{
-						file = dirs.map(d -> d.resolve("portrait.png"))
-							.filter(Files::isRegularFile)
-							.max(java.util.Comparator.comparingLong(f -> f.toFile().lastModified()))
-							.orElse(null);
-					}
+					file = dirs.filter(Filepath::isDirectory).filter(d -> !d.equals(root))
+						.map(d -> d.joinSegment("portrait.png"))
+						.filter(Filepath::isFile)
+						.max(java.util.Comparator.comparingLong(SquirePlugin::modified))
+						.orElse(null);
 				}
 			}
-			if (file == null || !Files.isRegularFile(file))
+			if (file == null || !file.isFile())
 			{
 				return;
 			}
-			java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(file.toFile());
+			java.awt.image.BufferedImage image;
+			try (java.io.InputStream in = file.openInputStream())
+			{
+				image = javax.imageio.ImageIO.read(in);
+			}
 			if (image != null)
 			{
 				javax.swing.SwingUtilities.invokeLater(() -> sidebar.home().setChathead(image));
@@ -2024,6 +2083,18 @@ public class SquirePlugin extends Plugin
 		catch (Exception e)
 		{
 			log.debug("No saved portrait to show", e);
+		}
+	}
+
+	private static long modified(Filepath f)
+	{
+		try
+		{
+			return f.getLastModifiedTime().toMillis();
+		}
+		catch (IOException e)
+		{
+			return 0;
 		}
 	}
 
@@ -2041,12 +2112,16 @@ public class SquirePlugin extends Plugin
 			{
 				return;
 			}
-			Path dir = DATA_DIR.toPath().resolve(name.replaceAll("[^A-Za-z0-9 _-]", "_"));
-			Files.createDirectories(dir);
+			Filepath dir = accountDir(name);
+			if (dir == null)
+			{
+				return;
+			}
+			dir.createDirectories();
 			// Write then rename so readers never see a half-written file
-			Path tmp = dir.resolve("ACCOUNT.md.tmp");
-			Files.write(tmp, md.getAsString().getBytes(StandardCharsets.UTF_8));
-			Files.move(tmp, dir.resolve("ACCOUNT.md"), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			Filepath tmp = dir.joinSegment("ACCOUNT.md.tmp");
+			tmp.write(md.getAsString().getBytes(StandardCharsets.UTF_8));
+			tmp.moveTo(dir.joinSegment("ACCOUNT.md"), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		}
 		catch (Exception e)
 		{
@@ -2113,6 +2188,11 @@ public class SquirePlugin extends Plugin
 		{
 			configManager.setConfiguration(SquireConfig.GROUP, "enabled", true);
 			sidebar.setTurnedOn(true, null);
+			if (!isSetupDone())
+			{
+				sidebar.home().setSetupPending(true);
+				sidebar.showSetup();
+			}
 			done.accept(null);
 			clientThread.invokeLater(() ->
 			{
@@ -2139,6 +2219,36 @@ public class SquirePlugin extends Plugin
 		}));
 	}
 
+	private boolean isSetupDone()
+	{
+		return "true".equals(configManager.getConfiguration(SquireConfig.GROUP, "setupDone"));
+	}
+
+	/** Setup is complete: Home stops offering the Set up page. */
+	private void setupFinished()
+	{
+		configManager.setConfiguration(SquireConfig.GROUP, "setupDone", true);
+		sidebar.home().setSetupPending(false);
+	}
+
+	/** Once at startup: installs set up before the Set up page existed (or finished elsewhere) mark it done quietly. */
+	private void checkSetup()
+	{
+		if (!isTurnedOn() || isSetupDone())
+		{
+			return;
+		}
+		accountApi.setup(r ->
+		{
+			JsonObject s = r.json;
+			if (s != null && s.has("synced") && s.get("synced").getAsBoolean() && s.get("bank").getAsBoolean()
+				&& s.get("collectionLog").getAsBoolean() && !"importing".equals(s.get("history").getAsString()))
+			{
+				SwingUtilities.invokeLater(this::setupFinished);
+			}
+		});
+	}
+
 	/** Settings' "Delete my data": delete it on the server, then locally, and turn Squire off. */
 	private void deleteMyData()
 	{
@@ -2151,6 +2261,7 @@ public class SquirePlugin extends Plugin
 			}
 			configManager.setConfiguration(SquireConfig.GROUP, "enabled", false);
 			configManager.setConfiguration(SquireConfig.GROUP, "token", "");
+			configManager.unsetConfiguration(SquireConfig.GROUP, "setupDone");
 			sessions.clearAll();
 			deleteLocalData();
 			synchronized (lock)
@@ -2165,19 +2276,22 @@ public class SquirePlugin extends Plugin
 		}));
 	}
 
-	/** Chat history, portraits and ACCOUNT.md copies under ~/.runelite/squire. */
+	/** Chat history, portraits and ACCOUNT.md copies in the data folder (the folder itself stays). */
 	private void deleteLocalData()
 	{
-		java.nio.file.Path dir = DATA_DIR.toPath();
-		if (!Files.exists(dir))
+		Filepath root = dataDir;
+		if (root == null || !root.isDirectory())
 		{
 			return;
 		}
-		try (java.util.stream.Stream<java.nio.file.Path> walk = Files.walk(dir))
+		try (java.util.stream.Stream<Filepath> children = root.walk(1))
 		{
-			walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+			for (Filepath child : (Iterable<Filepath>) children.filter(c -> !c.equals(root))::iterator)
+			{
+				child.deleteRecursively();
+			}
 		}
-		catch (IOException e)
+		catch (IOException | RuntimeException e)
 		{
 			log.warn("Couldn't delete local Squire data", e);
 		}

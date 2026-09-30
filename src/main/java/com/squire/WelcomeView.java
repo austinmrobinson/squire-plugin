@@ -1,38 +1,51 @@
 package com.squire;
 
-import com.squire.ChatComponents.Align;
 import com.squire.ChatComponents.HeightForWidth;
-import com.squire.ChatComponents.MessageList;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.LayoutManager;
+import java.awt.MultipleGradientPaint;
+import java.awt.RadialGradientPaint;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
+import java.awt.image.BufferedImage;
 import java.util.function.Consumer;
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.Scrollable;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.LinkBrowser;
 
 /**
- * Shown until the player turns Squire on: what it can do, a short note on what it sends to the Squire server
- * (with the privacy page for the details), and Continue, which signs this install up and starts syncing.
- * Nothing is sent before that.
+ * Shown until the player turns Squire on: the campfire scene and emblem, what Squire does in three callouts, and
+ * Continue, which signs this install up and starts syncing (the first callout says what's sent; the privacy policy
+ * has the details). Nothing is sent before that.
  */
 class WelcomeView extends JPanel
 {
 	private static final Color ERROR = new Color(0xFF8A80);
+	/** The callout icons' colour: Squire blue, lightened to read on the dark slot. */
+	static final Color ICON = new Color(0x8E98FF);
 
 	private final JLabel error = new JLabel();
 	private final JButton next = new ChatComponents.AccentButton("Continue");
@@ -43,64 +56,19 @@ class WelcomeView extends JPanel
 		super(new BorderLayout());
 		setOpaque(false);
 
-		MessageList list = new MessageList(null, 0);
-		list.setBorder(BorderFactory.createEmptyBorder(24, 8, 16, 8));
-		JScrollPane scroll = new JScrollPane(list);
+		Content content = new Content();
+		JScrollPane scroll = new JScrollPane(content);
 		scroll.setOpaque(false);
 		scroll.getViewport().setOpaque(false);
 		scroll.setBorder(BorderFactory.createEmptyBorder());
 		scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+		scroll.getVerticalScrollBar().setUnitIncrement(16);
 		add(scroll);
 
-		// Left-aligned and quiet, like the website: the helm, a title, then the four things Squire does as numbered cards
-		JLabel icon = new JLabel(new ImageIcon(SquireIcon.create(40)), SwingConstants.LEFT);
-		list.add(ChatComponents.place(icon, Align.FILL, 0));
-		JLabel title = new JLabel("Meet Squire", SwingConstants.LEFT);
-		title.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
-		title.setForeground(Color.WHITE);
-		list.add(ChatComponents.place(title, Align.FILL, 12));
-		Wrapped intro = new Wrapped("A squire for your account. It knows your stats, bank, quests and gear.", ChatComponents.MUTED, false);
-		list.add(ChatComponents.place(intro, Align.FILL, 4));
-
-		list.add(ChatComponents.place(new Feature("01", "Sync", "sync", "It knows your account",
-			"Answers from your own stats, bank and quests, checked against the wiki and a DPS calculator."), Align.FILL, 18));
-		list.add(ChatComponents.place(new Feature("02", "Plan", "map", "A plan that keeps itself",
-			"Checkpoints like Barrows gloves or a fire cape that tick off as you play."), Align.FILL, 6));
-		list.add(ChatComponents.place(new Feature("03", "Gear", "shield", "Gear you can act on",
-			"Swap a slot, see the DPS change, and copy the trip to Inventory Setups."), Align.FILL, 6));
-		list.add(ChatComponents.place(new Feature("04", "Improve", "trending-up", "Reviews of your runs",
-			"Ask it to watch your next run, play, and get what to change after."), Align.FILL, 6));
-		Wrapped where = new Wrapped("Ask here, from the Squire chat tab, or with ::squire in the chatbox.", ChatComponents.MUTED, false);
-		list.add(ChatComponents.place(where, Align.FILL, 14));
-
-		// Bottom: the disclosure sits just above the button, like a system onboarding sheet
-		MessageList bottom = new MessageList(null, 0);
-		bottom.setBorder(BorderFactory.createEmptyBorder(4, 8, 14, 8));
-		Wrapped disclosure = new Wrapped(
-			"Squire sends your character name, progress, bank, gear, location and messages to the Squire server, "
-				+ "where an AI model answers you. Never your password or other players' data. "
-				+ "You can delete it all from Settings.", ChatComponents.MUTED, false);
-		bottom.add(ChatComponents.place(disclosure, Align.FILL, 0));
-
-		JLabel privacy = new JLabel("<html><u>What's sent and why</u></html>", SwingConstants.LEFT);
-		privacy.setFont(FontManager.getRunescapeSmallFont());
-		privacy.setForeground(ChatComponents.MUTED);
-		privacy.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		privacy.addMouseListener(new MouseAdapter()
-		{
-			@Override
-			public void mouseReleased(MouseEvent e)
-			{
-				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
-				if (!javax.swing.SwingUtilities.isLeftMouseButton(e) || !e.getComponent().contains(e.getPoint()))
-				{
-					return;
-				}
-				LinkBrowser.browse(privacyUrl);
-			}
-		});
-		bottom.add(ChatComponents.place(privacy, Align.FILL, 4));
-
+		// Bottom: Continue, with the privacy line under it
+		JPanel bottom = new JPanel(new BorderLayout(0, 6));
+		bottom.setOpaque(false);
+		bottom.setBorder(BorderFactory.createEmptyBorder(8, 12, 12, 12));
 		next.addActionListener(e ->
 		{
 			next.setEnabled(false);
@@ -116,35 +84,272 @@ class WelcomeView extends JPanel
 				}
 			});
 		});
-		bottom.add(ChatComponents.place(next, Align.FILL, 12));
+		bottom.add(next, BorderLayout.NORTH);
+
+		Wrapped privacy = new Wrapped("By clicking Continue, you agree to Squire's Privacy Policy.", ChatComponents.MUTED, true);
+		privacy.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		privacy.setToolTipText("Read what's sent and why");
+		privacy.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseReleased(MouseEvent e)
+			{
+				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+				if (SwingUtilities.isLeftMouseButton(e) && e.getComponent().contains(e.getPoint()))
+				{
+					LinkBrowser.browse(privacyUrl);
+				}
+			}
+		});
+		JPanel notes = new JPanel(new BorderLayout(0, 4))
+		{
+			@Override
+			public Dimension getPreferredSize()
+			{
+				int w = Math.max(40, getParent() == null ? 200 : getParent().getWidth() - 24);
+				int h = privacy.heightForWidth(w) + (error.getText().isEmpty() ? 0 : 4 + error.getPreferredSize().height);
+				return new Dimension(w, h);
+			}
+		};
+		notes.setOpaque(false);
+		notes.add(privacy, BorderLayout.NORTH);
 		error.setHorizontalAlignment(SwingConstants.CENTER);
 		error.setFont(FontManager.getRunescapeSmallFont());
 		error.setForeground(ERROR);
-		bottom.add(ChatComponents.place(error, Align.FILL, 6));
+		notes.add(error, BorderLayout.SOUTH);
+		bottom.add(notes, BorderLayout.CENTER);
 		add(bottom, BorderLayout.SOUTH);
 	}
 
-	/** A numbered card: its icon and "01  SYNC" in Squire blue, a bold title and a wrapped description. */
-	private static class Feature extends ChatComponents.Surface implements HeightForWidth
+	/**
+	 * The scrolling part, laid out like the design at any sidebar width: the scene full-bleed with the emblem over
+	 * its lower edge, the centred title and intro, then the callouts.
+	 */
+	private static final class Content extends JPanel implements Scrollable
 	{
-		private static final int PAD_X = 10, PAD_Y = 8;
-		private static final Color LABEL = new Color(0x8E98FF);
-		private final JLabel label;
-		private final JLabel title;
+		// The scene is as wide as the panel at the art's own proportions, with ground below it for the emblem
+		private static final int SCENE_GROUND = 58;
+		private static final int EMBLEM = 56, EMBLEM_BOTTOM = 14, SIDE = 12, CALLOUT_SIDE = 16;
+
+		private final Scene scene = new Scene();
+		private final Wrapped title = new Wrapped("Welcome to Squire", Color.WHITE, true);
+		private final Wrapped intro = new Wrapped("Answers from your own stats, bank and quests, checked against the wiki "
+			+ "and a DPS calculator.", ChatComponents.MUTED, true);
+		private final Callout[] callouts = {
+			new Callout("sync", "Sync your data",
+				"Your stats, bank and quests sync to Squire's server."),
+			new Callout("map", "Plan your progression",
+				"Checkpoints that tick off as you play."),
+			new Callout("sword", "Gear and boss advice",
+				"Setups from what you own, checked with a DPS calculator."),
+		};
+
+		Content()
+		{
+			setOpaque(false);
+			title.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
+			intro.setFont(FontManager.getRunescapeFont());
+			add(scene);
+			add(title);
+			add(intro);
+			for (Callout c : callouts)
+			{
+				add(c);
+			}
+			setLayout(new LayoutManager()
+			{
+				@Override
+				public void addLayoutComponent(String name, java.awt.Component comp)
+				{
+				}
+
+				@Override
+				public void removeLayoutComponent(java.awt.Component comp)
+				{
+				}
+
+				@Override
+				public Dimension preferredLayoutSize(Container parent)
+				{
+					return new Dimension(parent.getWidth(), layout(parent.getWidth(), false));
+				}
+
+				@Override
+				public Dimension minimumLayoutSize(Container parent)
+				{
+					return new Dimension(0, 0);
+				}
+
+				@Override
+				public void layoutContainer(Container parent)
+				{
+					layout(parent.getWidth(), true);
+				}
+			});
+		}
+
+		/** Lays the page out at this width (or only measures it); returns the height. */
+		private int layout(int width, boolean place)
+		{
+			int w = Math.max(120, width);
+			int sceneH = Scene.artHeight(w) + SCENE_GROUND;
+			if (place)
+			{
+				scene.setBounds(0, 0, w, sceneH);
+			}
+			int y = sceneH + 6;
+			int tw = w - SIDE * 2;
+			int th = title.heightForWidth(tw);
+			if (place)
+			{
+				title.setBounds(SIDE, y, tw, th);
+			}
+			y += th + 8;
+			int ih = intro.heightForWidth(tw);
+			if (place)
+			{
+				intro.setBounds(SIDE, y, tw, ih);
+			}
+			y += ih + 24;
+			int cw = w - CALLOUT_SIDE * 2;
+			for (int i = 0; i < callouts.length; i++)
+			{
+				int ch = callouts[i].heightForWidth(cw);
+				if (place)
+				{
+					callouts[i].setBounds(CALLOUT_SIDE, y, cw, ch);
+				}
+				y += ch + (i < callouts.length - 1 ? 22 : 12);
+			}
+			return y;
+		}
+
+		@Override
+		public Dimension getPreferredScrollableViewportSize()
+		{
+			return getPreferredSize();
+		}
+
+		@Override
+		public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction)
+		{
+			return 16;
+		}
+
+		@Override
+		public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction)
+		{
+			return visibleRect.height;
+		}
+
+		@Override
+		public boolean getScrollableTracksViewportWidth()
+		{
+			return true;
+		}
+
+		@Override
+		public boolean getScrollableTracksViewportHeight()
+		{
+			return false;
+		}
+
+		/** The campfire scene, faded into the panel at its edges, with the emblem over its lower edge. */
+		private static final class Scene extends JComponent
+		{
+			private static final BufferedImage ART = trim(load("welcome/hero.png"));
+			private static final BufferedImage EMBLEM_ART = load("welcome/emblem.png");
+
+			@Override
+			protected void paintComponent(Graphics g)
+			{
+				Graphics2D g2 = (Graphics2D) g.create();
+				int w = getWidth(), h = getHeight();
+				g2.setColor(new Color(0x292D2E));
+				g2.fillRect(0, 0, w, h);
+				if (ART != null)
+				{
+					// The whole scene across the width, never stretched; the ground colour continues below it
+					g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+					g2.drawImage(ART, 0, 0, w, artHeight(w), null);
+				}
+				// The design's vignette: clear in the middle, fading to the panel colour towards the sides and bottom
+				float rx = w * 0.84f, ry = h * 0.84f;
+				AffineTransform stretch = AffineTransform.getTranslateInstance(w / 2.0, 0);
+				stretch.scale(1, ry / rx);
+				Color base = ChatComponents.BASE_BG;
+				g2.setPaint(new RadialGradientPaint(new Point2D.Float(0, 0), rx, new Point2D.Float(0, 0), new float[]{0.65f, 1f},
+					new Color[]{new Color(base.getRed(), base.getGreen(), base.getBlue(), 0), base},
+					MultipleGradientPaint.CycleMethod.NO_CYCLE, MultipleGradientPaint.ColorSpaceType.SRGB, stretch));
+				g2.fillRect(0, 0, w, h);
+				if (EMBLEM_ART != null)
+				{
+					g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+					g2.drawImage(EMBLEM_ART, (w - EMBLEM) / 2, h - EMBLEM - EMBLEM_BOTTOM, EMBLEM, EMBLEM, null);
+				}
+				g2.dispose();
+			}
+
+			/** The art's height when drawn this wide. */
+			static int artHeight(int width)
+			{
+				return ART == null ? width / 3 : (int) Math.round((double) width * ART.getHeight() / ART.getWidth());
+			}
+
+			private static BufferedImage load(String path)
+			{
+				try (java.io.InputStream in = WelcomeView.class.getResourceAsStream(path))
+				{
+					return in == null ? null : ImageIO.read(in);
+				}
+				catch (java.io.IOException e)
+				{
+					return null;
+				}
+			}
+
+			/** The art without its transparent margins, so it can cover the box edge to edge. */
+			private static BufferedImage trim(BufferedImage img)
+			{
+				if (img == null)
+				{
+					return null;
+				}
+				int minX = img.getWidth(), minY = img.getHeight(), maxX = -1, maxY = -1;
+				for (int y = 0; y < img.getHeight(); y++)
+				{
+					for (int x = 0; x < img.getWidth(); x++)
+					{
+						if ((img.getRGB(x, y) >>> 24) > 16)
+						{
+							minX = Math.min(minX, x);
+							maxX = Math.max(maxX, x);
+							minY = Math.min(minY, y);
+							maxY = Math.max(maxY, y);
+						}
+					}
+				}
+				return maxX < 0 ? img : img.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
+			}
+		}
+	}
+
+	/** One of the three callouts: an icon in an inventory-style slot, then a bold title and a short description. */
+	private static final class Callout extends JPanel implements HeightForWidth
+	{
+		private static final int SLOT = 48, GAP = 16;
+		private final Wrapped title;
 		private final Wrapped body;
 
-		Feature(String number, String tag, String iconName, String titleText, String bodyText)
+		Callout(String icon, String titleText, String bodyText)
 		{
-			super(ChatComponents.CARD_BG, 6, true);
-			label = new JLabel(number + "  " + tag.toUpperCase(), SvgIcon.load(iconName, 16, LABEL), SwingConstants.LEFT);
-			label.setIconTextGap(6);
-			label.setFont(FontManager.getRunescapeSmallFont());
-			label.setForeground(LABEL);
-			title = new JLabel(titleText);
+			setOpaque(false);
+			Slot slot = new Slot(icon);
+			title = new Wrapped(titleText, Color.WHITE, false);
 			title.setFont(FontManager.getRunescapeBoldFont());
-			title.setForeground(Color.WHITE);
 			body = new Wrapped(bodyText, ChatComponents.MUTED, false);
-			add(label);
+			body.setFont(FontManager.getRunescapeFont());
+			add(slot);
 			add(title);
 			add(body);
 			setLayout(new LayoutManager()
@@ -174,24 +379,56 @@ class WelcomeView extends JPanel
 				@Override
 				public void layoutContainer(Container parent)
 				{
-					int w = parent.getWidth() - PAD_X * 2;
-					int y = PAD_Y;
-					int lh = label.getPreferredSize().height;
-					label.setBounds(PAD_X, y, w, lh);
-					y += lh + 2;
-					int th = title.getPreferredSize().height;
-					title.setBounds(PAD_X, y, w, th);
-					y += th + 1;
-					body.setBounds(PAD_X, y, w, body.heightForWidth(w));
+					int h = parent.getHeight();
+					int tx = SLOT + GAP, tw = Math.max(40, parent.getWidth() - tx);
+					int text = textHeight(tw);
+					// Centred against each other, like the design's rows
+					slot.setBounds(0, (h - SLOT) / 2, SLOT, SLOT);
+					int y = (h - text) / 2;
+					int th = title.heightForWidth(tw);
+					title.setBounds(tx, y, tw, th);
+					body.setBounds(tx, y + th + 2, tw, body.heightForWidth(tw));
 				}
 			});
+		}
+
+		private int textHeight(int tw)
+		{
+			return title.heightForWidth(tw) + 2 + body.heightForWidth(tw);
 		}
 
 		@Override
 		public int heightForWidth(int width)
 		{
-			return PAD_Y * 2 + label.getPreferredSize().height + 2 + title.getPreferredSize().height + 1
-				+ body.heightForWidth(Math.max(40, width - PAD_X * 2));
+			return Math.max(SLOT, textHeight(Math.max(40, width - SLOT - GAP)));
+		}
+
+		/** A sunken inventory slot with stepped corners, holding the callout's icon. */
+		private static final class Slot extends JComponent
+		{
+			private final ImageIcon icon;
+
+			Slot(String name)
+			{
+				icon = SvgIcon.load(name, 21, ICON);
+			}
+
+			@Override
+			protected void paintComponent(Graphics g)
+			{
+				Graphics2D g2 = (Graphics2D) g.create();
+				int w = getWidth(), h = getHeight();
+				g2.setColor(ChatComponents.BASE_BG);
+				Pixel.fill(g2, 0, 0, w, h, 4);
+				g2.setColor(ChatComponents.BORDER);
+				Pixel.draw(g2, 0, 0, w, h, 4);
+				Pixel.bevel(g2, 1, 1, w - 2, h - 2, 3, ChatComponents.CARD_DARK, ChatComponents.CARD_LIGHT);
+				if (icon != null)
+				{
+					icon.paintIcon(this, g2, (w - icon.getIconWidth()) / 2, (h - icon.getIconHeight()) / 2);
+				}
+				g2.dispose();
+			}
 		}
 	}
 

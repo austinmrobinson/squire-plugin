@@ -84,6 +84,12 @@ class AccountApi
 		get("api/progress", Map.of("boss", name, "period", period), callback);
 	}
 
+	/** The Set up page: {synced, history: waiting|importing|done|none, bank, collectionLog}. */
+	void setup(Consumer<Result> callback)
+	{
+		get("api/setup", Map.of(), callback);
+	}
+
 	/** The player's plan, checked against their account ({ plan: null } when they have none). */
 	void plan(Consumer<Result> callback)
 	{

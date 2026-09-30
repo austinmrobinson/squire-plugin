@@ -36,7 +36,7 @@ public class ChatHistoryCheck
 		});
 
 		// 1. Two conversations at once
-		ChatSessions sessions = on(() -> new ChatSessions(() -> view(gson, models, token), new ChatStore(dir.toFile(), gson)));
+		ChatSessions sessions = on(() -> new ChatSessions(() -> view(gson, models, token), new ChatStore(net.runelite.client.util.Filepath.Unchecked.getRooted(dir), gson)));
 		ChatView a = on(() ->
 		{
 			sessions.startWith("Remember the word PINEAPPLE for later. Reply with just: ok");
@@ -55,7 +55,7 @@ public class ChatHistoryCheck
 		Thread.sleep(500); // let the history thread write
 
 		// 2. Reload from disk
-		ChatSessions reloaded = on(() -> new ChatSessions(() -> view(gson, models, token), new ChatStore(dir.toFile(), gson)));
+		ChatSessions reloaded = on(() -> new ChatSessions(() -> view(gson, models, token), new ChatStore(net.runelite.client.util.Filepath.Unchecked.getRooted(dir), gson)));
 		on(() ->
 		{
 			reloaded.load();

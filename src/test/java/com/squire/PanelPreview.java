@@ -2,6 +2,7 @@ package com.squire;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics2D;
@@ -502,8 +503,51 @@ public class PanelPreview
 
 				// Before the player turns Squire on: the Welcome page
 				sidebar.setTurnedOn(false, new WelcomeView("https://example.com/privacy", done -> {}));
-				renderSized(sidebar, new File(out, "11-welcome.png"), SquireSidebar.DEFAULT_WIDTH, 760);
+				renderSized(sidebar, new File(out, "11-welcome.png"), SquireSidebar.DEFAULT_WIDTH, 597);
+				renderSized(sidebar, new File(out, "11-welcome-narrow.png"), SquireSidebar.MIN_WIDTH, 597);
 				sidebar.setTurnedOn(true, null);
+				// Set up, after Continue: history importing with nothing opened yet, then everything done
+				SetupView setup = new SetupView(new SetupView.Controller()
+				{
+					@Override
+					public void fetch(java.util.function.Consumer<AccountApi.Result> callback)
+					{
+					}
+
+					@Override
+					public boolean loggedIn()
+					{
+						return true;
+					}
+
+					@Override
+					public void visible(boolean visible)
+					{
+					}
+
+					@Override
+					public void completed()
+					{
+					}
+
+					@Override
+					public void leave()
+					{
+					}
+				});
+				sidebar.setSetupView(setup);
+				sidebar.showSetup();
+				setup.show(new JsonParser().parse("{\"synced\":true,\"history\":\"importing\",\"bank\":false,\"collectionLog\":false}").getAsJsonObject());
+				renderSized(sidebar, new File(out, "11-setup.png"), SquireSidebar.DEFAULT_WIDTH, 597);
+				setup.show(new JsonParser().parse("{\"synced\":true,\"history\":\"done\",\"bank\":true,\"collectionLog\":false}").getAsJsonObject());
+				renderSized(sidebar, new File(out, "11-setup-bank-done.png"), SquireSidebar.DEFAULT_WIDTH, 597);
+				setup.show(new JsonParser().parse("{\"synced\":true,\"history\":\"done\",\"bank\":true,\"collectionLog\":true}").getAsJsonObject());
+				renderSized(sidebar, new File(out, "11-setup-done.png"), SquireSidebar.DEFAULT_WIDTH, 597);
+				setup.onHidden();
+				sidebar.home().setSetupPending(true);
+				sidebar.showHome();
+				renderSized(sidebar, new File(out, "11-home-setup-pending.png"), SquireSidebar.DEFAULT_WIDTH, 400);
+				sidebar.home().setSetupPending(false);
 				settings.setUsage("12 of 30 free", false);
 				sidebar.showPage("settings");
 				renderSized(sidebar, new File(out, "11b-settings-data.png"), SquireSidebar.DEFAULT_WIDTH, 760);

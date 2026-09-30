@@ -9,8 +9,9 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
@@ -78,13 +79,16 @@ class ChatClient
 	private final Supplier<String> model;
 	/** The logged-in account's hash, so the agent's memory is kept per account (null when logged out). */
 	private Supplier<String> account = () -> null;
-	// One turn at a time, in order
-	private final ExecutorService worker = Executors.newSingleThreadExecutor(r ->
+	// The connection's thread; turns run one at a time, in order (see enqueue)
+	private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor(r ->
 	{
 		Thread t = new Thread(r, "squire-chat");
 		t.setDaemon(true);
 		return t;
 	});
+	// Turns waiting their go; each is handed a callback to run when it's finished (retries included)
+	private final java.util.ArrayDeque<java.util.function.Consumer<Runnable>> turns = new java.util.ArrayDeque<>();
+	private boolean turnRunning;
 
 	private volatile String sessionId;
 	// Absolute count of stream events already consumed, so each turn reads only its own events
@@ -149,19 +153,68 @@ class ChatClient
 			content = parts;
 		}
 		Object body = content;
-		worker.execute(() ->
+		enqueue(done -> attempt(body, clientContext, listener, System.currentTimeMillis() + NOT_READY_RETRY_MS, 250, done));
+	}
+
+	/** Run turns one after another: the next starts only when the one before calls its finished callback. */
+	private void enqueue(java.util.function.Consumer<Runnable> turn)
+	{
+		synchronized (turns)
+		{
+			turns.add(turn);
+			if (turnRunning)
+			{
+				return;
+			}
+			turnRunning = true;
+		}
+		worker.execute(this::nextTurn);
+	}
+
+	private void nextTurn()
+	{
+		java.util.function.Consumer<Runnable> turn;
+		synchronized (turns)
+		{
+			turn = turns.poll();
+			if (turn == null)
+			{
+				turnRunning = false;
+				return;
+			}
+		}
+		turn.accept(() ->
 		{
 			try
 			{
-				postMessage(body, clientContext);
-				followTurn(listener);
+				worker.execute(this::nextTurn);
 			}
-			catch (Exception e)
+			catch (RejectedExecutionException shutDown)
 			{
-				log.warn("Squire chat failed", e);
-				listener.onError(e.getMessage() != null ? e.getMessage() : e.toString());
+				// The chat closed
 			}
 		});
+	}
+
+	/** Send the message and follow the reply. While the session is still starting, try again shortly (without blocking). */
+	private void attempt(Object body, Map<String, Object> clientContext, Listener listener, long deadline, long backoff, Runnable done)
+	{
+		try
+		{
+			if (!postMessage(body, clientContext, deadline))
+			{
+				worker.schedule(() -> attempt(body, clientContext, listener, deadline, Math.min(backoff * 2, 2000), done),
+					backoff, TimeUnit.MILLISECONDS);
+				return;
+			}
+			followTurn(listener);
+		}
+		catch (Exception e)
+		{
+			log.warn("Squire chat failed", e);
+			listener.onError(e.getMessage() != null ? e.getMessage() : e.toString());
+		}
+		done.run();
 	}
 
 	/** Stops the in-flight turn; the stream then reports turn.cancelled and the session waits again. */
@@ -211,7 +264,8 @@ class ChatClient
 
 	private volatile String pendingRecap;
 
-	private void postMessage(Object message, Map<String, Object> clientContext) throws IOException, InterruptedException
+	/** Post the message; false when the session isn't ready for it yet (and there's still time to wait). */
+	private boolean postMessage(Object message, Map<String, Object> clientContext, long deadline) throws IOException
 	{
 		Map<String, Object> body = new LinkedHashMap<>();
 		String recap = pendingRecap;
@@ -250,36 +304,28 @@ class ChatClient
 			JsonObject created = postJson("eve/v1/session", body);
 			sessionId = created.get("sessionId").getAsString();
 			streamIndex = 0;
-			return;
+			return true;
 		}
 
-		long deadline = System.currentTimeMillis() + NOT_READY_RETRY_MS;
-		long backoff = 250;
-		while (true)
+		try
 		{
-			try
+			postJson("eve/v1/session/" + sessionId, body);
+			return true;
+		}
+		catch (HttpError e)
+		{
+			if (e.status == 409 && System.currentTimeMillis() < deadline && (e.getMessage() == null || !e.getMessage().contains("session_not_active")))
 			{
-				postJson("eve/v1/session/" + sessionId, body);
-				return;
+				// session_not_ready: the durable inbox is still starting
+				return false;
 			}
-			catch (HttpError e)
+			if (e.status == 404 || e.status == 410 || (e.status == 409 && e.getMessage() != null && e.getMessage().contains("session_not_active")))
 			{
-				if (e.status == 409 && System.currentTimeMillis() < deadline && (e.getMessage() == null || !e.getMessage().contains("session_not_active")))
-				{
-					// session_not_ready: the durable inbox is still starting
-					Thread.sleep(backoff);
-					backoff = Math.min(backoff * 2, 2000);
-					continue;
-				}
-				if (e.status == 404 || e.status == 410 || (e.status == 409 && e.getMessage() != null && e.getMessage().contains("session_not_active")))
-				{
-					// Session expired, ended or was reset: start a new one with this message (and the recap)
-					sessionId = null;
-					postMessage(message, clientContext);
-					return;
-				}
-				throw e;
+				// Session expired, ended or was reset: start a new one with this message (and the recap)
+				sessionId = null;
+				return postMessage(message, clientContext, deadline);
 			}
+			throw e;
 		}
 	}
 

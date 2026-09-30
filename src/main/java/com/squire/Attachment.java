@@ -4,10 +4,8 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -101,18 +99,25 @@ final class Attachment
 		return new Attachment(Kind.TEXT, file, markdown ? "text/markdown" : "text/plain", null, body, null);
 	}
 
-	/** An attachment for a file on disk, or null if it's not a kind we take. */
-	static Attachment fromFile(File file) throws IOException
+	/** An attachment for a file the player chose or dropped, or null if it's not a kind we take. */
+	static Attachment fromFile(net.runelite.client.util.Filepath file) throws IOException
 	{
-		String ext = extensionOf(file.getName());
+		String name = file.getFileName();
+		String ext = extensionOf(name);
 		if (IMAGE_TYPES.contains(ext))
 		{
-			BufferedImage img = ImageIO.read(file);
-			return img == null ? null : image(img, file.getName());
+			try (java.io.InputStream in = file.openInputStream())
+			{
+				BufferedImage img = ImageIO.read(in);
+				return img == null ? null : image(img, name);
+			}
 		}
 		if (TEXT_TYPES.contains(ext))
 		{
-			return text(new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8), file.getName());
+			try (java.io.InputStream in = file.openInputStream())
+			{
+				return text(new String(in.readAllBytes(), StandardCharsets.UTF_8), name);
+			}
 		}
 		return null;
 	}

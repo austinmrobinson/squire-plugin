@@ -51,27 +51,34 @@ final class ChatComponents
 	static final Color ACCENT = new Color(0x4454DA); // Squire blue, a shade lighter than the plume
 	static final Color ACCENT_DARK = new Color(0x2F3AA6);
 	static final Color MUTED = new Color(0x9A9A9A);
-	// Swing's HTML needs a URL for list bullets. Plugin Hub jars must read resources as streams, so copy it to a temp file.
-	private static final java.net.URL BULLET = bulletUrl();
+	// Swing's HTML takes list bullets only as a URL: the image is copied (as a stream, like every resource) into
+	// Squire's data folder once, through RuneLite's Filepath
+	private static java.net.URL bullet;
 
-	private static java.net.URL bulletUrl()
+	private static synchronized java.net.URL bulletUrl()
 	{
+		net.runelite.client.util.Filepath dir = SquirePlugin.dataDir();
+		if (bullet != null || dir == null)
+		{
+			return bullet;
+		}
 		try (java.io.InputStream in = ChatComponents.class.getResourceAsStream("bullet.png"))
 		{
 			if (in == null)
 			{
 				return null;
 			}
-			java.nio.file.Path file = java.nio.file.Files.createTempFile("squire-bullet", ".png");
-			file.toFile().deleteOnExit();
-			java.nio.file.Files.copy(in, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			return file.toUri().toURL();
+			net.runelite.client.util.Filepath file = dir.joinSegment("bullet.png");
+			file.write(in.readAllBytes());
+			bullet = net.runelite.client.util.Filepath.Unchecked.getPath(file).toUri().toURL();
 		}
-		catch (java.io.IOException e)
+		catch (java.io.IOException | RuntimeException e)
 		{
-			return null;
+			bullet = null;
 		}
+		return bullet;
 	}
+
 	static final Color OUTLINE = new Color(0, 0, 0, 128);
 	static final Color HAIRLINE = new Color(255, 255, 255, 13);
 	// The game's bevel: light top/left, dark bottom/right (raised); swapped when pressed
@@ -234,7 +241,8 @@ final class ChatComponents
 			css.addRule("b { font-weight: bold; }");
 			css.addRule("i { font-style: italic; }");
 			// Bullets are a filled pixel square (Swing's "square" is hollow and reads as a checkbox)
-			css.addRule(BULLET == null ? "ul { list-style-type: square; }" : "ul { list-style-image: url(" + BULLET + "); }");
+			java.net.URL bulletImage = bulletUrl();
+			css.addRule(bulletImage == null ? "ul { list-style-type: square; }" : "ul { list-style-image: url(" + bulletImage + "); }");
 			css.addRule("ol { list-style-type: decimal; }");
 			css.addRule("tr { text-align: left; }");
 			css.addRule("td { padding: 3px; }");
@@ -601,8 +609,8 @@ final class ChatComponents
 		AccentButton(String text, boolean secondary)
 		{
 			super(text);
-			fill = secondary ? USER_BG : ACCENT;
-			edge = secondary ? new Color(0x2A2A2A) : ACCENT_DARK;
+			fill = secondary ? CARD_BG : ACCENT;
+			edge = secondary ? new Color(0x0F0F0F) : ACCENT_DARK;
 			setFont(FontManager.getRunescapeBoldFont());
 			setForeground(Color.WHITE);
 			setContentAreaFilled(false);

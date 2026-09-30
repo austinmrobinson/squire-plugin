@@ -11,7 +11,11 @@ public class PortraitTune
 {
 	public static void main(String[] args) throws Exception
 	{
-		PlayerPortrait.Mesh mesh = PlayerPortrait.load(new File(args[0]), new com.google.gson.Gson());
+		PlayerPortrait.Mesh mesh;
+		try (java.io.Reader r = java.nio.file.Files.newBufferedReader(new File(args[0]).toPath()))
+		{
+			mesh = PlayerPortrait.load(r, new com.google.gson.Gson());
+		}
 		if (args.length > 1)
 		{
 			// Redraw the saved portrait with the current framing

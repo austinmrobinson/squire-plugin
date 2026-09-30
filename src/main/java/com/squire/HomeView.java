@@ -72,6 +72,9 @@ class HomeView extends JPanel
 
 		/** The player's plan. */
 		void openPlan();
+
+		/** The Set up page, until setup is done. */
+		void openSetup();
 	}
 
 	private static final long REFRESH_AFTER_MS = 60_000;
@@ -209,12 +212,30 @@ class HomeView extends JPanel
 	private static final int CHAT_CARD_ROWS = 4;
 
 	private String renderedChatKey = "";
+	private boolean setupPending;
+
+	/** Offer "Finish setting up" at the top of Home (after Finish later, until the Set up page is done). */
+	void setSetupPending(boolean pending)
+	{
+		if (setupPending != pending)
+		{
+			setupPending = pending;
+			render();
+		}
+	}
 
 	private void render()
 	{
 		renderedChatKey = chatCardKey();
 		list.removeAll();
 		list.add(ChatComponents.place(profileCard(), Align.FILL, 0));
+		if (setupPending)
+		{
+			Surface setup = listCard();
+			setup.add(listRow(SvgIcon.load("sync", 16, WelcomeView.ICON), "Finish setting up",
+				new JLabel(SvgIcon.load("chevron-right", 16, null)), actions::openSetup));
+			list.add(ChatComponents.place(setup, Align.FILL, 4));
+		}
 		list.add(ChatComponents.place(planCard(), Align.FILL, 4));
 		list.add(ChatComponents.place(progressCard(), Align.FILL, 4));
 		list.add(ChatComponents.place(activityCard(), Align.FILL, 4));

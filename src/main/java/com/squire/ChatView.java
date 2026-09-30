@@ -43,7 +43,6 @@ import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JMenuItem;
@@ -54,11 +53,11 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.TransferHandler;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
+import net.runelite.client.util.Filepath;
 
 /**
  * Squire chat: messages in an inset card, a grooved typing row, and a composer with the
@@ -810,22 +809,36 @@ class ChatView extends JPanel
 
 	private void chooseFiles()
 	{
-		JFileChooser chooser = new JFileChooser();
-		chooser.setMultiSelectionEnabled(true);
-		chooser.setDialogTitle("Attach to message");
 		List<String> exts = new ArrayList<>(Attachment.IMAGE_TYPES);
 		exts.addAll(Attachment.TEXT_TYPES);
-		chooser.setFileFilter(new FileNameExtensionFilter("Images and text files", exts.toArray(new String[0])));
-		if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION)
+		List<Filepath> chosen = new Filepath.Chooser()
+			.setIsOpen()
+			.setAcceptsFiles()
+			.setMultiSelectionEnabled(true)
+			.setDialogTitle("Attach to message")
+			.addExtensionFilter("Images and text files", exts.toArray(new String[0]))
+			.showDialog(this);
+		if (chosen != null)
 		{
-			addFiles(List.of(chooser.getSelectedFiles()));
+			addFiles(chosen);
 		}
 		focusInput();
 	}
 
-	private void addFiles(List<File> files)
+	/** Files dropped on the chat, as RuneLite paths. */
+	private static List<Filepath> dropped(List<File> files)
 	{
+		List<Filepath> out = new ArrayList<>();
 		for (File f : files)
+		{
+			out.add(Filepath.Unchecked.getRooted(f.toPath()));
+		}
+		return out;
+	}
+
+	private void addFiles(List<Filepath> files)
+	{
+		for (Filepath f : files)
 		{
 			attachWorker.execute(() ->
 			{
@@ -921,7 +934,7 @@ class ChatView extends JPanel
 			{
 				if (t.isDataFlavorSupported(DataFlavor.javaFileListFlavor))
 				{
-					addFiles((List<File>) t.getTransferData(DataFlavor.javaFileListFlavor));
+					addFiles(dropped((List<File>) t.getTransferData(DataFlavor.javaFileListFlavor)));
 					return true;
 				}
 				String pasted = t.isDataFlavorSupported(DataFlavor.stringFlavor) ? (String) t.getTransferData(DataFlavor.stringFlavor) : null;

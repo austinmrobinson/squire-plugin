@@ -433,21 +433,15 @@ final class PlayerPortrait
 	 * Saves everything the renderer reads from a model (plus the textures it uses) as JSON, so portraits can be
 	 * re-rendered and tuned outside the game. Uses the client's Gson (plugins mustn't create their own).
 	 */
-	static void dump(Mesh mesh, java.io.File file, com.google.gson.Gson gson) throws java.io.IOException
+	static void dump(Mesh mesh, java.io.Writer out, com.google.gson.Gson gson)
 	{
-		try (java.io.Writer w = java.nio.file.Files.newBufferedWriter(file.toPath()))
-		{
-			gson.toJson(mesh, w);
-		}
+		gson.toJson(mesh, out);
 	}
 
 	/** A mesh saved by {@link #dump}. */
-	static Mesh load(java.io.File file, com.google.gson.Gson gson) throws java.io.IOException
+	static Mesh load(java.io.Reader in, com.google.gson.Gson gson)
 	{
-		try (java.io.Reader r = java.nio.file.Files.newBufferedReader(file.toPath()))
-		{
-			return gson.fromJson(r, Mesh.class);
-		}
+		return gson.fromJson(in, Mesh.class);
 	}
 
 	private PlayerPortrait()

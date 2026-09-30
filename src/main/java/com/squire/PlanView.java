@@ -313,7 +313,7 @@ class PlanView extends JPanel
 		menu.show(anchor, anchor.getWidth() - menu.getPreferredSize().width, anchor.getHeight());
 	}
 
-	/** Keep a copy of each plan shown in ~/.runelite/squire/plans/<id>.json, like chats, so it can be looked at later. */
+	/** Keep a copy of each plan shown in the data folder's plans/<id>.json, like chats, so it can be looked at later. */
 	private static void saveCopy(JsonObject plan)
 	{
 		String id = Ui.str(plan, "id");
@@ -323,9 +323,14 @@ class PlanView extends JPanel
 		}
 		try
 		{
-			java.nio.file.Path dir = new java.io.File(SquirePlugin.DATA_DIR, "plans").toPath();
-			java.nio.file.Files.createDirectories(dir);
-			java.nio.file.Files.writeString(dir.resolve(id + ".json"), plan.toString());
+			net.runelite.client.util.Filepath root = SquirePlugin.dataDir();
+			if (root == null)
+			{
+				return;
+			}
+			net.runelite.client.util.Filepath dir = root.joinSegment("plans");
+			dir.createDirectories();
+			dir.joinSegment(id + ".json").write(plan.toString());
 		}
 		catch (java.io.IOException | RuntimeException ignored)
 		{
