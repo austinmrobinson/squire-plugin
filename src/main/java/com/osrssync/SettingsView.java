@@ -42,6 +42,35 @@ class SettingsView extends javax.swing.JPanel
 	private java.util.function.Consumer<String> onDisconnect = id -> {};
 
 	private Runnable onSyncPage = () -> {};
+	// What Squire remembers: {id, kind, text, done ("1"/"")}
+	private List<String[]> memory = List.of();
+	private java.util.function.Consumer<String[]> onForget = n -> {};
+	private java.util.function.Consumer<String[]> onFinish = n -> {};
+
+	/** Forget a note, or mark a goal done. */
+	void setMemoryActions(java.util.function.Consumer<String[]> onForget, java.util.function.Consumer<String[]> onFinish)
+	{
+		this.onForget = onForget;
+		this.onFinish = onFinish;
+	}
+
+	/** Squire's notes about the player as {id, kind, text, done} rows. Any thread. */
+	void setMemory(List<String[]> notes)
+	{
+		Runnable apply = () ->
+		{
+			memory = List.copyOf(notes);
+			render();
+		};
+		if (SwingUtilities.isEventDispatchThread())
+		{
+			apply.run();
+		}
+		else
+		{
+			SwingUtilities.invokeLater(apply);
+		}
+	}
 
 	/** Open the What's synced page. */
 	void setSyncPage(Runnable open)
@@ -220,6 +249,26 @@ class SettingsView extends javax.swing.JPanel
 			"Let Claude, ChatGPT, Cursor or another AI app read your synced account with Squire's tools.", null, onConnect));
 		list.add(ChatComponents.place(conn, Align.FILL, 6));
 
+		// What Squire remembers from your chats (shared with connected apps)
+		group("Memory");
+		Surface mem = HomeView.listCard();
+		List<String[]> open = memory.stream().filter(n -> n[3].isEmpty()).collect(java.util.stream.Collectors.toList());
+		if (open.isEmpty())
+		{
+			mem.add(row("Nothing yet", "", "Squire remembers your goals, preferences and decisions from your chats.", null));
+		}
+		for (int i = 0; i < open.size(); i++)
+		{
+			String[] n = open.get(i);
+			if (i > 0)
+			{
+				mem.add(HomeView.divider());
+			}
+			String label = n[2].length() > 34 ? n[2].substring(0, 33) + "\u2026" : n[2];
+			mem.add(row(label, null, "<html><body style='width:220px'>" + escape(n[2]) + "<br><br>" + n[1] + "</body></html>", () -> memoryMenu(n)));
+		}
+		list.add(ChatComponents.place(mem, Align.FILL, 6));
+
 		// Your data on the Squire server
 		group("Your data");
 		Surface data = HomeView.listCard();
@@ -326,6 +375,28 @@ class SettingsView extends javax.swing.JPanel
 			c.addMouseListener(m);
 		}
 		return r;
+	}
+
+	/** Forget a note, or for a goal, mark it done. */
+	private void memoryMenu(String[] n)
+	{
+		boolean goal = "goal".equals(n[1]);
+		Object[] options = goal ? new Object[]{"Mark done", "Forget", "Cancel"} : new Object[]{"Forget", "Cancel"};
+		int choice = javax.swing.JOptionPane.showOptionDialog(this, n[2], goal ? "Goal" : "Squire remembers",
+			javax.swing.JOptionPane.DEFAULT_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE, null, options, options[options.length - 1]);
+		if (goal && choice == 0)
+		{
+			onFinish.accept(n);
+		}
+		else if (choice == (goal ? 1 : 0))
+		{
+			onForget.accept(n);
+		}
+	}
+
+	private static String escape(String s)
+	{
+		return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 
 	private void group(String title)

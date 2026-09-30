@@ -450,6 +450,8 @@ public class AccountSyncPlugin extends Plugin
 		panel.setSyncPage(() -> sidebar.showPage("sync"));
 		panel.setConnectActions(() -> sidebar.showPage("connect"),
 			id -> accountApi.disconnect(id, r -> refreshConnections()));
+		panel.setMemoryActions(n -> accountApi.forgetNote(Integer.parseInt(n[0]), r -> refreshMemory()),
+			n -> accountApi.finishNote(Integer.parseInt(n[0]), r -> refreshMemory()));
 		navButton = NavigationButton.builder()
 			.tooltip("Squire")
 			.icon(SquireIcon.create())
@@ -2490,10 +2492,36 @@ public class AccountSyncPlugin extends Plugin
 		});
 	}
 
+	/** Squire's notes about the logged-in account, for the Settings page. */
+	private void refreshMemory()
+	{
+		if (!isConfigured())
+		{
+			panel.setMemory(List.of());
+			return;
+		}
+		accountApi.notes(r ->
+		{
+			if (r.json == null || !r.json.has("notes"))
+			{
+				return;
+			}
+			List<String[]> out = new ArrayList<>();
+			for (com.google.gson.JsonElement e : r.json.getAsJsonArray("notes"))
+			{
+				com.google.gson.JsonObject o = e.getAsJsonObject();
+				boolean done = o.has("done_at") && !o.get("done_at").isJsonNull();
+				out.add(new String[]{o.get("id").getAsString(), o.get("kind").getAsString(), o.get("text").getAsString(), done ? "1" : ""});
+			}
+			panel.setMemory(out);
+		});
+	}
+
 	/** Today's message count (or unlimited with the player's own key) for the Settings page. */
 	private void refreshUsage()
 	{
 		refreshConnections();
+		refreshMemory();
 		if (!isConfigured())
 		{
 			panel.setUsage("Squire is off", false);

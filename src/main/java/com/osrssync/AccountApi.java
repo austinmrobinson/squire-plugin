@@ -141,6 +141,32 @@ class AccountApi
 		send("POST", "api/me/pairing", null, callback);
 	}
 
+	/** What Squire remembers about the logged-in account: {notes: [{id, kind, text, done_at}], chats: [{summary, at}]}. */
+	void notes(Consumer<Result> callback)
+	{
+		send("GET", "api/me/notes" + accountQuery("?"), null, callback);
+	}
+
+	/** Forget one note. */
+	void forgetNote(int id, Consumer<Result> callback)
+	{
+		send("DELETE", "api/me/notes?id=" + id + accountQuery("&"), null, callback);
+	}
+
+	/** Mark a goal done (kept as a record). */
+	void finishNote(int id, Consumer<Result> callback)
+	{
+		JsonObject body = new JsonObject();
+		body.addProperty("done", true);
+		send("PATCH", "api/me/notes?id=" + id + accountQuery("&"), body, callback);
+	}
+
+	private String accountQuery(String sep)
+	{
+		String name = accountName.get();
+		return name == null || name.isBlank() ? "" : sep + "account=" + java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8);
+	}
+
 	/** AI apps connected to this install. */
 	void connections(Consumer<Result> callback)
 	{
