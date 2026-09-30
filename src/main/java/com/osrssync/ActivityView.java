@@ -638,6 +638,8 @@ class ActivityView extends JPanel
 				return ChatComponents.ACCENT;
 			case "death":
 				return new Color(0xE06A5A);
+			case "personal_best":
+				return new Color(0x4FC3D9);
 			default:
 				return ChatComponents.MUTED;
 		}

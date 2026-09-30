@@ -16,6 +16,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
@@ -801,11 +802,16 @@ public class AccountSyncPlugin extends Plugin
 		if (m.find())
 		{
 			double seconds = parseDuration(m.group(1));
+			boolean newPb = message.toLowerCase(Locale.ROOT).contains("new personal best");
 			if (pendingKill != null)
 			{
 				if (seconds > 0)
 				{
 					pendingKill.put("seconds", seconds);
+					if (newPb)
+					{
+						pendingKill.put("newPb", true);
+					}
 				}
 				finishKill();
 			}
@@ -813,6 +819,7 @@ public class AccountSyncPlugin extends Plugin
 			{
 				// Raids say their duration before the completion count
 				recentDuration = seconds;
+				recentDurationNewPb = newPb;
 				recentDurationTick = client.getTickCount();
 			}
 			return;
@@ -931,6 +938,7 @@ public class AccountSyncPlugin extends Plugin
 	private int pendingKillTicks;
 	private double recentDuration;
 	private int recentDurationTick = -100;
+	private boolean recentDurationNewPb;
 
 	private void startKill(String name, int count)
 	{
@@ -942,10 +950,16 @@ public class AccountSyncPlugin extends Plugin
 		pendingKill = new LinkedHashMap<>();
 		pendingKill.put("boss", KillCountNames.canonicalize(name));
 		pendingKill.put("count", count);
+		// What they were wearing, so kill times (and personal bests) can be compared by setup
+		pendingKill.put("gear", wornGear());
 		pendingKillTicks = 0;
 		if (client.getTickCount() - recentDurationTick <= 3)
 		{
 			pendingKill.put("seconds", recentDuration);
+			if (recentDurationNewPb)
+			{
+				pendingKill.put("newPb", true);
+			}
 			recentDurationTick = -100;
 			finishKill();
 		}
@@ -961,6 +975,21 @@ public class AccountSyncPlugin extends Plugin
 		Map<String, Object> kill = pendingKill;
 		pendingKill = null;
 		addEvent("kill", kill.get("boss") + " kill " + kill.get("count"), kill);
+	}
+
+	/** Equipped items as [{slot, id, name}], for the kill log. */
+	private List<Map<String, Object>> wornGear()
+	{
+		List<Map<String, Object>> out = new ArrayList<>();
+		for (Map<String, Object> item : snapshotItems(client.getItemContainer(InventoryID.WORN)))
+		{
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("slot", item.get("slot"));
+			row.put("id", item.get("id"));
+			row.put("name", item.get("name"));
+			out.add(row);
+		}
+		return out;
 	}
 
 	/** "1:23.40" or "1:02:03" or "45.6" to seconds. */
