@@ -2,6 +2,8 @@
 
 # Squire
 
+> **Squire is in beta.** Chat on Squire's own models is invite-only while it's tested; everything else (syncing, your plan, progress, activity, gear) works for everyone, and you can chat right away with your own Anthropic, OpenAI, xAI or Google API key. Found a bug or have an idea? Open an issue on this repository.
+
 Squire is your OSRS companion: an AI in your RuneLite sidebar that knows your account, ready to help you gear up and prepare like a good squire should. Ask what to do next, how to gear for a boss, what a DPS upgrade is worth, or where to get an item, and get answers based on your real levels, quests, diaries, bank and gear.
 
 ## Features

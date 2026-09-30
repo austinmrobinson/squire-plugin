@@ -51,7 +51,27 @@ final class ChatComponents
 	static final Color ACCENT = new Color(0x4454DA); // Squire blue, a shade lighter than the plume
 	static final Color ACCENT_DARK = new Color(0x2F3AA6);
 	static final Color MUTED = new Color(0x9A9A9A);
-	private static final java.net.URL BULLET = ChatComponents.class.getResource("bullet.png");
+	// Swing's HTML needs a URL for list bullets. Plugin Hub jars must read resources as streams, so copy it to a temp file.
+	private static final java.net.URL BULLET = bulletUrl();
+
+	private static java.net.URL bulletUrl()
+	{
+		try (java.io.InputStream in = ChatComponents.class.getResourceAsStream("bullet.png"))
+		{
+			if (in == null)
+			{
+				return null;
+			}
+			java.nio.file.Path file = java.nio.file.Files.createTempFile("squire-bullet", ".png");
+			file.toFile().deleteOnExit();
+			java.nio.file.Files.copy(in, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			return file.toUri().toURL();
+		}
+		catch (java.io.IOException e)
+		{
+			return null;
+		}
+	}
 	static final Color OUTLINE = new Color(0, 0, 0, 128);
 	static final Color HAIRLINE = new Color(255, 255, 255, 13);
 	// The game's bevel: light top/left, dark bottom/right (raised); swapped when pressed

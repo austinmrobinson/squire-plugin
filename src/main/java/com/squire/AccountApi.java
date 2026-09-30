@@ -135,6 +135,14 @@ class AccountApi
 		send("PUT", "api/me/gateway-key", body, callback);
 	}
 
+	/** Join the private beta with an invite code. */
+	void redeemInvite(String code, Consumer<Result> callback)
+	{
+		JsonObject body = new JsonObject();
+		body.addProperty("code", code);
+		send("POST", "api/me/invite", body, callback);
+	}
+
 	/** The player's own provider keys: {providers: [{id, label}], keys: [{provider, label, models}]} (never the keys). */
 	void providerKeys(Consumer<Result> callback)
 	{

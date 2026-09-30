@@ -465,6 +465,11 @@ public class SquirePlugin extends Plugin
 		panel.setSyncPage(() -> sidebar.showPage("sync"));
 		panel.setConnectActions(() -> sidebar.showPage("connect"),
 			id -> accountApi.disconnect(id, r -> refreshConnections()));
+		panel.setInviteAction(code -> accountApi.redeemInvite(code, r ->
+		{
+			panel.setStatus(r.error == null ? "You're in the beta: chat on Squire's models is open. Thanks for testing!" : "Couldn't use that code: " + r.error);
+			refreshUsage();
+		}));
 		panel.setKeyActions((provider, key) ->
 		{
 			panel.setStatus("Checking your key...");
@@ -2598,6 +2603,11 @@ public class SquirePlugin extends Plugin
 			{
 				panel.setUsage("Unlimited (server owner)", false);
 				return;
+			}
+			if (r.json.has("beta") && r.json.get("beta").isJsonObject())
+			{
+				com.google.gson.JsonObject beta = r.json.getAsJsonObject("beta");
+				panel.setBeta(beta.get("inviteOnly").getAsBoolean(), beta.get("access").getAsBoolean());
 			}
 			boolean key = r.json.has("personalKey") && r.json.get("personalKey").getAsBoolean();
 			int used = r.json.has("used") ? r.json.get("used").getAsInt() : 0;

@@ -42,6 +42,35 @@ class SettingsView extends javax.swing.JPanel
 	private java.util.function.Consumer<String> onDisconnect = id -> {};
 
 	private Runnable onSyncPage = () -> {};
+	// The private beta: whether chat on Squire's models is invite-only, and whether this install has access
+	private boolean betaInviteOnly;
+	private boolean betaAccess = true;
+	private java.util.function.Consumer<String> onRedeemInvite = code -> {};
+
+	/** Redeem a pasted invite code. */
+	void setInviteAction(java.util.function.Consumer<String> onRedeem)
+	{
+		this.onRedeemInvite = onRedeem;
+	}
+
+	/** The beta state from the server. Any thread. */
+	void setBeta(boolean inviteOnly, boolean access)
+	{
+		Runnable apply = () ->
+		{
+			betaInviteOnly = inviteOnly;
+			betaAccess = access;
+			render();
+		};
+		if (SwingUtilities.isEventDispatchThread())
+		{
+			apply.run();
+		}
+		else
+		{
+			SwingUtilities.invokeLater(apply);
+		}
+	}
 	// The player's own provider keys: {provider id, label, model count}; and every provider that takes a key: {id, label}
 	private List<String[]> keys = List.of();
 	private List<String[]> keyProviders = List.of();
@@ -257,6 +286,31 @@ class SettingsView extends javax.swing.JPanel
 				c.add(itemRow(chat.get(i)));
 			}
 			list.add(ChatComponents.place(c, Align.FILL, 6));
+		}
+
+		// The private beta: chat on Squire's models is invite-only; everything else works without an invite
+		if (betaInviteOnly)
+		{
+			group("Beta");
+			Surface beta = HomeView.listCard();
+			if (betaAccess)
+			{
+				beta.add(row("Beta access", "Active", "You're in the beta: chat on Squire's models is open to you. Thanks for testing!", null));
+			}
+			else
+			{
+				beta.add(actionRow("Enter an invite code", "Chat on Squire's models is invite-only for now",
+					"Squire is in private beta. Everything else in the plugin works without a code, and you can chat now with your own API key.",
+					null, () ->
+				{
+					String code = javax.swing.JOptionPane.showInputDialog(this, "Your invite code", "Join the beta", javax.swing.JOptionPane.PLAIN_MESSAGE);
+					if (code != null && !code.trim().isEmpty())
+					{
+						onRedeemInvite.accept(code.trim());
+					}
+				}));
+			}
+			list.add(ChatComponents.place(beta, Align.FILL, 6));
 		}
 
 		// The player's own API keys: their models go to the top of the picker, with no daily limit
