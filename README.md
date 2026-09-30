@@ -20,6 +20,23 @@ Squire is your OSRS companion: an AI in your RuneLite sidebar that knows your ac
 - **Your choice of model**: Squire's free models, or your own Anthropic, OpenAI, xAI or Google key
 - **Your data, your call**: choose what's synced and hide items in Settings, What's synced; delete everything any time
 
+## Screenshots
+
+<p>
+<img src="screenshots/2-home.png" width="240" alt="Home">
+<img src="screenshots/3-chat.png" width="240" alt="Chat">
+<img src="screenshots/4-gear-card.png" width="240" alt="A gear setup with DPS">
+</p>
+<p>
+<img src="screenshots/5-progress.png" width="240" alt="Progress">
+<img src="screenshots/6-boss.png" width="240" alt="A boss over time">
+<img src="screenshots/7-activity.png" width="240" alt="Activity">
+</p>
+<p>
+<img src="screenshots/1-welcome.png" width="240" alt="Turning Squire on">
+<img src="screenshots/8-settings.png" width="240" alt="Settings: keys, connected apps, memory and your data">
+</p>
+
 ## Data and privacy
 
 Nothing is sent until you press **Turn on Squire**. After that the plugin sends the following to the Squire server:
