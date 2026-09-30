@@ -27,12 +27,20 @@ class ModelCatalog
 		final String id;
 		final String label;
 		final String blurb;
+		/** "key": runs on the player's own API key (no daily limit); "squire": Squire's free daily messages. */
+		final String source;
 
 		Option(String id, String label, String blurb)
+		{
+			this(id, label, blurb, "squire");
+		}
+
+		Option(String id, String label, String blurb, String source)
 		{
 			this.id = id;
 			this.label = label;
 			this.blurb = blurb;
+			this.source = source;
 		}
 
 		@Override
@@ -120,7 +128,8 @@ class ModelCatalog
 					for (JsonElement e : models)
 					{
 						JsonObject m = e.getAsJsonObject();
-						loaded.add(new Option(m.get("id").getAsString(), m.get("label").getAsString(), m.has("blurb") ? m.get("blurb").getAsString() : ""));
+						loaded.add(new Option(m.get("id").getAsString(), m.get("label").getAsString(), m.has("blurb") ? m.get("blurb").getAsString() : "",
+							m.has("source") ? m.get("source").getAsString() : "squire"));
 					}
 					if (!loaded.isEmpty())
 					{

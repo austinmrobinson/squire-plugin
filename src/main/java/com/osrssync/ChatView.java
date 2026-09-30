@@ -46,6 +46,7 @@ import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -989,14 +990,31 @@ class ChatView extends JPanel
 	{
 		JPopupMenu menu = new JPopupMenu();
 		String current = currentModel.get();
-		JCheckBoxMenuItem auto = new JCheckBoxMenuItem("Auto (server default)", AUTO_MODEL.equals(current));
+		boolean hasKeys = models.options().stream().anyMatch(o -> "key".equals(o.source));
+		JCheckBoxMenuItem auto = new JCheckBoxMenuItem(hasKeys ? "Auto (your key's newest model)" : "Auto (server default)", AUTO_MODEL.equals(current));
 		auto.addActionListener(e -> pickModel(AUTO_MODEL));
 		menu.add(auto);
 		menu.addSeparator();
 		models.refresh(o -> refreshModelLabel());
+		// The player's own keys first (no daily limit), then Squire's models (free daily messages)
+		String section = null;
 		for (ModelCatalog.Option o : models.options())
 		{
-			JCheckBoxMenuItem item = new JCheckBoxMenuItem("<html>" + o.label + " <font color='#9a9a9a'>" + o.blurb + "</font></html>", o.id.equals(current));
+			boolean own = "key".equals(o.source);
+			String heading = own ? "Your API keys" : "Squire (free daily messages)";
+			if (!heading.equals(section) && (own || section != null))
+			{
+				if (section != null)
+				{
+					menu.addSeparator();
+				}
+				JMenuItem label = new JMenuItem(heading);
+				label.setEnabled(false);
+				menu.add(label);
+			}
+			section = heading;
+			String blurb = own ? "" : " <font color='#9a9a9a'>" + o.blurb + "</font>";
+			JCheckBoxMenuItem item = new JCheckBoxMenuItem("<html>" + o.label + blurb + "</html>", o.id.equals(current));
 			item.addActionListener(e -> pickModel(o.id));
 			menu.add(item);
 		}

@@ -255,6 +255,7 @@ public class AccountSyncPlugin extends Plugin
 	private BuddySidebar sidebar;
 	private NavigationButton navButton;
 	private ChatSessions sessions;
+	private ModelCatalog models;
 	/** Conversation starters for what the player is doing now; recomputed every few ticks. */
 	private volatile List<Scenarios.Prompt> livePrompts = List.of();
 	// What just happened, for the starters (client thread)
@@ -321,7 +322,7 @@ public class AccountSyncPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		ModelCatalog models = new ModelCatalog(okHttpClient, gson, this::serverUrl, config::token);
+		models = new ModelCatalog(okHttpClient, gson, this::serverUrl, config::token);
 		// Export cards can open an imported setup in Inventory Setups (its "view" message, like picking it in its panel)
 		ExportCards.openSetup = name -> eventBus.post(new net.runelite.client.events.PluginMessage(
 			"inventory-setups", "view", new HashMap<>(Map.of("setup", name))));
@@ -450,6 +451,16 @@ public class AccountSyncPlugin extends Plugin
 		panel.setSyncPage(() -> sidebar.showPage("sync"));
 		panel.setConnectActions(() -> sidebar.showPage("connect"),
 			id -> accountApi.disconnect(id, r -> refreshConnections()));
+		panel.setKeyActions((provider, key) ->
+		{
+			panel.setStatus("Checking your key...");
+			accountApi.saveProviderKey(provider, key, r ->
+			{
+				int n = r.json != null && r.json.has("models") ? r.json.getAsJsonArray("models").size() : 0;
+				panel.setStatus(r.error == null ? "Your key is saved: " + n + " models are at the top of the model list." : "Couldn't save your key: " + r.error);
+				refreshKeys();
+			});
+		}, provider -> accountApi.removeProviderKey(provider, r -> refreshKeys()));
 		panel.setMemoryActions(n -> accountApi.forgetNote(Integer.parseInt(n[0]), r -> refreshMemory()),
 			n -> accountApi.finishNote(Integer.parseInt(n[0]), r -> refreshMemory()));
 		navButton = NavigationButton.builder()
@@ -2495,6 +2506,37 @@ public class AccountSyncPlugin extends Plugin
 		});
 	}
 
+	/** The player's own provider keys for the Settings page; the model list follows them. */
+	private void refreshKeys()
+	{
+		models.refresh(options -> SwingUtilities.invokeLater(() -> sessions.forEachView(ChatView::refreshModelLabel)));
+		if (!isConfigured())
+		{
+			panel.setProviderKeys(List.of(), List.of());
+			return;
+		}
+		accountApi.providerKeys(r ->
+		{
+			if (r.json == null || !r.json.has("keys"))
+			{
+				return;
+			}
+			List<String[]> saved = new ArrayList<>();
+			for (com.google.gson.JsonElement e : r.json.getAsJsonArray("keys"))
+			{
+				com.google.gson.JsonObject o = e.getAsJsonObject();
+				saved.add(new String[]{o.get("provider").getAsString(), o.get("label").getAsString(), String.valueOf(o.getAsJsonArray("models").size())});
+			}
+			List<String[]> providers = new ArrayList<>();
+			for (com.google.gson.JsonElement e : r.json.getAsJsonArray("providers"))
+			{
+				com.google.gson.JsonObject o = e.getAsJsonObject();
+				providers.add(new String[]{o.get("id").getAsString(), o.get("label").getAsString()});
+			}
+			panel.setProviderKeys(saved, providers);
+		});
+	}
+
 	/** Squire's notes about the logged-in account, for the Settings page. */
 	private void refreshMemory()
 	{
@@ -2525,6 +2567,7 @@ public class AccountSyncPlugin extends Plugin
 	{
 		refreshConnections();
 		refreshMemory();
+		refreshKeys();
 		if (!isConfigured())
 		{
 			panel.setUsage("Squire is off", false);

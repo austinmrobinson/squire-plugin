@@ -42,6 +42,37 @@ class SettingsView extends javax.swing.JPanel
 	private java.util.function.Consumer<String> onDisconnect = id -> {};
 
 	private Runnable onSyncPage = () -> {};
+	// The player's own provider keys: {provider id, label, model count}; and every provider that takes a key: {id, label}
+	private List<String[]> keys = List.of();
+	private List<String[]> keyProviders = List.of();
+	private java.util.function.BiConsumer<String, String> onSaveKey = (p, k) -> {};
+	private java.util.function.Consumer<String> onRemoveProviderKey = p -> {};
+
+	/** Save a pasted key for a provider, or remove one. */
+	void setKeyActions(java.util.function.BiConsumer<String, String> onSave, java.util.function.Consumer<String> onRemove)
+	{
+		this.onSaveKey = onSave;
+		this.onRemoveProviderKey = onRemove;
+	}
+
+	/** The saved keys and the providers that take one. Any thread. */
+	void setProviderKeys(List<String[]> saved, List<String[]> providers)
+	{
+		Runnable apply = () ->
+		{
+			keys = List.copyOf(saved);
+			keyProviders = List.copyOf(providers);
+			render();
+		};
+		if (SwingUtilities.isEventDispatchThread())
+		{
+			apply.run();
+		}
+		else
+		{
+			SwingUtilities.invokeLater(apply);
+		}
+	}
 	// What Squire remembers: {id, kind, text, done ("1"/"")}
 	private List<String[]> memory = List.of();
 	private java.util.function.Consumer<String[]> onForget = n -> {};
@@ -228,6 +259,28 @@ class SettingsView extends javax.swing.JPanel
 			list.add(ChatComponents.place(c, Align.FILL, 6));
 		}
 
+		// The player's own API keys: their models go to the top of the picker, with no daily limit
+		group("Your AI keys");
+		Surface keyCard = HomeView.listCard();
+		for (String[] k : keys)
+		{
+			keyCard.add(row(k[1], null, k[2] + " models on your key. Click to remove it.", () ->
+			{
+				int answer = javax.swing.JOptionPane.showConfirmDialog(this,
+					"Remove your " + k[1] + " key? Its models go back to Squire's free daily messages.",
+					"Remove key", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.QUESTION_MESSAGE);
+				if (answer == javax.swing.JOptionPane.OK_OPTION)
+				{
+					onRemoveProviderKey.accept(k[0]);
+				}
+			}));
+			keyCard.add(HomeView.divider());
+		}
+		keyCard.add(actionRow("Add an API key", "Anthropic, OpenAI, xAI or Google",
+			"Use your own API key: every model it can use appears at the top of the model list, with no daily limit. "
+				+ "Chats on it are billed to your account with that provider.", null, this::addKeyDialog));
+		list.add(ChatComponents.place(keyCard, Align.FILL, 6));
+
 		// Other AI apps using Squire's tools (MCP connectors)
 		group("Connected apps");
 		Surface conn = HomeView.listCard();
@@ -375,6 +428,30 @@ class SettingsView extends javax.swing.JPanel
 			c.addMouseListener(m);
 		}
 		return r;
+	}
+
+	/** Pick a provider and paste a key; it goes straight to the server (stored encrypted there, not on this computer). */
+	private void addKeyDialog()
+	{
+		if (keyProviders.isEmpty())
+		{
+			return;
+		}
+		javax.swing.JComboBox<String> provider = new javax.swing.JComboBox<>(keyProviders.stream().map(p -> p[1]).toArray(String[]::new));
+		javax.swing.JPasswordField key = new javax.swing.JPasswordField(24);
+		javax.swing.JPanel form = new javax.swing.JPanel(new java.awt.GridLayout(0, 1, 0, 4));
+		form.add(new JLabel("Provider"));
+		form.add(provider);
+		form.add(new JLabel("API key"));
+		form.add(key);
+		form.add(new JLabel("<html><body style='width:230px'>Squire checks which models your key can use. It's stored encrypted on the server and never shown again.</body></html>"));
+		int answer = javax.swing.JOptionPane.showConfirmDialog(this, form, "Add an API key", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE);
+		String value = new String(key.getPassword()).trim();
+		java.util.Arrays.fill(key.getPassword(), '\0');
+		if (answer == javax.swing.JOptionPane.OK_OPTION && !value.isEmpty())
+		{
+			onSaveKey.accept(keyProviders.get(provider.getSelectedIndex())[0], value);
+		}
 	}
 
 	/** Forget a note, or for a goal, mark it done. */

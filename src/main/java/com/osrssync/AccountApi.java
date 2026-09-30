@@ -135,6 +135,26 @@ class AccountApi
 		send("PUT", "api/me/gateway-key", body, callback);
 	}
 
+	/** The player's own provider keys: {providers: [{id, label}], keys: [{provider, label, models}]} (never the keys). */
+	void providerKeys(Consumer<Result> callback)
+	{
+		send("GET", "api/me/keys", null, callback);
+	}
+
+	/** Check and save a provider key (sent once, stored encrypted on the server). */
+	void saveProviderKey(String provider, String key, Consumer<Result> callback)
+	{
+		JsonObject body = new JsonObject();
+		body.addProperty("provider", provider);
+		body.addProperty("key", key);
+		send("PUT", "api/me/keys", body, callback);
+	}
+
+	void removeProviderKey(String provider, Consumer<Result> callback)
+	{
+		send("DELETE", "api/me/keys?provider=" + java.net.URLEncoder.encode(provider, java.nio.charset.StandardCharsets.UTF_8), null, callback);
+	}
+
 	/** A one-time code (10 minutes) for connecting another AI app, plus the MCP URL to add. */
 	void pairingCode(Consumer<Result> callback)
 	{
