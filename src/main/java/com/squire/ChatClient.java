@@ -286,6 +286,8 @@ class ChatClient
 	private void followTurn(Listener listener) throws IOException
 	{
 		boolean turnStarted = false;
+		// One failure is reported as both turn.failed and session.failed: show it once, and don't reconnect after it
+		boolean failed = false;
 		for (int attempt = 0; attempt <= MAX_STREAM_RECONNECTS; attempt++)
 		{
 			HttpUrl url = url("eve/v1/session/" + sessionId + "/stream").newBuilder()
@@ -349,7 +351,17 @@ class ChatClient
 						}
 						case "turn.failed":
 						case "session.failed":
-							listener.onError(string(data, "message"));
+							if (!failed)
+							{
+								failed = true;
+								listener.onError(string(data, "message"));
+							}
+							if ("session.failed".equals(type))
+							{
+								// The session can't take more turns; the next message starts a new one
+								sessionId = null;
+								return;
+							}
 							break;
 						case "session.waiting":
 						case "session.completed":
@@ -394,6 +406,11 @@ class ChatClient
 			finally
 			{
 				activeStream = null;
+			}
+			if (failed)
+			{
+				// The turn already ended in an error the player has seen
+				return;
 			}
 			// Server closed the stream cleanly mid-turn (lease renewal): reconnect
 		}

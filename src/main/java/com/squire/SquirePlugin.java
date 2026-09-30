@@ -1973,7 +1973,7 @@ public class SquirePlugin extends Plugin
 				Path dir = accountDir(name);
 				Files.createDirectories(dir);
 				javax.imageio.ImageIO.write(image, "png", dir.resolve("portrait.png").toFile());
-				PlayerPortrait.dump(mesh, dir.resolve("portrait-model.json").toFile());
+				PlayerPortrait.dump(mesh, dir.resolve("portrait-model.json").toFile(), gson);
 			}
 		}
 		catch (Exception e)
