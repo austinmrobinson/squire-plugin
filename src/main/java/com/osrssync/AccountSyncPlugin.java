@@ -2418,17 +2418,20 @@ public class AccountSyncPlugin extends Plugin
 	{
 		SwingUtilities.invokeLater(() -> sidebar.setRecording(null, 0, null));
 		String label = String.valueOf(summary.get("label"));
-		console("Squire finished observing \"" + label + "\". Your review is in the Squire panel.");
+		console("Squire finished observing \"" + label + "\" (" + summary.get("endedBy") + "). Sending it for review...");
 		com.google.gson.JsonObject body = gson.toJsonTree(summary).getAsJsonObject();
 		accountApi.uploadSession(body, r -> SwingUtilities.invokeLater(() ->
 		{
-			if (r.json != null)
+			if (r.json != null && !r.json.has("error"))
 			{
+				console("Your review of \"" + label + "\" is in the Squire panel.");
 				Ui.askSquire.accept("Review my session: " + label);
 			}
 			else
 			{
-				console("Squire couldn't upload the session: " + (r.error != null ? r.error : "unknown error"));
+				String why = r.error != null ? r.error : r.json != null ? r.json.get("error").getAsString() : "unknown error";
+				log.warn("Session upload failed: {}", r.json != null ? r.json : why);
+				console("Squire couldn't save the session for review: " + why);
 			}
 		}));
 	}
