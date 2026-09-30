@@ -195,7 +195,8 @@ class GainedView extends JPanel
 		if (buckets.size() > 0)
 		{
 			c.add(Box.createVerticalStrut(12));
-			JLabel per = small("hour".equals(str(d, "bucket")) ? "Gained per hour" : "week".equals(str(d, "bucket")) ? "Gained per week" : "Gained per day");
+			String bucket = str(d, "bucket");
+			JLabel per = small("Gained per " + ("hour".equals(bucket) || "week".equals(bucket) || "month".equals(bucket) ? bucket : "day"));
 			per.setAlignmentX(LEFT_ALIGNMENT);
 			c.add(per);
 			c.add(Box.createVerticalStrut(4));
@@ -320,7 +321,7 @@ class GainedView extends JPanel
 	{
 		try
 		{
-			String pattern = "hour".equals(bucket) ? "HH:mm" : "week".equals(bucket) ? "d MMM" : "d";
+			String pattern = "hour".equals(bucket) ? "HH:mm" : "week".equals(bucket) ? "d MMM" : "month".equals(bucket) ? "MMM yy" : "d";
 			return DateTimeFormatter.ofPattern(pattern, Locale.US).withZone(ZoneId.systemDefault()).format(Instant.parse(iso));
 		}
 		catch (RuntimeException e)

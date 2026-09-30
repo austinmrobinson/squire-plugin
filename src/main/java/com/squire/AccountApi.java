@@ -300,6 +300,26 @@ class AccountApi
 		};
 	}
 
+	private String notFoundReason(ResponseBody body)
+	{
+		try
+		{
+			JsonObject json = body == null ? null : gson.fromJson(body.string(), JsonObject.class);
+			if (json != null && json.has("error") && json.get("error").isJsonPrimitive())
+			{
+				String error = json.get("error").getAsString();
+				return error.startsWith("No synced account")
+					? "Nothing synced for this character yet. Log in and it syncs automatically, or press **Update now** in settings."
+					: error;
+			}
+		}
+		catch (IOException | RuntimeException e)
+		{
+			// Not JSON: the server doesn't have this page
+		}
+		return "This page needs a newer Squire server. It should work after the next update.";
+	}
+
 	private void get(String path, Map<String, String> query, Consumer<Result> callback)
 	{
 		HttpUrl base = HttpUrl.parse(endpoint.get().trim());
@@ -339,7 +359,8 @@ class AccountApi
 					}
 					else if (response.code() == 404)
 					{
-						callback.accept(new Result(null, "Nothing synced for this character yet. Log in and it syncs automatically, or press **Update now** in settings."));
+						// The server says why (e.g. no account synced yet); a 404 without a reason means the page is newer than the server
+						callback.accept(new Result(null, notFoundReason(body)));
 					}
 					else if (!response.isSuccessful() || body == null)
 					{

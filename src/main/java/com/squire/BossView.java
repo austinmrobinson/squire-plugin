@@ -32,8 +32,8 @@ import net.runelite.client.ui.FontManager;
  */
 class BossView extends JPanel
 {
-	private static final String[] PERIODS = {"week", "month", "year"};
-	private static final String[] PERIOD_LABELS = {"Week", "Month", "Year"};
+	private static final String[] PERIODS = {"week", "month", "year", "all"};
+	private static final String[] PERIOD_LABELS = {"Week", "Month", "Year", "All"};
 
 	private final AccountApi api;
 	private final WikiImages images;
@@ -129,7 +129,7 @@ class BossView extends JPanel
 		JsonObject g = obj(shown, "gains");
 		if (g != null && !g.has("error") && g.has("gained") && !g.get("gained").isJsonNull())
 		{
-			md.append("Kills in the last ").append(PERIODS[period]).append(": ").append(fmt(num(g, "gained"))).append("\n");
+			md.append(period == 3 ? "Kills, all time" : "Kills in the last " + PERIODS[period]).append(": ").append(fmt(num(g, "gained"))).append("\n");
 		}
 		return Attachment.context(str(shown, "boss"), str(shown, "boss"), md.toString(), SquireIcon.create(26));
 	}
