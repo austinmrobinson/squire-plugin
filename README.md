@@ -33,6 +33,7 @@ Squire is your OSRS companion: an AI in your RuneLite sidebar that knows your ac
 <img src="screenshots/7-activity.png" width="240" alt="Activity">
 </p>
 <p>
+<img src="screenshots/9-plan.png" width="240" alt="A plan">
 <img src="screenshots/1-welcome.png" width="240" alt="Turning Squire on">
 <img src="screenshots/8-settings.png" width="240" alt="Settings: keys, connected apps, memory and your data">
 </p>

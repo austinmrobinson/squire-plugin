@@ -185,6 +185,19 @@ public class PanelPreview
 				SettingsView settings = new SettingsView(() -> {}, () -> java.util.List.of(
 					SettingsView.Item.choice("::squire command", "On", null, () -> {}), SettingsView.Item.shortcut("Ask shortcut", "Ctrl+B", null, k -> {}),
 					SettingsView.Item.choice("Shortcut opens", "Chatbox", null, () -> {})));
+				// Item icons from RuneLite's public icon cache, standing in for the game's item manager
+				java.util.Map<Integer, java.awt.image.BufferedImage> iconCache = new java.util.HashMap<>();
+				Crest.setIconSource(id -> iconCache.computeIfAbsent(id, i ->
+				{
+					try
+					{
+						return javax.imageio.ImageIO.read(new java.net.URL("https://static.runelite.net/cache/item/icon/" + i + ".png"));
+					}
+					catch (java.io.IOException e)
+					{
+						return null;
+					}
+				}));
 				AccountApi api = new AccountApi(new OkHttpClient(), new Gson(), () -> "", () -> "", () -> null);
 				SkillIconManager icons = new SkillIconManager();
 				ProgressView progress = new ProgressView(skill -> icons.getSkillImage(skill, true), null);
@@ -287,6 +300,10 @@ public class PanelPreview
 						sidebar.showPage("progress_detail");
 						renderSized(sidebar, new File(out, "21" + (char) ('a' + i) + "-" + pages[i][0] + ".png"), SquireSidebar.DEFAULT_WIDTH, 1400);
 					}
+					homeRef[0].planView().show(read.apply("plan"), null);
+					homeRef[0].planView().expandAllPhases();
+					sidebar.showPage("plan");
+					renderSized(sidebar, new File(out, "23-plan.png"), SquireSidebar.DEFAULT_WIDTH, 1900);
 					sidebar.boss().showData(read.apply("boss"));
 					sidebar.showPage("boss");
 					renderSized(sidebar, new File(out, "22-boss.png"), SquireSidebar.DEFAULT_WIDTH, 1500);

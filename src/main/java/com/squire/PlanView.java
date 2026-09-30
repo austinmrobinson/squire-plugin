@@ -268,6 +268,21 @@ class PlanView extends JPanel
 		list.repaint();
 	}
 
+	/** For previews: open every phase to show all the checkpoints. */
+	void expandAllPhases()
+	{
+		if (plan == null || !plan.has("phases"))
+		{
+			return;
+		}
+		for (JsonElement e : plan.getAsJsonArray("phases"))
+		{
+			JsonObject ph = e.getAsJsonObject();
+			expanded.add("phase:" + Ui.str(ph, "name") + ":" + (int) Ui.num(ph, "start"));
+		}
+		render();
+	}
+
 	/** The plan's "..." menu: copy its ID (to reference it when reporting a problem) or delete it. */
 	private void showMenu(JComponent anchor)
 	{
