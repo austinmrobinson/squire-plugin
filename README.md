@@ -11,9 +11,11 @@ Squire is your OSRS companion: an AI in your RuneLite sidebar that knows your ac
 - **Gear you can act on**: setups shown like the game's equipment screen, with DPS; click a slot to try your other items, then copy it to Inventory Setups
 - **Session reviews**: "watch my Gauntlet run" and Squire observes it silently, then Squire debriefs you afterwards with specific fixes. Nothing is shown during play
 - **Boss setups**: inventory setups, Bank Tags tabs and Ground Markers to import into those plugins
-- **Progress and activity**: your account rank, time played and XP, with one-click questions for Squire on every card
+- **Progress and activity**: your account rank, time played, XP and kills over any period, and your personal best history with the gear you wore, with one-click questions for Squire on every card
+- **Memory**: Squire remembers your goals, preferences and decisions between chats; see or forget them in Settings, Memory
 - **In-game chat**: type `::squire <question>` or press Ctrl+B to ask from the chatbox
 - **Use it in other AI apps**: connect Claude, ChatGPT, Cursor or any MCP client from Settings, Connect an AI app
+- **Your choice of model**: Squire's free models, or your own Anthropic, OpenAI, xAI or Google key
 - **Your data, your call**: choose what's synced and hide items in Settings, What's synced; delete everything any time
 
 ## Data and privacy
@@ -32,11 +34,11 @@ Squire gives advice; it does not play the game for you, type into your chatbox o
 
 ## Free tier and your own key
 
-Everyone gets a number of free messages a day. For unlimited use, add your own [Vercel AI Gateway](https://vercel.com/ai-gateway) key in the plugin settings. It's sent once, stored encrypted on the server and cleared from your RuneLite profile.
+Everyone gets a number of free messages a day on Squire's models. For unlimited use, add your own API key in **Settings → Your AI keys** (Anthropic, OpenAI, xAI or Google): every model your key can use appears at the top of the model list, and chats on it are billed to your account with that provider. A [Vercel AI Gateway](https://vercel.com/ai-gateway) key in the plugin's configuration also works. Keys are sent once, stored encrypted on the server and never shown again.
 
 ## Server
 
-The server (Next.js, Postgres, the agent and its tools) is open source at https://github.com/austinmrobinson/rs-buddy.
+The server (Next.js, Postgres, the agent and its tools) is at https://github.com/austinmrobinson/squire, with architecture docs in its README.
 
 ## Credits
 
