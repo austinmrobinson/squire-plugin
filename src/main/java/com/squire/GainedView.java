@@ -146,7 +146,8 @@ class GainedView extends JPanel
 
 	// ---- The metric: header, value over time, gains per bucket, extras
 
-	private JComponent metricCard(JsonObject d)
+	/** A metric over the period: the gain, value over time, gain per bucket, time spent, per hour and loot (also used by the boss page). */
+	static JComponent metricCard(JsonObject d)
 	{
 		Surface c = HomeView.homeCard();
 		boolean count = "count".equals(str(d, "unit"));

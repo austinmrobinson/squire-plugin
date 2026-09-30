@@ -40,8 +40,9 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * The Progress page: the rank card, then a summary card per area (skills, quests, combat achievements,
- * diaries, collection log) and the top kill counts with each boss's picture. Same card style as Home.
+ * The Progress page: the rank (straight on the page), then a summary card per area (skills, quests, combat achievements,
+ * diaries, collection log, kill counts, fun stats). Each card opens its detail page (ProgressDetailView); a boss in the kill
+ * counts opens its own page (BossView). Same card style as Home.
  */
 class ProgressView extends JPanel
 {
@@ -61,6 +62,25 @@ class ProgressView extends JPanel
 	private final Function<Skill, BufferedImage> skillIcons;
 	private final WikiImages images;
 	private final MessageList list = new MessageList(null, 0);
+	/** Open a detail page (view id, title) or a boss's page; set by the sidebar. */
+	private java.util.function.BiConsumer<String, String> openDetail = (view, title) -> {};
+	private java.util.function.Consumer<String> openBoss = boss -> {};
+
+	void setNavigation(java.util.function.BiConsumer<String, String> openDetail, java.util.function.Consumer<String> openBoss)
+	{
+		this.openDetail = openDetail;
+		this.openBoss = openBoss;
+	}
+
+	Function<Skill, BufferedImage> skillIcons()
+	{
+		return skillIcons;
+	}
+
+	WikiImages images()
+	{
+		return images;
+	}
 
 	ProgressView(Function<Skill, BufferedImage> skillIcons, WikiImages images)
 	{
@@ -123,7 +143,7 @@ class ProgressView extends JPanel
 		list.removeAll();
 		int gap = 0;
 		for (JComponent card : new JComponent[]{
-			rankCard(o), skillsCard(o), questsCard(o), combatAchievementsCard(o), diariesCard(o), collectionLogCard(o), killCountsCard(o)})
+			rankCard(o), skillsCard(o), questsCard(o), combatAchievementsCard(o), diariesCard(o), collectionLogCard(o), killCountsCard(o), funCard(o)})
 		{
 			if (card != null)
 			{
@@ -145,9 +165,11 @@ class ProgressView extends JPanel
 		{
 			return null;
 		}
-		Surface c = HomeView.homeCard();
-		c.add(sectionHeader("Rank"));
-		c.add(Box.createVerticalStrut(12));
+		// Straight on the page, not in a card: it's the page's headline
+		JPanel c = new JPanel();
+		c.setLayout(new BoxLayout(c, BoxLayout.Y_AXIS));
+		c.setOpaque(false);
+		c.setBorder(BorderFactory.createEmptyBorder(8, 12, 12, 12));
 
 		List<ScoreChart.Segment> segments = new ArrayList<>();
 		JsonArray parts = score.getAsJsonArray("parts");
@@ -237,16 +259,20 @@ class ProgressView extends JPanel
 		{
 			return null;
 		}
-		Surface c = HomeView.homeCard();
-		c.add(sectionHeader("Skills"));
-		c.add(Box.createVerticalStrut(10));
-		c.add(totals(fmt(num(o, "totalLevel")), "total level", shortNumber(num(o, "totalXp")), "total XP"));
-		c.add(Box.createVerticalStrut(10));
-		JComponent grid = skillGrid(skills);
-		grid.setAlignmentX(LEFT_ALIGNMENT);
-		c.add(grid);
-		c.putClientProperty("ask", "What should I train next, and how?");
-		return c;
+		int maxed = 0;
+		for (JsonElement e : skills)
+		{
+			if (num(e.getAsJsonObject(), "level") >= 99)
+			{
+				maxed++;
+			}
+		}
+		Surface c = HomeView.listCard();
+		c.add(top("Skills", fmt(num(o, "totalLevel")) + " / " + fmt(skills.size() * 99), "total level", shortNumber(num(o, "totalXp")), "total XP",
+			num(o, "totalLevel") / Math.max(1, skills.size() * 99)));
+		c.add(HomeView.divider());
+		c.add(HomeView.listRow(HomeView.dotIcon(ChatComponents.ACCENT), "Level 99", value(maxed + " of " + skills.size()), null));
+		return opens(c, "skills", "Skills", "What should I train next, and how?");
 	}
 
 	private JComponent questsCard(JsonObject o)
@@ -263,8 +289,7 @@ class ProgressView extends JPanel
 		c.add(HomeView.listRow(HomeView.dotIcon(ChatComponents.ACCENT), "In progress", value(fmt(inProgress)), null));
 		c.add(HomeView.divider());
 		c.add(HomeView.listRow(HomeView.dotIcon(ChatComponents.BORDER), "Not started", value(fmt(Math.max(0, total - done - inProgress))), null));
-		c.putClientProperty("ask", "Which quests should I do next?");
-		return c;
+		return opens(c, "quests", "Quests", "Which quests should I do next?");
 	}
 
 	private JComponent combatAchievementsCard(JsonObject o)
@@ -277,15 +302,8 @@ class ProgressView extends JPanel
 		String points = ca.has("points") && !ca.get("points").isJsonNull() ? fmt(num(ca, "points")) : null;
 		Surface c = HomeView.listCard();
 		c.add(top("Combat achievements", fmt(num(ca, "done")) + " / " + fmt(num(ca, "total")), "tasks done", points, "points", num(ca, "done") / num(ca, "total")));
-		java.util.Set<String> unlocked = new java.util.HashSet<>();
-		JsonArray tiersComplete = ca.getAsJsonArray("tiersComplete");
-		if (tiersComplete != null)
-		{
-			tiersComplete.forEach(e -> unlocked.add(e.getAsString().toLowerCase(Locale.ROOT)));
-		}
-		addTierRows(c, ca.getAsJsonArray("tiers"), unlocked);
-		c.putClientProperty("ask", "Which combat achievements are easiest for me?");
-		return c;
+		addNextTierRow(c, ca.getAsJsonArray("tiers"));
+		return opens(c, "combat-achievements", "Combat achievements", "Which combat achievements are easiest for me?");
 	}
 
 	private JComponent diariesCard(JsonObject o)
@@ -297,9 +315,8 @@ class ProgressView extends JPanel
 		}
 		Surface c = HomeView.listCard();
 		c.add(top("Achievement diaries", fmt(num(d, "done")) + " / " + fmt(num(d, "total")), "tiers done", null, null, num(d, "done") / num(d, "total")));
-		addTierRows(c, d.getAsJsonArray("tiers"), java.util.Collections.emptySet());
-		c.putClientProperty("ask", "Which diary should I do next?");
-		return c;
+		addNextTierRow(c, d.getAsJsonArray("tiers"));
+		return opens(c, "diaries", "Achievement diaries", "Which diary should I do next?");
 	}
 
 	private JComponent collectionLogCard(JsonObject o)
@@ -319,11 +336,10 @@ class ProgressView extends JPanel
 			c.add(HomeView.divider());
 			c.add(HomeView.listRow(null, "Open the log in game to see the total", null, null));
 		}
-		c.putClientProperty("ask", "Which collection log slots are quickest for me?");
-		return c;
+		return opens(c, "collection-log", "Collection log", "Which collection log slots are quickest for me?");
 	}
 
-	/** Top bosses by kill count: the boss's picture, the count, the name; three to a row. */
+	/** The top six kill counts: the boss's picture, the count, the name; three to a row. Each opens the boss's page. */
 	private JComponent killCountsCard(JsonObject o)
 	{
 		JsonArray kcs = o.getAsJsonArray("topKillCounts");
@@ -332,13 +348,17 @@ class ProgressView extends JPanel
 			return null;
 		}
 		Surface c = HomeView.homeCard();
-		c.add(sectionHeader("Top kill counts"));
+		JComponent header = HomeView.header("Kill counts", null);
+		header.setAlignmentX(LEFT_ALIGNMENT);
+		onClick(header, () -> openDetail.accept("kill-counts", "Kill counts"));
+		c.add(header);
 		c.add(Box.createVerticalStrut(12));
 		JPanel grid = new JPanel(new GridLayout(0, 3, 12, 14));
 		grid.setOpaque(false);
 		for (JsonElement e : kcs)
 		{
 			JsonObject k = e.getAsJsonObject();
+			String boss = str(k, "boss");
 			JPanel cell = new JPanel();
 			cell.setLayout(new BoxLayout(cell, BoxLayout.Y_AXIS));
 			cell.setOpaque(false);
@@ -358,20 +378,116 @@ class ProgressView extends JPanel
 			name.setToolTipText(str(k, "boss") + ": " + fmt(num(k, "count")) + " kills");
 			name.setAlignmentX(LEFT_ALIGNMENT);
 			cell.add(name);
+			cell.setToolTipText(boss + ": " + fmt(num(k, "count")) + " kills. Click for trends.");
+			onClick(cell, () -> openBoss.accept(boss));
 			grid.add(cell);
 		}
 		grid.setAlignmentX(LEFT_ALIGNMENT);
 		c.add(grid);
-		c.putClientProperty("ask", "Which boss should I learn next?");
 		return c;
+	}
+
+	/** Fun tracking: your favourite weapon (most time wielded in combat), time played, most killed and biggest drop. */
+	private JComponent funCard(JsonObject o)
+	{
+		JsonObject st = obj(o, "stats");
+		if (st == null)
+		{
+			return null;
+		}
+		Surface c = HomeView.listCard();
+		JPanel head = new JPanel();
+		head.setLayout(new BoxLayout(head, BoxLayout.Y_AXIS));
+		head.setOpaque(false);
+		head.setBorder(BorderFactory.createEmptyBorder(10, 12, 12, 12));
+		head.add(HomeView.header("For fun", null));
+		head.add(Box.createVerticalStrut(10));
+		JsonObject weapon = obj(st, "favouriteWeapon");
+		JLabel big = bold(weapon != null ? str(weapon, "weapon") : "Not enough fights yet");
+		big.setFont(FontManager.getRunescapeBoldFont().deriveFont(weapon != null ? 18f : 16f));
+		if (weapon != null && weapon.has("id") && !weapon.get("id").isJsonNull())
+		{
+			BufferedImage icon = Crest.itemImage((int) num(weapon, "id"), big);
+			if (icon != null)
+			{
+				big.setIcon(new javax.swing.ImageIcon(icon));
+				big.setIconTextGap(8);
+			}
+		}
+		head.add(row(big, null));
+		String caption = "favourite weapon";
+		if (weapon != null)
+		{
+			List<String> bits = new ArrayList<>();
+			if (num(weapon, "minutes") > 0)
+			{
+				bits.add(Ui.duration(num(weapon, "minutes")) + " wielded");
+			}
+			if (num(weapon, "kills") > 0)
+			{
+				bits.add(fmt(num(weapon, "kills")) + " kills");
+			}
+			caption = "favourite weapon" + (bits.isEmpty() ? "" : " · " + String.join(", ", bits));
+		}
+		head.add(row(text(caption, ChatComponents.MUTED), null));
+		head.setAlignmentX(LEFT_ALIGNMENT);
+		c.add(head);
+		if (num(st, "minutesPlayed") > 0)
+		{
+			c.add(HomeView.divider());
+			c.add(HomeView.listRow(null, "Time played", value(Ui.duration(num(st, "minutesPlayed"))), null));
+		}
+		JsonObject most = obj(st, "mostKilled");
+		if (most != null)
+		{
+			c.add(HomeView.divider());
+			c.add(HomeView.listRow(null, "Most killed", value(str(most, "boss") + " · " + fmt(num(most, "count"))), null));
+		}
+		JsonObject drop = obj(st, "biggestDrop");
+		if (drop != null)
+		{
+			c.add(HomeView.divider());
+			c.add(HomeView.listRow(null, "Biggest drop", value(str(drop, "name") + " · " + shortNumber(num(drop, "value"))), null));
+		}
+		return opens(c, "stats", "For fun", "What does my playtime say about how I play?");
 	}
 
 	// ---- Pieces
 
-	/** A card title without a chevron (these cards don't open anything). */
+	/** The card opens its detail page when clicked. */
+	private JComponent opens(Surface c, String view, String title, String ask)
+	{
+		// The whole card opens its page (the chevron says so); the page itself has the ask button
+		Ui.clickable(c, () -> openDetail.accept(view, title));
+		return c;
+	}
+
+	/** Make a component open something on click (for cards whose parts open different things). */
+	static void onClick(JComponent target, Runnable action)
+	{
+		target.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+		java.awt.event.MouseAdapter m = new java.awt.event.MouseAdapter()
+		{
+			@Override
+			public void mouseReleased(java.awt.event.MouseEvent e)
+			{
+				if (javax.swing.SwingUtilities.isLeftMouseButton(e) && e.getComponent().contains(e.getPoint()))
+				{
+					action.run();
+				}
+			}
+		};
+		target.addMouseListener(m);
+		for (java.awt.Component child : target.getComponents())
+		{
+			child.addMouseListener(m);
+		}
+	}
+
+	/** A card title with a chevron: the card opens a page. */
 	private static JComponent sectionHeader(String title)
 	{
-		return row(bold(title), null);
+		return HomeView.header(title, null);
 	}
 
 	/** The top of a list card: title, the headline numbers, and a progress bar (skipped when fraction < 0). */
@@ -418,8 +534,30 @@ class ProgressView extends JPanel
 		return p;
 	}
 
+	/** The tier being worked on (the lowest with tasks left): "Hard: 12 left". */
+	private static void addNextTierRow(Surface c, JsonArray tiers)
+	{
+		if (tiers == null)
+		{
+			return;
+		}
+		for (JsonElement e : tiers)
+		{
+			JsonObject t = e.getAsJsonObject();
+			double done = num(t, "done"), total = num(t, "total");
+			if (done < total)
+			{
+				c.add(HomeView.divider());
+				c.add(HomeView.listRow(HomeView.dotIcon(ChatComponents.ACCENT), "Working on " + title(str(t, "tier")), value(fmt(total - done) + " left"), null));
+				return;
+			}
+		}
+		c.add(HomeView.divider());
+		c.add(HomeView.listRow(HomeView.dotIcon(DONE), "Every tier done", null, null));
+	}
+
 	/** One row per tier: dot, name, "done / total"; green once every task in the tier is done. Hover says if its reward is unlocked. */
-	private static void addTierRows(Surface c, JsonArray tiers, java.util.Set<String> unlocked)
+	static void addTierRows(Surface c, JsonArray tiers, java.util.Set<String> unlocked)
 	{
 		if (tiers == null)
 		{
@@ -466,7 +604,7 @@ class ProgressView extends JPanel
 		return p;
 	}
 
-	private JComponent skillGrid(JsonArray skills)
+	JComponent skillGrid(JsonArray skills)
 	{
 		Map<String, JsonObject> byName = new HashMap<>();
 		for (JsonElement e : skills)
@@ -500,7 +638,7 @@ class ProgressView extends JPanel
 	}
 
 	/** A boss picture from the wiki, fitted into its box without stretching; blank until it downloads. */
-	private static final class BossPicture extends JComponent
+	static final class BossPicture extends JComponent
 	{
 		private static final int HEIGHT = 56;
 		private BufferedImage image;

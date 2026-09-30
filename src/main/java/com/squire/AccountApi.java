@@ -72,6 +72,18 @@ class AccountApi
 		get("api/gained", q, callback);
 	}
 
+	/** A Progress detail page: skills, quests, combat-achievements, diaries, collection-log, kill-counts or stats. */
+	void progress(String view, Consumer<Result> callback)
+	{
+		get("api/progress", Map.of("view", view), callback);
+	}
+
+	/** One boss over a period (day, week, month, year): count history, time, kills per hour, PBs and loot. */
+	void boss(String name, String period, Consumer<Result> callback)
+	{
+		get("api/progress", Map.of("boss", name, "period", period), callback);
+	}
+
 	/** The player's plan, checked against their account ({ plan: null } when they have none). */
 	void plan(Consumer<Result> callback)
 	{

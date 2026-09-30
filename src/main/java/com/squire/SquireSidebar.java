@@ -38,7 +38,8 @@ class SquireSidebar extends PluginPanel
 {
 	private enum Page
 	{
-		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), GAINED("Gained"), WELCOME("Squire");
+		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), GAINED("Gained"),
+		PROGRESS_DETAIL("Progress"), BOSS("Boss"), WELCOME("Squire");
 
 		final String title;
 
@@ -60,6 +61,10 @@ class SquireSidebar extends PluginPanel
 				case CONNECT:
 				case SYNC:
 					return SETTINGS;
+				case PROGRESS_DETAIL:
+					return PROGRESS;
+				case BOSS:
+					return PROGRESS_DETAIL;
 				default:
 					return HOME;
 			}
@@ -79,6 +84,8 @@ class SquireSidebar extends PluginPanel
 	private final HomeView home;
 	private final ActivityView activity;
 	private final GainedView gained;
+	private final ProgressDetailView progressDetail;
+	private final BossView boss;
 	private final SettingsView settings;
 	private final CardLayout cards = new CardLayout();
 	private final JPanel body = new JPanel(cards);
@@ -109,6 +116,14 @@ class SquireSidebar extends PluginPanel
 		};
 		this.settings = settings;
 		this.progressView = progress;
+		// Progress cards open a detail page; a boss (from the kill counts) opens its own page under "Kill counts"
+		this.boss = new BossView(activity.api(), progress.images());
+		this.progressDetail = new ProgressDetailView(activity.api(), progress, this::openBoss);
+		progress.setNavigation((view, title) ->
+		{
+			progressDetail.show(view, title);
+			show(Page.PROGRESS_DETAIL);
+		}, this::openBoss);
 		this.home = homeFactory.apply(new HomeView.Actions()
 		{
 			@Override
@@ -209,6 +224,8 @@ class SquireSidebar extends PluginPanel
 		body.add(home.planView(), Page.PLAN.name());
 		body.add(activity, Page.ACTIVITY.name());
 		body.add(gained, Page.GAINED.name());
+		body.add(progressDetail, Page.PROGRESS_DETAIL.name());
+		body.add(boss, Page.BOSS.name());
 		chatHolder.setOpaque(false);
 		chatHolder.add(sessions.current(), sessions.current().id());
 		body.add(chatHolder, Page.CHAT.name());
@@ -466,6 +483,10 @@ class SquireSidebar extends PluginPanel
 				return "Ask about your playtime...";
 			case GAINED:
 				return "Ask about your gains...";
+			case PROGRESS_DETAIL:
+				return "For fun".equals(progressDetail.pageTitle()) ? "Ask about how you play..." : "Ask about your " + progressDetail.pageTitle().toLowerCase() + "...";
+			case BOSS:
+				return "Ask about " + boss.pageTitle() + "...";
 			default:
 				return "Ask anything...";
 		}
@@ -474,13 +495,35 @@ class SquireSidebar extends PluginPanel
 	/** What a question from the floating composer carries from the page it was asked on. */
 	private java.util.List<Attachment> contextFor(Page p)
 	{
-		Attachment a = p == Page.PLAN ? home.planView().contextAttachment() : p == Page.PROGRESS ? progressView.contextAttachment() : null;
+		Attachment a = p == Page.PLAN ? home.planView().contextAttachment() : p == Page.PROGRESS ? progressView.contextAttachment()
+			: p == Page.BOSS ? boss.contextAttachment() : null;
 		return a == null ? java.util.List.of() : java.util.List.of(a);
 	}
 
 	private String titleOf(Page p)
 	{
-		return p == Page.CHAT ? sessions.current().title() : p.title;
+		switch (p)
+		{
+			case CHAT:
+				return sessions.current().title();
+			case PROGRESS_DETAIL:
+				return progressDetail.pageTitle();
+			case BOSS:
+				return boss.pageTitle();
+			default:
+				return p.title;
+		}
+	}
+
+	/** A boss's page; back goes to every kill count. */
+	private void openBoss(String name)
+	{
+		if (!"kill-counts".equals(progressDetail.view()))
+		{
+			progressDetail.show("kill-counts", "Kill counts");
+		}
+		boss.show(name);
+		show(Page.BOSS);
 	}
 
 	/**
@@ -561,11 +604,30 @@ class SquireSidebar extends PluginPanel
 		{
 			gained.refresh();
 		}
+		else if (page == Page.PROGRESS_DETAIL)
+		{
+			progressDetail.refresh();
+		}
+		else if (page == Page.BOSS)
+		{
+			boss.refresh();
+		}
 	}
 
 	HomeView home()
 	{
 		return home;
+	}
+
+	/** For previews: the Progress detail and boss pages. */
+	ProgressDetailView progressDetail()
+	{
+		return progressDetail;
+	}
+
+	BossView boss()
+	{
+		return boss;
 	}
 
 	/** For previews: open a page by name ("home", "progress", "activity", "chat" or "settings"). */

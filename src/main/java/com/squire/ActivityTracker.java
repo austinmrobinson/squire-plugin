@@ -7,9 +7,13 @@ import java.util.Map;
 import java.util.Set;
 import net.runelite.api.Actor;
 import net.runelite.api.Client;
+import net.runelite.api.EquipmentInventorySlot;
+import net.runelite.api.Item;
+import net.runelite.api.ItemContainer;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
+import net.runelite.api.gameval.InventoryID;
 
 /**
  * Works out what the player spent each minute doing, for the Activity page.
@@ -29,6 +33,8 @@ class ActivityTracker
 	private final Map<Skill, Integer> lastXp = new EnumMap<>(Skill.class);
 	private long minute = -1;
 	private final Map<String, Integer> npcTicks = new HashMap<>();
+	// Ticks spent fighting with each weapon this minute, for the favourite weapon on the Progress page
+	private final Map<String, Integer> weaponTicks = new HashMap<>();
 	private final Map<Skill, Integer> xp = new EnumMap<>(Skill.class);
 	private int activeTicks;
 
@@ -42,6 +48,7 @@ class ActivityTracker
 			finished = minute >= 0 ? classify(minute) : null;
 			minute = now;
 			npcTicks.clear();
+			weaponTicks.clear();
 			xp.clear();
 			activeTicks = 0;
 		}
@@ -51,12 +58,30 @@ class ActivityTracker
 		if (target instanceof NPC && ((NPC) target).getCombatLevel() > 0 && target.getName() != null)
 		{
 			npcTicks.merge(target.getName(), 1, Integer::sum);
+			String weapon = wieldedWeapon(client);
+			if (weapon != null)
+			{
+				weaponTicks.merge(weapon, 1, Integer::sum);
+			}
 		}
 		if (Math.min(client.getKeyboardIdleTicks(), client.getMouseIdleTicks()) < IDLE_CLIENT_TICKS)
 		{
 			activeTicks++;
 		}
 		return finished;
+	}
+
+	/** The weapon in the weapon slot, by name, or null when unarmed. */
+	private static String wieldedWeapon(Client client)
+	{
+		ItemContainer worn = client.getItemContainer(InventoryID.WORN);
+		Item weapon = worn == null ? null : worn.getItem(EquipmentInventorySlot.WEAPON.getSlotIdx());
+		if (weapon == null || weapon.getId() <= 0)
+		{
+			return null;
+		}
+		String name = client.getItemDefinition(weapon.getId()).getName();
+		return name == null || name.isEmpty() || "null".equals(name) ? null : name;
 	}
 
 	void onXp(Skill skill, int total)
@@ -74,6 +99,7 @@ class ActivityTracker
 		lastXp.clear();
 		minute = -1;
 		npcTicks.clear();
+		weaponTicks.clear();
 		xp.clear();
 		activeTicks = 0;
 	}
@@ -126,6 +152,10 @@ class ActivityTracker
 		record.put("activity", activity);
 		record.put("category", category);
 		record.put("xp", totalXp);
+		if ("combat".equals(category))
+		{
+			weaponTicks.entrySet().stream().max(Map.Entry.comparingByValue()).ifPresent(w -> record.put("weapon", w.getKey()));
+		}
 		return record;
 	}
 }

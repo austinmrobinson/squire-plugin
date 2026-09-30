@@ -260,6 +260,39 @@ public class PanelPreview
 				sidebar.showPage("progress");
 				render(sidebar, new File(out, "0b-progress.png"));
 
+				// The Progress page's summaries, detail pages and a boss, from data made by the server
+				// (run `npm run preview-data` in server/ first)
+				File data = new File("build/preview-data");
+				if (data.isDirectory())
+				{
+					java.util.function.Function<String, JsonObject> read = name ->
+					{
+						try
+						{
+							return new Gson().fromJson(new String(java.nio.file.Files.readAllBytes(new File(data, name + ".json").toPath())), JsonObject.class);
+						}
+						catch (java.io.IOException e)
+						{
+							throw new RuntimeException(e);
+						}
+					};
+					progress.show(read.apply("overview"));
+					sidebar.showPage("progress");
+					renderSized(sidebar, new File(out, "20-progress.png"), SquireSidebar.DEFAULT_WIDTH, 2100);
+					String[][] pages = {{"skills", "Skills"}, {"quests", "Quests"}, {"combat-achievements", "Combat achievements"},
+						{"diaries", "Achievement diaries"}, {"collection-log", "Collection log"}, {"kill-counts", "Kill counts"}, {"stats", "For fun"}};
+					for (int i = 0; i < pages.length; i++)
+					{
+						sidebar.progressDetail().showData(pages[i][0], pages[i][1], read.apply(pages[i][0]));
+						sidebar.showPage("progress_detail");
+						renderSized(sidebar, new File(out, "21" + (char) ('a' + i) + "-" + pages[i][0] + ".png"), SquireSidebar.DEFAULT_WIDTH, 1400);
+					}
+					sidebar.boss().showData(read.apply("boss"));
+					sidebar.showPage("boss");
+					renderSized(sidebar, new File(out, "22-boss.png"), SquireSidebar.DEFAULT_WIDTH, 1500);
+					progress.show(overviewJson);
+				}
+
 				sidebar.showPage("activity");
 				activity.render(sampleActivity("week"), null);
 				render(sidebar, new File(out, "0c-activity-week.png"));
