@@ -41,7 +41,7 @@ import net.runelite.client.ui.FontManager;
  */
 class PlanView extends JPanel
 {
-	static final Color DONE = new Color(0x5FB548);
+	static final Color DONE = Tokens.COLOR_STATUS_DONE;
 	private static final int RAIL = 44;
 	private static final int NODE = 32;
 
@@ -583,7 +583,7 @@ class PlanView extends JPanel
 				g2.fillRect(cx - 1, top + NODE, 2, getHeight() - top - NODE);
 			}
 			int x = cx - NODE / 2;
-			g2.setColor(complete ? new Color(0x2E4A26) : current ? ChatComponents.PANEL_BG : ChatComponents.BASE_BG);
+			g2.setColor(complete ? Tokens.COLOR_STATUS_DONE_SURFACE : current ? ChatComponents.PANEL_BG : ChatComponents.BASE_BG);
 			Pixel.fill(g2, x, top, NODE, NODE, 4);
 			g2.setColor(complete ? DONE : current ? ChatComponents.ACCENT : ChatComponents.BORDER);
 			Pixel.draw(g2, x, top, NODE, NODE, 4);
@@ -908,7 +908,7 @@ class PlanView extends JPanel
 		protected void paintComponent(Graphics g)
 		{
 			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setColor(done ? new Color(0x2E4A26) : ChatComponents.BASE_BG);
+			g2.setColor(done ? Tokens.COLOR_STATUS_DONE_SURFACE : ChatComponents.BASE_BG);
 			Pixel.fill(g2, 0, 0, 24, 24, 3);
 			g2.setColor(done ? DONE : current ? ChatComponents.ACCENT : ChatComponents.BORDER);
 			Pixel.draw(g2, 0, 0, 24, 24, 3);

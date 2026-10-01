@@ -35,7 +35,7 @@ final class Ui
 	private static final Color[] PALETTE = {
 		ChatComponents.ACCENT, new Color(0xE0922F), new Color(0x3FA33F), new Color(0xC9483F), new Color(0xB064C8),
 	};
-	static final Color OTHER = new Color(0x6B6B6B);
+	static final Color OTHER = Tokens.COLOR_SERIES_OTHER;
 
 	static Color activityColor(int rank, String name)
 	{

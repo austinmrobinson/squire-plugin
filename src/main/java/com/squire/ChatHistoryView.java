@@ -201,7 +201,7 @@ class ChatHistoryView extends JPanel
 				if ("x".equals(delete.getText()))
 				{
 					delete.setText("Delete?");
-					delete.setForeground(new Color(0xFF8A80));
+					delete.setForeground(Tokens.COLOR_TEXT_ERROR);
 				}
 				else
 				{

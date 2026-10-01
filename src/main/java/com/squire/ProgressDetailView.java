@@ -34,7 +34,7 @@ import net.runelite.client.ui.FontManager;
  */
 class ProgressDetailView extends JPanel
 {
-	private static final Color DONE = new Color(0x3FA33F);
+	private static final Color DONE = Tokens.COLOR_STATUS_DONE;
 
 	private final AccountApi api;
 	private final ProgressView progress;

@@ -26,7 +26,7 @@ import net.runelite.client.util.Text;
 class InGameChat
 {
 	private static final Color NAME = new Color(0x3F52D6);
-	private static final Color MUTED = new Color(0x9A9A9A);
+	private static final Color MUTED = Tokens.COLOR_TEXT_MUTED;
 	/** A chatbox answer longer than this many lines is cut short with a pointer to the panel. */
 	private static final int MAX_LINES = 5;
 	/** Longer paragraphs are split between sentences into lines about this long. */

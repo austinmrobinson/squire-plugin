@@ -49,8 +49,8 @@ class SetupView extends JPanel
 		void leave();
 	}
 
-	static final Color DONE = new Color(0x3FA33F);
-	private static final Color EDGE = new Color(0x0F0F0F);
+	static final Color DONE = Tokens.COLOR_STATUS_DONE;
+	private static final Color EDGE = Tokens.COLOR_BORDER_EDGE;
 	private static final int POLL_MS = 3000;
 
 	private final Controller controller;

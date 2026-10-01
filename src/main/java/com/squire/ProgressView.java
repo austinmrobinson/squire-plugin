@@ -57,7 +57,7 @@ class ProgressView extends JPanel
 		Skill.RUNECRAFT, Skill.SLAYER, Skill.FARMING,
 		Skill.CONSTRUCTION, Skill.HUNTER, Skill.SAILING,
 	};
-	private static final Color DONE = new Color(0x3FA33F);
+	private static final Color DONE = Tokens.COLOR_STATUS_DONE;
 
 	private final Function<Skill, BufferedImage> skillIcons;
 	private final WikiImages images;

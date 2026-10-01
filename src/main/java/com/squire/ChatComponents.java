@@ -41,16 +41,16 @@ final class ChatComponents
 {
 	// Base matches RuneLite's title bar and sidebar; raised pieces (bubbles, composer, tabs) sit above it
 	// RuneLite's title bar and sidebar colour (TitlePane.background = DARKER_GRAY)
-	static final Color BASE_BG = ColorScheme.DARKER_GRAY_COLOR; // #1e1e1e
-	static final Color PANEL_BG = ColorScheme.DARK_GRAY_COLOR; // #282828, raised surfaces
-	static final Color HOVER_BG = new Color(0x303030); // raised surfaces under the pointer
-	static final Color CARD_BG = new Color(0x232323); // conversation card: between the base (#1e1e1e) and raised surfaces (#282828)
-	static final Color USER_BG = new Color(0x444444);
-	static final Color ERROR_BG = new Color(0x4A2020);
-	static final Color BORDER = ColorScheme.MEDIUM_GRAY_COLOR; // #4d4d4d
-	static final Color ACCENT = new Color(0x4454DA); // Squire blue, a shade lighter than the plume
-	static final Color ACCENT_DARK = new Color(0x2F3AA6);
-	static final Color MUTED = new Color(0x9A9A9A);
+	static final Color BASE_BG = Tokens.COLOR_SURFACE_BASE; // RuneLite's DARKER_GRAY_COLOR
+	static final Color PANEL_BG = Tokens.COLOR_SURFACE_RAISED; // RuneLite's DARK_GRAY_COLOR
+	static final Color HOVER_BG = Tokens.COLOR_SURFACE_HOVER;
+	static final Color CARD_BG = Tokens.COLOR_SURFACE_CARD;
+	static final Color USER_BG = Tokens.COLOR_SURFACE_USER;
+	static final Color ERROR_BG = Tokens.COLOR_SURFACE_ERROR;
+	static final Color BORDER = Tokens.COLOR_BORDER_DEFAULT; // RuneLite's MEDIUM_GRAY_COLOR
+	static final Color ACCENT = Tokens.COLOR_ACCENT_DEFAULT;
+	static final Color ACCENT_DARK = Tokens.COLOR_ACCENT_DARK;
+	static final Color MUTED = Tokens.COLOR_TEXT_MUTED;
 	// Swing's HTML takes list bullets only as a URL: the image is copied (as a stream, like every resource) into
 	// Squire's data folder once, through RuneLite's Filepath
 	private static java.net.URL bullet;
@@ -79,13 +79,13 @@ final class ChatComponents
 		return bullet;
 	}
 
-	static final Color OUTLINE = new Color(0, 0, 0, 128);
-	static final Color HAIRLINE = new Color(255, 255, 255, 13);
+	static final Color OUTLINE = Tokens.COLOR_BORDER_OUTLINE;
+	static final Color HAIRLINE = Tokens.COLOR_BORDER_HAIRLINE;
 	// The game's bevel: light top/left, dark bottom/right (raised); swapped when pressed
-	static final Color BEVEL_LIGHT = new Color(255, 255, 255, 56);
-	static final Color BEVEL_DARK = new Color(0, 0, 0, 90);
-	static final Color CARD_LIGHT = new Color(255, 255, 255, 18);
-	static final Color CARD_DARK = new Color(0, 0, 0, 60);
+	static final Color BEVEL_LIGHT = Tokens.COLOR_BEVEL_LIGHT;
+	static final Color BEVEL_DARK = Tokens.COLOR_BEVEL_DARK;
+	static final Color CARD_LIGHT = Tokens.COLOR_BEVEL_CARD_LIGHT;
+	static final Color CARD_DARK = Tokens.COLOR_BEVEL_CARD_DARK;
 
 	enum Align
 	{

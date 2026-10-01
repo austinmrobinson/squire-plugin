@@ -27,7 +27,7 @@ final class SvgIcon
 	private static final Pattern VIEWBOX = Pattern.compile("viewBox=\"([\\d.\\s-]+)\"");
 	private static final Pattern PATH = Pattern.compile("<path([^>]*)/?>");
 	/** The grey our icons are drawn in when they don't say (Pixelarticons use currentColor). */
-	private static final Color DEFAULT = new Color(0xA5A5A5);
+	private static final Color DEFAULT = Tokens.COLOR_TEXT_SECONDARY;
 	private static final Pattern CIRCLE = Pattern.compile("<circle([^>]*)/?>");
 	private static final Pattern ATTR = Pattern.compile("(\\w+)=\"([^\"]*)\"");
 	private static final Pattern TOKEN = Pattern.compile("[MLHVZmlhvz]|-?\\d*\\.?\\d+(?:e-?\\d+)?");

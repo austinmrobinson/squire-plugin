@@ -45,7 +45,7 @@ class ConnectView extends JPanel
 		void done(String code, Instant expiresAt, String mcpUrl, String error);
 	}
 
-	private static final Color SUCCESS = new Color(0x7BD389);
+	private static final Color SUCCESS = Tokens.COLOR_STATUS_DONE;
 
 	private final Source source;
 	private final JLabel url = new JLabel(" ");

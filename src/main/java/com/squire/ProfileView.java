@@ -68,7 +68,7 @@ class ProfileView extends JPanel
 	}
 
 	private static final int CARD = 176, SWATCH = 44;
-	private static final Color SELECTED = new Color(0x7A86FF);
+	private static final Color SELECTED = Tokens.COLOR_ACCENT_LIGHT;
 
 	private final Controller controller;
 	private final MessageList list = new MessageList(null, 0);
@@ -178,7 +178,7 @@ class ProfileView extends JPanel
 		list.add(ChatComponents.place(new Preview(), Align.FILL, 0));
 		if (!status.isEmpty())
 		{
-			Wrapped s = new Wrapped(status, statusError ? new Color(0xFF8A80) : ChatComponents.MUTED, true);
+			Wrapped s = new Wrapped(status, statusError ? Tokens.COLOR_TEXT_ERROR : ChatComponents.MUTED, true);
 			list.add(ChatComponents.place(s, Align.FILL, 6));
 		}
 		if (data != null)

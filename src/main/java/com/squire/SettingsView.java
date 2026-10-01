@@ -23,7 +23,7 @@ import net.runelite.client.ui.FontManager;
  */
 class SettingsView extends javax.swing.JPanel
 {
-	private static final Color DANGER = new Color(0xF0625A);
+	private static final Color DANGER = Tokens.COLOR_STATUS_DANGER;
 	private final MessageList list = new MessageList(null, 0);
 	private final Runnable onUpdate;
 	private final Supplier<List<Item>> chatSettings;

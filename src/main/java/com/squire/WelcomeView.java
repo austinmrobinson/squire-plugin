@@ -43,9 +43,9 @@ import net.runelite.client.util.LinkBrowser;
  */
 class WelcomeView extends JPanel
 {
-	private static final Color ERROR = new Color(0xFF8A80);
+	private static final Color ERROR = Tokens.COLOR_TEXT_ERROR;
 	/** The callout icons' colour: Squire blue, lightened to read on the dark slot. */
-	static final Color ICON = new Color(0x8E98FF);
+	static final Color ICON = Tokens.COLOR_ACCENT_LIGHT;
 
 	private final JLabel error = new JLabel();
 	private final JButton next = new ChatComponents.AccentButton("Continue");
