@@ -84,6 +84,40 @@ class AccountApi
 		get("api/progress", Map.of("boss", name, "period", period), callback);
 	}
 
+	/** The profile editor's data for the logged-in character: settings, options (with what's unlocked), share link. */
+	void profile(Consumer<Result> callback)
+	{
+		send("GET", "api/me/profile" + accountQuery("?"), null, callback);
+	}
+
+	/** Change the profile: {public?, background?, frame?, emblem?, highlights?: [ids], gear?: {slot: id|null}}. */
+	void editProfile(JsonObject edit, Consumer<Result> callback)
+	{
+		send("PATCH", "api/me/profile" + accountQuery("?"), edit, callback);
+	}
+
+	/** The character's own items: worn in an equipment slot (slot >= 0), or anything for highlights (slot < 0). */
+	void profileItems(int slot, String query, Consumer<Result> callback)
+	{
+		String q = java.net.URLEncoder.encode(query == null ? "" : query, java.nio.charset.StandardCharsets.UTF_8);
+		send("GET", "api/me/profile/items?q=" + q + (slot >= 0 ? "&slot=" + slot : "") + accountQuery("&"), null, callback);
+	}
+
+	/** Upload the avatar render (PNG) for gear revision {rev}. */
+	void uploadAvatar(byte[] png, int rev, Consumer<Result> callback)
+	{
+		JsonObject body = new JsonObject();
+		body.addProperty("png", java.util.Base64.getEncoder().encodeToString(png));
+		body.addProperty("rev", rev);
+		send("PUT", "api/me/profile/avatar" + accountQuery("?"), body, callback);
+	}
+
+	/** A one-time link that opens the profile editor in the browser. */
+	void profileLink(Consumer<Result> callback)
+	{
+		send("POST", "api/me/profile/link" + accountQuery("?"), null, callback);
+	}
+
 	/** The Set up page: {synced, history: waiting|importing|done|none, bank, collectionLog}. */
 	void setup(Consumer<Result> callback)
 	{

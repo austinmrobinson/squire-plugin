@@ -75,6 +75,9 @@ class HomeView extends JPanel
 
 		/** The Set up page, until setup is done. */
 		void openSetup();
+
+		/** The profile and avatar. */
+		void openProfile();
 	}
 
 	private static final long REFRESH_AFTER_MS = 60_000;
@@ -263,6 +266,20 @@ class HomeView extends JPanel
 		column.setBorder(BorderFactory.createEmptyBorder(32, 12, 16, 12));
 		Portrait portrait = new Portrait(chathead);
 		portrait.setAlignmentX(CENTER_ALIGNMENT);
+		// The portrait opens the profile: the avatar, its frame and gear, and sharing
+		portrait.setToolTipText("Your profile and avatar");
+		portrait.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+		portrait.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseReleased(MouseEvent e)
+			{
+				if (javax.swing.SwingUtilities.isLeftMouseButton(e) && e.getComponent().contains(e.getPoint()))
+				{
+					actions.openProfile();
+				}
+			}
+		});
 		column.add(portrait);
 		column.add(Box.createVerticalStrut(12));
 

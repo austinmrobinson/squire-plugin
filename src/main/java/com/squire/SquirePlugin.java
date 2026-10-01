@@ -439,6 +439,59 @@ public class SquirePlugin extends Plugin
 				sidebar.showHome();
 			}
 		}));
+		// Profile: the avatar card and what the public profile shows (opened from Home's portrait)
+		avatarStudio = new AvatarStudio(client);
+		profileView = new ProfileView(new ProfileView.Controller()
+		{
+			@Override
+			public void load(java.util.function.Consumer<AccountApi.Result> callback)
+			{
+				accountApi.profile(callback);
+			}
+
+			@Override
+			public void edit(JsonObject patch, java.util.function.Consumer<AccountApi.Result> callback)
+			{
+				accountApi.editProfile(patch, callback);
+			}
+
+			@Override
+			public void items(int slot, String query, java.util.function.Consumer<AccountApi.Result> callback)
+			{
+				accountApi.profileItems(slot, query, callback);
+			}
+
+			@Override
+			public void openWeb()
+			{
+				accountApi.profileLink(r ->
+				{
+					if (r.json != null && r.json.has("url"))
+					{
+						net.runelite.client.util.LinkBrowser.browse(r.json.get("url").getAsString());
+					}
+				});
+			}
+
+			@Override
+			public void renderAvatar(JsonObject profile)
+			{
+				renderAvatarFor(profile);
+			}
+
+			@Override
+			public java.awt.image.BufferedImage character()
+			{
+				return avatarRender;
+			}
+
+			@Override
+			public java.awt.image.BufferedImage icon(int itemId)
+			{
+				return itemManager.getImage(itemId);
+			}
+		});
+		sidebar.setProfileView(profileView);
 		sidebar.home().setSetupPending(isTurnedOn() && !isSetupDone());
 		checkSetup();
 		// Other AI apps (MCP connectors): Settings lists them, the Connect page pairs a new one
@@ -562,6 +615,8 @@ public class SquirePlugin extends Plugin
 			sessions = null;
 		}
 		flush();
+		AvatarStudio studio = avatarStudio;
+		clientThread.invokeLater(studio::cancel);
 		resetAccountState();
 	}
 
@@ -575,6 +630,7 @@ public class SquirePlugin extends Plugin
 		}
 		else if (state == GameState.LOGIN_SCREEN)
 		{
+			avatarStudio.cancel();
 			if (recorder != null)
 			{
 				recorder.stop("logged out");
@@ -648,6 +704,12 @@ public class SquirePlugin extends Plugin
 		}
 		ticksSinceLogin++;
 		ticksSinceSync++;
+		avatarStudio.onGameTick();
+		// The profile avatar: shortly after login (once the first sync is in), then every five minutes for web edits
+		if (ticksSinceLogin == 60 || ticksSinceLogin % 500 == 0)
+		{
+			checkAvatar();
+		}
 
 		if (accountHash == null && client.getAccountHash() != -1)
 		{
@@ -2216,6 +2278,78 @@ public class SquirePlugin extends Plugin
 			}
 			configManager.setConfiguration(SquireConfig.GROUP, "token", r.json.get("token").getAsString());
 			enable.run();
+		}));
+	}
+
+	// ---- Profile avatar
+
+	private AvatarStudio avatarStudio;
+	private ProfileView profileView;
+	/** The latest render of the character for the profile (null until drawn this session). */
+	private volatile java.awt.image.BufferedImage avatarRender;
+	/** Appearance when the avatar was last uploaded, and when, to refresh a "what I wear" avatar after gear changes. */
+	private String avatarUploadedFor;
+	private long avatarUploadedAt;
+
+	/**
+	 * Keep the profile avatar current, for players who've set up a profile: render it when the chosen gear changed
+	 * (here or on the website), or when it shows what they wear and that changed (at most every ten minutes).
+	 */
+	private void checkAvatar()
+	{
+		if (!isConfigured() || avatarStudio.busy())
+		{
+			return;
+		}
+		accountApi.profile(r ->
+		{
+			JsonObject p = r.json;
+			if (p == null || !p.has("active") || !p.get("active").getAsBoolean())
+			{
+				return;
+			}
+			boolean wornSlots = p.getAsJsonObject("gear").size() < AvatarStudio.VISIBLE_SLOTS.length;
+			clientThread.invokeLater(() ->
+			{
+				String look = PlayerPortrait.appearanceKey(client.getLocalPlayer());
+				boolean stale = wornSlots && look != null && !look.equals(avatarUploadedFor)
+					&& System.currentTimeMillis() - avatarUploadedAt > 10 * 60_000;
+				if (p.get("needsRender").getAsBoolean() || stale)
+				{
+					renderAvatarFor(p);
+				}
+			});
+		});
+	}
+
+	/** Render the character in the profile's gear (other slots as worn) and upload it for that gear revision. */
+	private void renderAvatarFor(JsonObject profile)
+	{
+		Map<Integer, Integer> gear = new HashMap<>();
+		profile.getAsJsonObject("gear").entrySet().forEach(e -> gear.put(Integer.parseInt(e.getKey()), e.getValue().getAsInt()));
+		int rev = profile.get("gearRev").getAsInt();
+		clientThread.invokeLater(() -> avatarStudio.render(gear, image ->
+		{
+			avatarRender = image;
+			String look = PlayerPortrait.appearanceKey(client.getLocalPlayer());
+			SwingUtilities.invokeLater(profileView::characterUpdated);
+			try
+			{
+				java.io.ByteArrayOutputStream png = new java.io.ByteArrayOutputStream();
+				javax.imageio.ImageIO.write(image, "png", png);
+				accountApi.uploadAvatar(png.toByteArray(), rev, r ->
+				{
+					if (r.error == null)
+					{
+						avatarUploadedFor = look;
+						avatarUploadedAt = System.currentTimeMillis();
+					}
+				});
+			}
+			catch (java.io.IOException e)
+			{
+				log.warn("Squire: couldn't encode the avatar", e);
+			}
 		}));
 	}
 

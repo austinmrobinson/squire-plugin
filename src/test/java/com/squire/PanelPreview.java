@@ -290,6 +290,73 @@ public class PanelPreview
 							throw new RuntimeException(e);
 						}
 					};
+					// Profile: the avatar card from the saved in-game model (if this machine has one), and the editor
+					File mesh = new File(System.getProperty("user.home"), ".runelite/plugin-data/squire/Maximvs597/portrait-model.json");
+					java.awt.image.BufferedImage character = null;
+					if (mesh.isFile())
+					{
+						try (java.io.Reader r = java.nio.file.Files.newBufferedReader(mesh.toPath()))
+						{
+							PlayerPortrait.Mesh m = PlayerPortrait.load(r, new Gson());
+							character = PlayerPortrait.draw(m, AvatarStudio.SIZE, new PlayerPortrait.Framing(-228f, 6f, Math.toRadians(-22)));
+							javax.imageio.ImageIO.write(character, "png", new File(out, "avatar-render.png"));
+						}
+					}
+					java.awt.image.BufferedImage avatar = character;
+					ProfileView profileView = new ProfileView(new ProfileView.Controller()
+					{
+						@Override
+						public void load(java.util.function.Consumer<AccountApi.Result> callback)
+						{
+						}
+
+						@Override
+						public void edit(JsonObject patch, java.util.function.Consumer<AccountApi.Result> callback)
+						{
+						}
+
+						@Override
+						public void items(int slot, String query, java.util.function.Consumer<AccountApi.Result> callback)
+						{
+						}
+
+						@Override
+						public void openWeb()
+						{
+						}
+
+						@Override
+						public void renderAvatar(JsonObject profile)
+						{
+						}
+
+						@Override
+						public java.awt.image.BufferedImage character()
+						{
+							return avatar;
+						}
+
+						@Override
+						public java.awt.image.BufferedImage icon(int itemId)
+						{
+							return iconCache.computeIfAbsent(itemId, i ->
+							{
+								try
+								{
+									return javax.imageio.ImageIO.read(new java.net.URL("https://static.runelite.net/cache/item/icon/" + i + ".png"));
+								}
+								catch (java.io.IOException e)
+								{
+									return null;
+								}
+							});
+						}
+					});
+					sidebar.setProfileView(profileView);
+					profileView.show(read.apply("profile"));
+					sidebar.home().setSetupPending(false);
+					sidebar.showPage("profile");
+					renderSized(sidebar, new File(out, "30-profile.png"), SquireSidebar.DEFAULT_WIDTH, 1500);
 					progress.show(read.apply("overview"));
 					sidebar.showPage("progress");
 					renderSized(sidebar, new File(out, "20-progress.png"), SquireSidebar.DEFAULT_WIDTH, 2100);

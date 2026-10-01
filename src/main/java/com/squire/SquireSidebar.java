@@ -39,7 +39,7 @@ class SquireSidebar extends PluginPanel
 	private enum Page
 	{
 		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), GAINED("Gained"),
-		PROGRESS_DETAIL("Progress"), BOSS("Boss"), WELCOME("Squire"), SETUP("Set up");
+		PROGRESS_DETAIL("Progress"), BOSS("Boss"), WELCOME("Squire"), SETUP("Set up"), PROFILE("Profile");
 
 		final String title;
 
@@ -193,6 +193,15 @@ class SquireSidebar extends PluginPanel
 			public void openSetup()
 			{
 				showSetup();
+			}
+
+			@Override
+			public void openProfile()
+			{
+				if (profile != null)
+				{
+					show(Page.PROFILE);
+				}
 			}
 		});
 		// "Ask Squire" lines on the Progress and Activity cards start a chat with their question
@@ -399,6 +408,14 @@ class SquireSidebar extends PluginPanel
 	}
 
 	private SetupView setup;
+	private ProfileView profile;
+
+	/** The Profile page (from Home's portrait). */
+	void setProfileView(ProfileView view)
+	{
+		profile = view;
+		body.add(view, Page.PROFILE.name());
+	}
 
 	/** The Set up page, shown after Continue and reachable from Home until it's done. */
 	void setSetupView(SetupView view)
@@ -459,7 +476,7 @@ class SquireSidebar extends PluginPanel
 		}
 		nav.set(titleOf(next), ancestors, actions);
 		ask.setPlaceholder(placeholderFor(next));
-		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME && next != Page.CONNECT && next != Page.SYNC && next != Page.SETUP);
+		ask.setVisible(next != Page.CHAT && next != Page.CHATS && next != Page.WELCOME && next != Page.CONNECT && next != Page.SYNC && next != Page.SETUP && next != Page.PROFILE);
 
 		if (next == Page.CHAT)
 		{
@@ -501,6 +518,10 @@ class SquireSidebar extends PluginPanel
 		else if (next == Page.SETUP && setup != null)
 		{
 			setup.onShown();
+		}
+		else if (next == Page.PROFILE && profile != null)
+		{
+			profile.onShown();
 		}
 		revalidate();
 		repaint();
