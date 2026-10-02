@@ -29,7 +29,6 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.Transferable;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -825,17 +824,6 @@ class ChatView extends JPanel
 		focusInput();
 	}
 
-	/** Files dropped on the chat, as RuneLite paths. */
-	private static List<Filepath> dropped(List<File> files)
-	{
-		List<Filepath> out = new ArrayList<>();
-		for (File f : files)
-		{
-			out.add(Filepath.Unchecked.getRooted(f.toPath()));
-		}
-		return out;
-	}
-
 	private void addFiles(List<Filepath> files)
 	{
 		for (Filepath f : files)
@@ -904,8 +892,9 @@ class ChatView extends JPanel
 	}
 
 	/**
-	 * The input's paste/drop handling: files and images become attachments, long text becomes a text
-	 * attachment, and everything else goes to the text area's own handler.
+	 * The input's paste/drop handling: images become attachments, long text becomes a text attachment, and
+	 * everything else goes to the text area's own handler. Files are attached with the paperclip, which uses
+	 * RuneLite's file chooser: a dropped file has no path RuneLite has checked.
 	 */
 	private final class AttachmentTransfer extends TransferHandler
 	{
@@ -919,24 +908,17 @@ class ChatView extends JPanel
 		@Override
 		public boolean canImport(TransferSupport support)
 		{
-			return support.isDataFlavorSupported(DataFlavor.javaFileListFlavor)
-				|| support.isDataFlavorSupported(DataFlavor.imageFlavor)
+			return support.isDataFlavorSupported(DataFlavor.imageFlavor)
 				|| (support.getComponent() == input && text.canImport(support))
 				|| support.isDataFlavorSupported(DataFlavor.stringFlavor);
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public boolean importData(TransferSupport support)
 		{
 			Transferable t = support.getTransferable();
 			try
 			{
-				if (t.isDataFlavorSupported(DataFlavor.javaFileListFlavor))
-				{
-					addFiles(dropped((List<File>) t.getTransferData(DataFlavor.javaFileListFlavor)));
-					return true;
-				}
 				String pasted = t.isDataFlavorSupported(DataFlavor.stringFlavor) ? (String) t.getTransferData(DataFlavor.stringFlavor) : null;
 				if (pasted != null && !pasted.isBlank())
 				{

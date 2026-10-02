@@ -51,34 +51,6 @@ final class ChatComponents
 	static final Color ACCENT = Tokens.COLOR_ACCENT_DEFAULT;
 	static final Color ACCENT_DARK = Tokens.COLOR_ACCENT_DARK;
 	static final Color MUTED = Tokens.COLOR_TEXT_MUTED;
-	// Swing's HTML takes list bullets only as a URL: the image is copied (as a stream, like every resource) into
-	// Squire's data folder once, through RuneLite's Filepath
-	private static java.net.URL bullet;
-
-	private static synchronized java.net.URL bulletUrl()
-	{
-		net.runelite.client.util.Filepath dir = SquirePlugin.dataDir();
-		if (bullet != null || dir == null)
-		{
-			return bullet;
-		}
-		try (java.io.InputStream in = ChatComponents.class.getResourceAsStream("bullet.png"))
-		{
-			if (in == null)
-			{
-				return null;
-			}
-			net.runelite.client.util.Filepath file = dir.joinSegment("bullet.png");
-			file.write(in.readAllBytes());
-			bullet = net.runelite.client.util.Filepath.Unchecked.getPath(file).toUri().toURL();
-		}
-		catch (java.io.IOException | RuntimeException e)
-		{
-			bullet = null;
-		}
-		return bullet;
-	}
-
 	static final Color OUTLINE = Tokens.COLOR_BORDER_OUTLINE;
 	static final Color HAIRLINE = Tokens.COLOR_BORDER_HAIRLINE;
 	// The game's bevel: light top/left, dark bottom/right (raised); swapped when pressed
@@ -241,8 +213,7 @@ final class ChatComponents
 			css.addRule("b { font-weight: bold; }");
 			css.addRule("i { font-style: italic; }");
 			// Bullets are a filled pixel square (Swing's "square" is hollow and reads as a checkbox)
-			java.net.URL bulletImage = bulletUrl();
-			css.addRule(bulletImage == null ? "ul { list-style-type: square; }" : "ul { list-style-image: url(" + bulletImage + "); }");
+			css.addRule("ul { list-style-type: square; }");
 			css.addRule("ol { list-style-type: decimal; }");
 			css.addRule("tr { text-align: left; }");
 			css.addRule("td { padding: 3px; }");
