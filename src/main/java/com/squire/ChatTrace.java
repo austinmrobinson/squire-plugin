@@ -218,6 +218,12 @@ class ChatTrace
 
 	/** Data the agent made for other plugins this turn (setups, tags, markers), shown as cards to copy. */
 	final List<ExportCards.Export> exports = new ArrayList<>();
+	private static String gearKey(JsonObject card)
+	{
+		JsonObject gear = card.getAsJsonObject("gear");
+		return str(gear, "target") + "|" + str(gear, "style");
+	}
+
 	/** Gear views this turn ({gear, export}): the game's equipment screen, editable, with a copy button. */
 	final List<JsonObject> gears = new ArrayList<>();
 	/** Squire saved the player's plan this turn: the reply links to it, and Home and the Plan page reload it. */
@@ -244,11 +250,15 @@ class ChatTrace
 			return;
 		}
 		JsonElement data = unwrap(output);
-		if ((tool.equals("show_gear") || tool.equals("create_inventory_setup")) && data != null && data.isJsonObject() && data.getAsJsonObject().has("gear"))
+		if ((tool.equals("show_gear") || tool.equals("create_inventory_setup") || tool.equals("best_gear")) && data != null && data.isJsonObject()
+			&& data.getAsJsonObject().has("gear") && data.getAsJsonObject().get("gear").isJsonObject())
 		{
 			JsonObject g = new JsonObject();
 			g.add("gear", data.getAsJsonObject().get("gear"));
 			g.add("export", data.getAsJsonObject().get("export"));
+			// One card per target and style: a setup built after the calculator's pick replaces it
+			String key = gearKey(g);
+			gears.removeIf(prev -> gearKey(prev).equals(key));
 			gears.add(g);
 			return;
 		}
