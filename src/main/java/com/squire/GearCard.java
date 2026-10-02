@@ -191,7 +191,7 @@ class GearCard extends Surface implements HeightForWidth
 			if (export != null)
 			{
 				Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(Ui.str(export, "text")), null);
-				status.setText("Copied. In Inventory Setups, click Import and paste.");
+				status.setText("Copied. Import it in Inventory Setups.");
 				render();
 			}
 		});
@@ -404,7 +404,7 @@ class GearCard extends Surface implements HeightForWidth
 		protected void paintComponent(Graphics g)
 		{
 			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setColor(hover ? SLOT_EDGE : SLOT_BG);
+			g2.setColor(hover ? Tokens.COLOR_SURFACE_HOVER : Tokens.COLOR_SURFACE_CARD);
 			g2.fillRect(0, 0, getWidth(), getHeight());
 			BufferedImage img = Crest.itemImage((int) Ui.num(u, "id"), this);
 			if (img != null)
