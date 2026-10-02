@@ -786,6 +786,14 @@ class PlanView extends JPanel
 		}
 
 		@Override
+		public void removeAll()
+		{
+			// The gaps go with the children, or a rebuilt stack would reuse the old ones in the wrong places
+			gaps.clear();
+			super.removeAll();
+		}
+
+		@Override
 		public Component add(Component c)
 		{
 			gaps.add(0);

@@ -1292,9 +1292,14 @@ class ChatView extends JPanel
 			list.add(ChatComponents.place(new ChatTraceViews.SourcesRow(trace), Align.FILL, 6));
 		}
 		// Gear Squire showed: the game's equipment screen, editable, with a copy button
-		for (com.google.gson.JsonObject g : trace.gears)
+		// One setup is a card; several are a stack with one open
+		if (trace.gears.size() == 1)
 		{
-			list.add(ChatComponents.place(new GearCard(g), Align.FILL, 8));
+			list.add(ChatComponents.place(new GearCard(trace.gears.get(0)), Align.FILL, 8));
+		}
+		else if (trace.gears.size() > 1)
+		{
+			list.add(ChatComponents.place(new GearStack(new java.util.ArrayList<>(trace.gears)), Align.FILL, 8));
 		}
 		if (trace.plan != null)
 		{

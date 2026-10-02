@@ -62,6 +62,20 @@ class GearCard extends Surface implements HeightForWidth
 	private final PlanView.Stack body = new PlanView.Stack();
 	private final JLabel status = new JLabel(" ");
 
+	/** The setup's name, what it's for and its DPS, for a closed card in a stack (GearStack). */
+	static String[] summary(JsonObject result)
+	{
+		JsonObject g = result.getAsJsonObject("gear");
+		JsonObject dps = g.has("dps") && g.get("dps").isJsonObject() ? g.getAsJsonObject("dps") : null;
+		JsonObject weapon = g.has("equipment") && g.getAsJsonObject("equipment").has("weapon") && g.getAsJsonObject("equipment").get("weapon").isJsonObject()
+			? g.getAsJsonObject("equipment").getAsJsonObject("weapon") : null;
+		return new String[]{
+			Ui.str(g, "name"),
+			dps == null ? "" : String.format("%.2f DPS", Ui.num(dps, "dps")) + " · " + killTime((int) Ui.num(dps, "secondsToKill")),
+			weapon == null ? "" : String.valueOf((int) Ui.num(weapon, "id")),
+		};
+	}
+
 	GearCard(JsonObject result)
 	{
 		super(ChatComponents.PANEL_BG, 6, true);
@@ -144,7 +158,7 @@ class GearCard extends Surface implements HeightForWidth
 			eqRow.setOpaque(false);
 			eqRow.setBorder(BorderFactory.createEmptyBorder(8, 0, 16, 0));
 			eqRow.add(new Equipment());
-			body.add(eqRow, 0);
+			body.add(eqRow, 12);
 		}
 		else if (inv != null && inv.size() > 0)
 		{
@@ -152,7 +166,7 @@ class GearCard extends Surface implements HeightForWidth
 			invRow.setOpaque(false);
 			invRow.setBorder(BorderFactory.createEmptyBorder(8, 0, 16, 0));
 			invRow.add(new Inventory(inv));
-			body.add(invRow, 0);
+			body.add(invRow, 12);
 		}
 		else
 		{
@@ -171,16 +185,23 @@ class GearCard extends Surface implements HeightForWidth
 		// The evaluator's top upgrades for this target (from the setup as first built; swaps don't re-run it)
 		JsonObject first = original.getAsJsonObject("gear");
 		JsonArray ups = first.has("upgrades") && first.get("upgrades").isJsonArray() ? first.getAsJsonArray("upgrades") : null;
+		// A run (Moons of Peril, Barrows...): each boss with the carried weapon that's best against it
+		JsonArray run = gear.has("run") && gear.get("run").isJsonArray() ? gear.getAsJsonArray("run") : null;
+		if (tab == 0 && run != null && run.size() > 0)
+		{
+			body.add(Ui.small("EACH BOSS"), 12);
+			for (JsonElement el : run)
+			{
+				body.add(new Row(el.getAsJsonObject()), 6);
+			}
+		}
 		if (tab == 0 && ups != null && ups.size() > 0)
 		{
-			JLabel title = Ui.small("NEXT UPGRADES");
-			title.setForeground(ChatComponents.MUTED);
-			body.add(title, 0);
+			body.add(Ui.small("NEXT UPGRADES"), 12);
 			for (JsonElement el : ups)
 			{
-				body.add(new Upgrade(el.getAsJsonObject(), target), 6);
+				body.add(new Row(el.getAsJsonObject(), target), 6);
 			}
-			body.add((JComponent) javax.swing.Box.createVerticalStrut(16), 0);
 		}
 
 		// Copy to Inventory Setups (full width), and reset after edits
@@ -198,7 +219,7 @@ class GearCard extends Surface implements HeightForWidth
 		JPanel actions = new JPanel(new BorderLayout());
 		actions.setOpaque(false);
 		actions.add(copy, BorderLayout.CENTER);
-		body.add(actions, 0);
+		body.add(actions, 12);
 		JPanel foot = new JPanel(new BorderLayout(8, 0));
 		foot.setOpaque(false);
 		status.setFont(FontManager.getRunescapeSmallFont());
@@ -359,20 +380,41 @@ class GearCard extends Surface implements HeightForWidth
 		return "Pays off after " + String.format("%,d", (long) Ui.num(u, "paysOffAfter")) + " kills";
 	}
 
-	/** One upgrade: the item, its name, and what it adds against what it costs. Click to ask Squire for the working. */
-	private static final class Upgrade extends JComponent
+	/**
+	 * A row under the equipment: an item, a title, and one or two lines about it. Used for the next upgrades (the item,
+	 * what it adds, what it costs; click to ask Squire for the working) and for a run's bosses (the weapon for each).
+	 */
+	private static final class Row extends JComponent
 	{
 		private final int H;
+		private final int itemId;
+		private final String title;
+		private final String line;
 		private final String payoff;
-		private final JsonObject u;
 		private boolean hover;
 
-		Upgrade(JsonObject u, String target)
+		/** One boss of a run: the weapon to use, its DPS and the time the fight takes. */
+		Row(JsonObject fight)
 		{
-			this.u = u;
+			JsonObject weapon = fight.has("weapon") && fight.get("weapon").isJsonObject() ? fight.getAsJsonObject("weapon") : null;
+			this.itemId = weapon == null ? -1 : (int) Ui.num(weapon, "id");
+			this.title = Ui.str(fight, "target");
+			this.line = (weapon == null ? "Unarmed" : Ui.str(weapon, "name")) + " · " + String.format("%.2f DPS", Ui.num(fight, "dps")) + " · " + killTime((int) Ui.num(fight, "secondsToKill"));
+			this.payoff = null;
+			this.H = 34;
+			setToolTipText(title + ": " + line);
+			setPreferredSize(new Dimension(10, H));
+		}
+
+		/** One upgrade. */
+		Row(JsonObject u, String target)
+		{
+			this.itemId = (int) Ui.num(u, "id");
+			this.title = Ui.str(u, "name");
+			this.line = upgradeLine(u);
 			this.payoff = payoffLine(u);
 			this.H = payoff == null ? 34 : 47;
-			setToolTipText(Ui.str(u, "name") + ": " + upgradeLine(u) + (payoff == null ? "" : ". " + payoff));
+			setToolTipText(title + ": " + line + (payoff == null ? "" : ". " + payoff));
 			setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
 			setPreferredSize(new Dimension(10, H));
 			addMouseListener(new MouseAdapter()
@@ -394,7 +436,7 @@ class GearCard extends Surface implements HeightForWidth
 				@Override
 				public void mouseReleased(MouseEvent e)
 				{
-					Ui.askSquire.accept("Is the " + Ui.str(u, "name") + " worth getting" + (target.isEmpty() ? "" : " for " + target)
+					Ui.askSquire.accept("Is the " + title + " worth getting" + (target.isEmpty() ? "" : " for " + target)
 						+ "? Show how long it takes to get, what it changes, and when it pays off.");
 				}
 			});
@@ -406,7 +448,7 @@ class GearCard extends Surface implements HeightForWidth
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setColor(hover ? Tokens.COLOR_SURFACE_HOVER : Tokens.COLOR_SURFACE_CARD);
 			g2.fillRect(0, 0, getWidth(), getHeight());
-			BufferedImage img = Crest.itemImage((int) Ui.num(u, "id"), this);
+			BufferedImage img = itemId > 0 ? Crest.itemImage(itemId, this) : null;
 			if (img != null)
 			{
 				g2.drawImage(img, 3 + (32 - img.getWidth()) / 2, (H - img.getHeight()) / 2, null);
@@ -414,9 +456,9 @@ class GearCard extends Surface implements HeightForWidth
 			int x = 40, w = getWidth() - x - 6;
 			g2.setFont(FontManager.getRunescapeSmallFont());
 			g2.setColor(Tokens.COLOR_TEXT_BODY);
-			g2.drawString(clip(g2, Ui.str(u, "name"), w), x, 14);
+			g2.drawString(clip(g2, title, w), x, 14);
 			g2.setColor(ChatComponents.MUTED);
-			g2.drawString(clip(g2, upgradeLine(u), w), x, 27);
+			g2.drawString(clip(g2, line, w), x, 27);
 			if (payoff != null)
 			{
 				g2.drawString(clip(g2, payoff, w), x, 40);
