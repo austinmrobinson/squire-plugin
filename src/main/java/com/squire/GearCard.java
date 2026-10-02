@@ -330,7 +330,11 @@ class GearCard extends Surface implements HeightForWidth
 	/** "+9.9% DPS · 3.6 h to get": what one upgrade adds and what it costs. */
 	static String upgradeLine(JsonObject u)
 	{
-		StringBuilder sb = new StringBuilder(String.format("+%s%% DPS", Ui.oneDecimal(Ui.num(u, "dpsGainPct"))));
+		// Nothing at this boss but time saved over the run: the gain is at another boss of the same activity
+		boolean elsewhere = Ui.num(u, "dpsGainPct") <= 0 && Ui.num(u, "secondsSaved") > 0;
+		StringBuilder sb = new StringBuilder(elsewhere
+			? "Saves " + Ui.oneDecimal(Ui.num(u, "secondsSaved")) + "s a run"
+			: String.format("+%s%% DPS", Ui.oneDecimal(Ui.num(u, "dpsGainPct"))));
 		if (u.has("blocked") && !u.get("blocked").isJsonNull())
 		{
 			return sb.append(" · needs ").append(Ui.str(u, "blocked").replaceAll(" to make .*", "")).toString();
