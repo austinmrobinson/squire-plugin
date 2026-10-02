@@ -165,7 +165,22 @@ class GearCard extends Surface implements HeightForWidth
 			full.addMouseListener(PlanView.click(() -> Ui.askSquire.accept(
 				"Make this into a full inventory setup" + (target.isEmpty() ? "" : " for " + target) + ": " + wornList())));
 			body.add(full, 6);
-			body.add(javax.swing.Box.createVerticalStrut(16), 0);
+			body.add((JComponent) javax.swing.Box.createVerticalStrut(16), 0);
+		}
+
+		// The evaluator's top upgrades for this target (from the setup as first built; swaps don't re-run it)
+		JsonObject first = original.getAsJsonObject("gear");
+		JsonArray ups = first.has("upgrades") && first.get("upgrades").isJsonArray() ? first.getAsJsonArray("upgrades") : null;
+		if (tab == 0 && ups != null && ups.size() > 0)
+		{
+			JLabel title = Ui.small("NEXT UPGRADES");
+			title.setForeground(ChatComponents.MUTED);
+			body.add(title, 0);
+			for (JsonElement el : ups)
+			{
+				body.add(new Upgrade(el.getAsJsonObject(), target), 6);
+			}
+			body.add((JComponent) javax.swing.Box.createVerticalStrut(16), 0);
 		}
 
 		// Copy to Inventory Setups (full width), and reset after edits
@@ -308,6 +323,116 @@ class GearCard extends Surface implements HeightForWidth
 			}
 			render();
 		}));
+	}
+
+	// ---- Upgrades
+
+	/** "+9.9% DPS · 3.6 h to get": what one upgrade adds and what it costs. */
+	static String upgradeLine(JsonObject u)
+	{
+		StringBuilder sb = new StringBuilder(String.format("+%s%% DPS", Ui.oneDecimal(Ui.num(u, "dpsGainPct"))));
+		if (u.has("blocked") && !u.get("blocked").isJsonNull())
+		{
+			return sb.append(" · needs ").append(Ui.str(u, "blocked").replaceAll(" to make .*", "")).toString();
+		}
+		if (u.has("hours") && !u.get("hours").isJsonNull())
+		{
+			double h = Ui.num(u, "hours");
+			sb.append(" · ").append(h <= 0 ? "no extra time" : h < 1 ? Math.max(1, Math.round(h * 60)) + " min to get" : (h < 10 ? Ui.oneDecimal(h) : String.valueOf(Math.round(h))) + " h to get");
+		}
+		return sb.toString();
+	}
+
+	/** "Pays off after 1,241 kills", when getting it takes time that kills can earn back; otherwise null. */
+	static String payoffLine(JsonObject u)
+	{
+		boolean timed = u.has("hours") && !u.get("hours").isJsonNull() && Ui.num(u, "hours") > 0;
+		boolean blocked = u.has("blocked") && !u.get("blocked").isJsonNull();
+		if (!timed || blocked || !u.has("paysOffAfter") || u.get("paysOffAfter").isJsonNull())
+		{
+			return null;
+		}
+		return "Pays off after " + String.format("%,d", (long) Ui.num(u, "paysOffAfter")) + " kills";
+	}
+
+	/** One upgrade: the item, its name, and what it adds against what it costs. Click to ask Squire for the working. */
+	private static final class Upgrade extends JComponent
+	{
+		private final int H;
+		private final String payoff;
+		private final JsonObject u;
+		private boolean hover;
+
+		Upgrade(JsonObject u, String target)
+		{
+			this.u = u;
+			this.payoff = payoffLine(u);
+			this.H = payoff == null ? 34 : 47;
+			setToolTipText(Ui.str(u, "name") + ": " + upgradeLine(u) + (payoff == null ? "" : ". " + payoff));
+			setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+			setPreferredSize(new Dimension(10, H));
+			addMouseListener(new MouseAdapter()
+			{
+				@Override
+				public void mouseEntered(MouseEvent e)
+				{
+					hover = true;
+					repaint();
+				}
+
+				@Override
+				public void mouseExited(MouseEvent e)
+				{
+					hover = false;
+					repaint();
+				}
+
+				@Override
+				public void mouseReleased(MouseEvent e)
+				{
+					Ui.askSquire.accept("Is the " + Ui.str(u, "name") + " worth getting" + (target.isEmpty() ? "" : " for " + target)
+						+ "? Show how long it takes to get, what it changes, and when it pays off.");
+				}
+			});
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setColor(hover ? SLOT_EDGE : SLOT_BG);
+			g2.fillRect(0, 0, getWidth(), getHeight());
+			BufferedImage img = Crest.itemImage((int) Ui.num(u, "id"), this);
+			if (img != null)
+			{
+				g2.drawImage(img, 3 + (32 - img.getWidth()) / 2, (H - img.getHeight()) / 2, null);
+			}
+			int x = 40, w = getWidth() - x - 6;
+			g2.setFont(FontManager.getRunescapeSmallFont());
+			g2.setColor(Tokens.COLOR_TEXT_BODY);
+			g2.drawString(clip(g2, Ui.str(u, "name"), w), x, 14);
+			g2.setColor(ChatComponents.MUTED);
+			g2.drawString(clip(g2, upgradeLine(u), w), x, 27);
+			if (payoff != null)
+			{
+				g2.drawString(clip(g2, payoff, w), x, 40);
+			}
+			g2.dispose();
+		}
+
+		private static String clip(Graphics2D g, String s, int width)
+		{
+			java.awt.FontMetrics fm = g.getFontMetrics();
+			if (fm.stringWidth(s) <= width)
+			{
+				return s;
+			}
+			while (s.length() > 1 && fm.stringWidth(s + "...") > width)
+			{
+				s = s.substring(0, s.length() - 1);
+			}
+			return s + "...";
+		}
 	}
 
 	// ---- The equipment screen

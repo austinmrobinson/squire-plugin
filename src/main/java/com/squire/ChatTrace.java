@@ -528,6 +528,8 @@ class ChatTrace
 				return "Found your best gear";
 			case "gear_upgrades":
 				return "Ranked gear upgrades";
+			case "evaluate_upgrades":
+				return "Evaluated gear upgrades";
 			// The agent framework's own sandbox tools: Squire reading its guides (skills) and scratch notes
 			case "Bash":
 			case "bash":
@@ -569,6 +571,12 @@ class ChatTrace
 		{
 			String host = hostOf(str(input, "url"));
 			return host.isEmpty() ? null : host;
+		}
+		if (input.has("targets") && input.get("targets").isJsonArray())
+		{
+			List<String> names = new ArrayList<>();
+			input.getAsJsonArray("targets").forEach(t -> names.add(t.isJsonObject() ? str(t.getAsJsonObject(), "name") : ""));
+			return names.isEmpty() ? null : String.join(", ", names);
 		}
 		for (String key : new String[]{"query", "monster", "target", "item", "player", "container", "source", "range", "style"})
 		{
