@@ -661,7 +661,8 @@ class SquireSidebar extends PluginPanel
 		};
 		menu.setOpaque(false);
 		menu.setBackground(new java.awt.Color(0, 0, 0, 0));
-		menu.setBorder(BorderFactory.createEmptyBorder(6, 2, 6, 2));
+		// Just inside the border at the sides, so dividers run edge to edge like the cards' own
+		menu.setBorder(BorderFactory.createEmptyBorder(4, 1, 4, 1));
 		// Every item has its icon; the page on screen has it in the accent colour, like its text
 		java.util.function.BiFunction<String, Boolean, JMenuItem> item = (label, current) ->
 		{
@@ -671,7 +672,7 @@ class SquireSidebar extends PluginPanel
 			i.setForeground(current ? ChatComponents.ACCENT.brighter() : net.runelite.client.ui.ColorScheme.LIGHT_GRAY_COLOR);
 			i.setBackground(MENU_HOVER);
 			i.setOpaque(false);
-			i.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 16));
+			i.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 14));
 			// Only the hovered row is filled, in the panel's own hover colour; the card shows through the rest
 			i.getModel().addChangeListener(e ->
 			{
@@ -681,20 +682,8 @@ class SquireSidebar extends PluginPanel
 			menu.add(i);
 			return i;
 		};
-		Runnable separator = () ->
-		{
-			javax.swing.JComponent line = new javax.swing.JComponent()
-			{
-				@Override
-				protected void paintComponent(java.awt.Graphics g)
-				{
-					g.setColor(ChatComponents.BORDER);
-					g.fillRect(8, 4, getWidth() - 16, 1);
-				}
-			};
-			line.setPreferredSize(new Dimension(10, 9));
-			menu.add(line);
-		};
+		// The panel's standard divider: a 1px line edge to edge
+		Runnable separator = () -> menu.add(HomeView.divider());
 		java.util.function.BiConsumer<JMenuItem, String> icon = (i, name) ->
 			i.setIcon(SvgIcon.load(name, 16, i.getFont() == FontManager.getRunescapeBoldFont() ? ChatComponents.ACCENT.brighter() : null));
 		JMenuItem nowItem = item.apply("Now", page == Page.HOME);
@@ -713,7 +702,8 @@ class SquireSidebar extends PluginPanel
 			javax.swing.JLabel recent = new javax.swing.JLabel("Recent chats");
 			recent.setFont(FontManager.getRunescapeSmallFont());
 			recent.setForeground(ChatComponents.MUTED);
-			recent.setBorder(BorderFactory.createEmptyBorder(2, 12, 2, 12));
+			// In line with the items' icons
+			recent.setBorder(BorderFactory.createEmptyBorder(8, 12, 0, 12));
 			menu.add(recent);
 		}
 		for (ChatSessions.Chat chat : chats.subList(0, Math.min(MENU_CHATS, chats.size())))
