@@ -638,11 +638,13 @@ class SquireSidebar extends PluginPanel
 
 	private static final int MENU_MARGIN = 4;
 	private static final int MENU_RADIUS = 8;
+	private static final java.awt.Color MENU_BG = ChatComponents.HOVER_BG;
+	private static final java.awt.Color MENU_HOVER = Tokens.COLOR_SURFACE_USER;
 
 	/** The menu itself, styled to match the panel rather than the look and feel (also for previews). */
 	JPopupMenu navMenu(int width)
 	{
-		// A card like the rest of the panel: dark outline, stepped pixel corners, lit from the top left
+		// Lighter than the page so it reads as on top, with stepped pixel corners and the menu button's border colour
 		JPopupMenu menu = new JPopupMenu()
 		{
 			@Override
@@ -650,11 +652,10 @@ class SquireSidebar extends PluginPanel
 			{
 				java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
 				int w = getWidth(), h = getHeight(), r = MENU_RADIUS;
-				g2.setColor(ChatComponents.OUTLINE);
-				Pixel.fill(g2, 0, 0, w, h, r + 1);
-				g2.setColor(ChatComponents.CARD_BG);
-				Pixel.fill(g2, 1, 1, w - 2, h - 2, r);
-				Pixel.bevel(g2, 1, 1, w - 2, h - 2, r, ChatComponents.CARD_LIGHT, ChatComponents.CARD_DARK);
+				g2.setColor(MENU_BG);
+				Pixel.fill(g2, 0, 0, w, h, r);
+				g2.setColor(ChatComponents.BORDER);
+				Pixel.draw(g2, 0, 0, w, h, r);
 				g2.dispose();
 			}
 		};
@@ -668,7 +669,7 @@ class SquireSidebar extends PluginPanel
 			i.setIconTextGap(8);
 			i.setFont(current ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeFont());
 			i.setForeground(current ? ChatComponents.ACCENT.brighter() : net.runelite.client.ui.ColorScheme.LIGHT_GRAY_COLOR);
-			i.setBackground(ChatComponents.HOVER_BG);
+			i.setBackground(MENU_HOVER);
 			i.setOpaque(false);
 			i.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 16));
 			// Only the hovered row is filled, in the panel's own hover colour; the card shows through the rest
