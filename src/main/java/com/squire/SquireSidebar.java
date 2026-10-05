@@ -682,8 +682,21 @@ class SquireSidebar extends PluginPanel
 			menu.add(i);
 			return i;
 		};
-		// The panel's standard divider: a 1px line edge to edge
-		Runnable separator = () -> menu.add(HomeView.divider());
+		// A 1px line edge to edge, like the panel's dividers, in the menu's border colour
+		Runnable separator = () ->
+		{
+			javax.swing.JComponent line = new javax.swing.JComponent()
+			{
+				@Override
+				protected void paintComponent(java.awt.Graphics g)
+				{
+					g.setColor(ChatComponents.BORDER);
+					g.fillRect(0, 0, getWidth(), 1);
+				}
+			};
+			line.setPreferredSize(new Dimension(10, 1));
+			menu.add(line);
+		};
 		java.util.function.BiConsumer<JMenuItem, String> icon = (i, name) ->
 			i.setIcon(SvgIcon.load(name, 16, i.getFont() == FontManager.getRunescapeBoldFont() ? ChatComponents.ACCENT.brighter() : null));
 		JMenuItem nowItem = item.apply("Now", page == Page.HOME);
