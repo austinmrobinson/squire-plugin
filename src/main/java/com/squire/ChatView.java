@@ -696,6 +696,12 @@ class ChatView extends JPanel
 		};
 		wrap.setOpaque(false);
 		wrap.add(composer, BorderLayout.CENTER);
+		// The menu (every page, past chats) beside the composer, as on the other pages
+		JPanel menuWrap = new JPanel(new BorderLayout());
+		menuWrap.setOpaque(false);
+		menuWrap.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
+		menuWrap.add(Ui.menuButton(ChatComponents.PANEL_BG), BorderLayout.SOUTH);
+		wrap.add(menuWrap, BorderLayout.WEST);
 		return wrap;
 	}
 

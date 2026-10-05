@@ -39,8 +39,10 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * Home: three summary cards that open the full pages. Progress (the account score), Activity (time played today)
- * and Chat (continue, situational starters, or ask anything).
+ * Now: who you are in one line, then what's happening. During a session, the run or activity in progress with its
+ * count, pace, loot and run times; between sessions, a short briefing on the last one. Then questions worth asking
+ * now (things Squire noticed changed, as prompts that start a chat), the plan, and today at a glance. Everything else
+ * is in the menu beside the composer.
  */
 class HomeView extends JPanel
 {
@@ -97,6 +99,11 @@ class HomeView extends JPanel
 	private JsonObject overview;
 	private String overviewError;
 	private JsonObject today;
+	/** The session in progress or a briefing on the last one (api/now), and the prompts (api/now/prompts). */
+	private JsonObject now;
+	private JsonArray noticed;
+	/** Prompts the player has already asked, so they don't come back. */
+	private final java.util.Set<String> asked = new java.util.HashSet<>();
 	private java.awt.image.BufferedImage chathead;
 	private long lastFetch;
 
@@ -170,6 +177,16 @@ class HomeView extends JPanel
 			today = result.json;
 			render();
 		}));
+		api.now(result -> SwingUtilities.invokeLater(() ->
+		{
+			now = result.json;
+			render();
+		}));
+		api.nowPrompts(result -> SwingUtilities.invokeLater(() ->
+		{
+			noticed = result.json != null && result.json.has("prompts") ? result.json.getAsJsonArray("prompts") : null;
+			render();
+		}));
 		plan.refresh();
 	}
 
@@ -183,6 +200,14 @@ class HomeView extends JPanel
 	{
 		this.overview = overview;
 		this.today = today;
+		render();
+	}
+
+	/** For previews: the Now data and prompts. */
+	void showNow(JsonObject now, JsonArray prompts)
+	{
+		this.now = now;
+		this.noticed = prompts;
 		render();
 	}
 
@@ -239,10 +264,17 @@ class HomeView extends JPanel
 				new JLabel(SvgIcon.load("chevron-right", 16, null)), actions::openSetup));
 			list.add(ChatComponents.place(setup, Align.FILL, 4));
 		}
+		JComponent current = nowCard();
+		if (current != null)
+		{
+			list.add(ChatComponents.place(current, Align.FILL, 4));
+		}
+		for (JComponent prompt : promptCards())
+		{
+			list.add(ChatComponents.place(prompt, Align.FILL, 4));
+		}
 		list.add(ChatComponents.place(planCard(), Align.FILL, 4));
-		list.add(ChatComponents.place(progressCard(), Align.FILL, 4));
-		list.add(ChatComponents.place(activityCard(), Align.FILL, 4));
-		list.add(ChatComponents.place(chatCard(), Align.FILL, 4));
+		list.add(ChatComponents.place(todayCard(), Align.FILL, 4));
 		list.revalidate();
 		list.repaint();
 	}
@@ -256,39 +288,16 @@ class HomeView extends JPanel
 
 	// ---- Cards
 
-	/** Who this is: chathead, name, account type, combat and total level, XP. */
-	/** Who this is, in place of the title bar: chathead, name with account badge and combat level, centred; settings in the corner. */
+	/** Who this is, in one line: chathead, name with the account badge, combat level and rank. Opens the profile. */
 	private JComponent profileCard()
 	{
-		JPanel column = new JPanel();
-		column.setLayout(new BoxLayout(column, BoxLayout.Y_AXIS));
-		column.setOpaque(false);
-		column.setBorder(BorderFactory.createEmptyBorder(32, 12, 16, 12));
-		Portrait portrait = new Portrait(chathead);
-		portrait.setAlignmentX(CENTER_ALIGNMENT);
-		// The portrait opens the profile: the avatar, its frame and gear, and sharing
-		portrait.setToolTipText("Your profile and avatar");
-		portrait.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
-		portrait.addMouseListener(new MouseAdapter()
-		{
-			@Override
-			public void mouseReleased(MouseEvent e)
-			{
-				if (javax.swing.SwingUtilities.isLeftMouseButton(e) && e.getComponent().contains(e.getPoint()))
-				{
-					actions.openProfile();
-				}
-			}
-		});
-		column.add(portrait);
-		column.add(Box.createVerticalStrut(12));
-
+		Portrait portrait = new Portrait(chathead, 1);
 		JLabel name;
 		JLabel sub;
 		if (overview == null)
 		{
 			name = bold(overviewError == null ? "Loading..." : "Your character");
-			sub = text(overviewError == null ? " " : "Log in and sync to see your stats", ChatComponents.MUTED);
+			sub = small(overviewError == null ? " " : "Log in and sync to see your stats");
 		}
 		else
 		{
@@ -299,40 +308,185 @@ class HomeView extends JPanel
 			{
 				name.setIcon(badge);
 				name.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
-				name.setIconTextGap(8);
+				name.setIconTextGap(6);
 				name.setToolTipText(title(type.replace('_', ' ')));
 			}
-			sub = text("Level " + fmt(num(overview, "combatLevel")), ChatComponents.MUTED);
+			JsonObject score = obj(overview, "score");
+			JsonObject tier = score == null ? null : obj(score, "tier");
+			sub = small("Combat " + fmt(num(overview, "combatLevel")) + (tier != null ? "  ·  " + str(tier, "name") : ""));
 		}
-		name.setFont(FontManager.getRunescapeBoldFont().deriveFont(22f));
-		name.setAlignmentX(CENTER_ALIGNMENT);
-		sub.setAlignmentX(CENTER_ALIGNMENT);
-		column.add(name);
-		column.add(sub);
+		JPanel text = new JPanel();
+		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+		text.setOpaque(false);
+		text.add(name);
+		text.add(sub);
+		JPanel row = new JPanel(new BorderLayout(10, 0));
+		row.setOpaque(false);
+		row.setBorder(BorderFactory.createEmptyBorder(8, 8, 6, 8));
+		row.add(portrait, BorderLayout.WEST);
+		JPanel centred = new JPanel(new GridBagLayout());
+		centred.setOpaque(false);
+		GridBagConstraints gbc = new GridBagConstraints();
+		gbc.weightx = 1;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		centred.add(text, gbc);
+		row.add(centred, BorderLayout.CENTER);
+		row.setToolTipText("Your profile and avatar");
+		clickableRow(row, actions::openProfile);
+		return row;
+	}
 
-		// Settings in the top-right corner, where the title bar's button would be
-		javax.swing.JButton settings = ChatComponents.iconButton("settings", "Settings");
-		settings.addActionListener(e -> actions.openSettings());
-		JPanel row = new JPanel(null)
+	/**
+	 * What's happening: the session in progress (its run or activity, count, pace, loot and run times), or between
+	 * sessions a short briefing on the last one. Null before anything's been played.
+	 */
+	private JComponent nowCard()
+	{
+		if (now == null)
+		{
+			return null;
+		}
+		JsonObject live = obj(now, "live");
+		if (live != null)
+		{
+			Surface c = homeCard();
+			JLabel name = bold(str(live, "name"));
+			JLabel tag = small("Live");
+			tag.setForeground(Tokens.COLOR_STATUS_DONE);
+			c.add(row(name, tag));
+			c.add(Box.createVerticalStrut(8));
+			JPanel stats = new JPanel(new java.awt.GridLayout(1, 3, 8, 0));
+			stats.setOpaque(false);
+			String unit = "runs".equals(str(live, "unit")) ? "runs" : "kills";
+			double count = num(live, "count");
+			stats.add(stat(count > 0 ? fmt(count) : duration(num(live, "minutes")), count > 0 ? unit : "played"));
+			stats.add(stat(live.has("perHour") && !live.get("perHour").isJsonNull() ? oneDecimal(num(live, "perHour")) + "/hr" : "-", "pace"));
+			stats.add(stat(num(live, "loot") > 0 ? shortNumber(num(live, "loot")) : "-", "loot"));
+			stats.setAlignmentX(LEFT_ALIGNMENT);
+			stats.setMaximumSize(new Dimension(Integer.MAX_VALUE, stats.getPreferredSize().height));
+			c.add(stats);
+			List<String> times = new ArrayList<>();
+			if (live.has("lastSeconds") && !live.get("lastSeconds").isJsonNull())
+			{
+				times.add("Last " + clock(num(live, "lastSeconds")));
+			}
+			if (live.has("bestSeconds") && !live.get("bestSeconds").isJsonNull())
+			{
+				times.add("best " + clock(num(live, "bestSeconds")));
+			}
+			if (!times.isEmpty())
+			{
+				c.add(Box.createVerticalStrut(6));
+				c.add(row(small(String.join("  ·  ", times)), null));
+			}
+			Ui.clickable(c, actions::openActivity);
+			return c;
+		}
+		String briefing = str(now, "briefing");
+		if (briefing.isEmpty())
+		{
+			return null;
+		}
+		Surface c = homeCard();
+		c.add(row(small("Last session"), null));
+		c.add(Box.createVerticalStrut(4));
+		c.add(wrapped(briefing, ColorScheme.LIGHT_GRAY_COLOR));
+		Ui.clickable(c, actions::openActivity);
+		return c;
+	}
+
+	/** Wrapped text sized to the page's width (a card's inner width), so it lays out right the first time. */
+	private JComponent wrapped(String markdown, Color color)
+	{
+		Bubble b = new Bubble(null, color, false, false, new java.awt.Insets(0, 0, 0, 0));
+		b.setHtml(MarkdownLite.toHtml(markdown));
+		JPanel wrap = new JPanel(new BorderLayout())
 		{
 			@Override
 			public Dimension getPreferredSize()
 			{
-				return column.getPreferredSize();
-			}
-
-			@Override
-			public void doLayout()
-			{
-				column.setBounds(0, 0, getWidth(), getHeight());
-				Dimension b = settings.getPreferredSize();
-				settings.setBounds(getWidth() - b.width, 0, b.width, b.height);
+				// The list's width less the card's padding (12 each side) and outline
+				int w = (list.getWidth() > 0 ? list.getWidth() : SquireSidebar.DEFAULT_WIDTH - 8) - 28;
+				return new Dimension(w, b.heightForWidth(Math.max(40, w)));
 			}
 		};
-		row.setOpaque(false);
-		row.add(settings);
-		row.add(column);
-		return row;
+		wrap.setOpaque(false);
+		wrap.add(b, BorderLayout.CENTER);
+		wrap.setAlignmentX(LEFT_ALIGNMENT);
+		return wrap;
+	}
+
+	/** What the composer says on Now: about the run in progress, or anything. */
+	String placeholder()
+	{
+		return now != null && obj(now, "live") != null ? "Ask about this run..." : "Ask anything...";
+	}
+
+	private static String clock(double seconds)
+	{
+		int s = (int) Math.round(seconds);
+		return String.format("%d:%02d", s / 60, s % 60);
+	}
+
+	/**
+	 * Questions worth asking now: what Squire noticed changed (an upgrade within reach, a drop you're dry on, a level
+	 * that unlocked something), each with why underneath. Tapping one starts the chat; asked ones don't come back.
+	 */
+	private List<JComponent> promptCards()
+	{
+		List<JComponent> out = new ArrayList<>();
+		List<String[]> prompts = new ArrayList<>(); // id, question, why, what to send
+		if (noticed != null)
+		{
+			for (JsonElement e : noticed)
+			{
+				JsonObject p = e.getAsJsonObject();
+				prompts.add(new String[]{str(p, "id"), str(p, "question"), str(p, "why"), str(p, "question")});
+			}
+		}
+		// What the player is doing this moment (a level just gained, a drop, a fight), from the game itself
+		for (Scenarios.Prompt p : livePrompts.get())
+		{
+			prompts.add(new String[]{"live:" + p.title, p.title, "Just now", p.prompt});
+		}
+		for (String[] p : prompts)
+		{
+			String id = p[0];
+			if (asked.contains(id) || out.size() >= MAX_PROMPTS)
+			{
+				continue;
+			}
+			Surface c = homeCard();
+			c.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 12));
+			JLabel q = text(p[1], Color.WHITE);
+			q.setIcon(SvgIcon.load("new-chat", 16, ChatComponents.ACCENT.brighter()));
+			q.setIconTextGap(8);
+			JLabel why = small(p[2]);
+			why.setBorder(BorderFactory.createEmptyBorder(0, 24, 0, 0));
+			c.add(row(q, null));
+			c.add(row(why, null));
+			Ui.clickable(c, () ->
+			{
+				asked.add(id);
+				actions.startChat(p[3]);
+				render();
+			});
+			out.add(c);
+		}
+		return out;
+	}
+
+	private static final int MAX_PROMPTS = 3;
+
+	/** Today at a glance: time and XP. Opens Activity. */
+	private JComponent todayCard()
+	{
+		Surface c = listCard();
+		double total = today == null ? 0 : num(today, "totalMinutes");
+		double xpToday = today == null ? 0 : num(today, "totalXp");
+		String value = today == null ? "Loading..." : total > 0 ? duration(total) + (xpToday > 0 ? "  ·  +" + shortNumber(xpToday) + " XP" : "") : "Nothing yet";
+		c.add(listRow(SvgIcon.load("progress", 16, null), "Today", text(value, ColorScheme.LIGHT_GRAY_COLOR), actions::openActivity));
+		return c;
 	}
 
 	/** The in-game account badge (RuneLite ships these with its Hiscore plugin); null for normal accounts. */
@@ -370,7 +524,8 @@ class HomeView extends JPanel
 	private static final class Portrait extends JComponent
 	{
 		/** The frame is drawn at half resolution (one art pixel = 2 screen pixels) and scaled up without smoothing. */
-		private static final int ART = 38, SCALE = 2, SIZE = ART * SCALE;
+		private static final int ART = 38;
+		private final int SCALE, SIZE;
 		private static final java.awt.Color OUTLINE = new java.awt.Color(0x14100A);
 		private static final java.awt.Color GOLD = new java.awt.Color(0xB39457);
 		private static final java.awt.Color GOLD_LIGHT = new java.awt.Color(0xE3C47F);
@@ -380,8 +535,10 @@ class HomeView extends JPanel
 		private static final double HOLE = 14.5;
 		private final java.awt.image.BufferedImage image;
 
-		Portrait(java.awt.image.BufferedImage image)
+		Portrait(java.awt.image.BufferedImage image, int scale)
 		{
+			this.SCALE = scale;
+			this.SIZE = ART * scale;
 			this.image = image;
 			setPreferredSize(new Dimension(SIZE, SIZE));
 			setMaximumSize(new Dimension(SIZE, SIZE));
@@ -580,78 +737,6 @@ class HomeView extends JPanel
 		}
 	}
 
-	private JComponent progressCard()
-	{
-		Surface c = homeCard();
-		c.setBorder(BorderFactory.createEmptyBorder(10, 12, 16, 12));
-		JComponent head = header("Progress", null);
-		c.add(head);
-		c.add(Box.createVerticalStrut(16));
-		JsonObject score = overview == null ? null : obj(overview, "score");
-		if (score == null)
-		{
-			c.add(row(small(overview == null && overviewError == null ? "Loading..." : "No progress synced yet"), null));
-			if (overviewError != null)
-			{
-				c.add(Box.createVerticalStrut(6));
-				c.add(note(overviewError));
-			}
-			Ui.clickable(c, actions::openProgress);
-			return c;
-		}
-
-		List<ScoreChart.Segment> segments = new ArrayList<>();
-		for (JsonElement e : score.getAsJsonArray("parts"))
-		{
-			JsonObject part = e.getAsJsonObject();
-			segments.add(new ScoreChart.Segment(num(part, "points"), ScoreChart.partColor(str(part, "key"))));
-		}
-		List<Integer> ticks = new ArrayList<>();
-		for (JsonElement e : score.getAsJsonArray("checkpoints"))
-		{
-			int at = (int) num(e.getAsJsonObject(), "at");
-			if (at > 0)
-			{
-				ticks.add(at);
-			}
-		}
-		double value = num(score, "score");
-		JsonObject tier = obj(score, "tier");
-		String tierName = tier != null ? str(tier, "name") : str(score, "stage");
-
-		ScoreChart.Donut donut = new ScoreChart.Donut(72, value, segments, ticks);
-		if (tier != null)
-		{
-			donut.withCrest((int) num(tier, "itemId"), tierColor(tier));
-		}
-		donut.setToolTipText("Account score " + oneDecimal(value) + " / 100");
-
-		JPanel side = new JPanel();
-		side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
-		side.setOpaque(false);
-		JLabel stage = bold(tierName);
-		stage.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
-		side.add(row(stage, null));
-		JsonObject next = obj(score, "next");
-		side.add(row(text(next == null ? "Top tier reached" : oneDecimal(num(next, "pointsToGo")) + " pts to " + str(next, "name"), ChatComponents.MUTED), null));
-
-		JPanel hero = new JPanel(new BorderLayout(16, 0));
-		hero.setOpaque(false);
-		hero.add(donut, BorderLayout.WEST);
-		JPanel centred = new JPanel(new GridBagLayout());
-		centred.setOpaque(false);
-		GridBagConstraints gbc = new GridBagConstraints();
-		gbc.weightx = 1;
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-		centred.add(side, gbc);
-		hero.add(centred, BorderLayout.CENTER);
-		hero.setAlignmentX(LEFT_ALIGNMENT);
-		hero.setMaximumSize(new Dimension(Integer.MAX_VALUE, hero.getPreferredSize().height));
-		c.add(hero);
-		Ui.clickable(c, actions::openProgress);
-		return c;
-	}
-
 	static Color tierColor(JsonObject tier)
 	{
 		try
@@ -662,135 +747,6 @@ class HomeView extends JPanel
 		{
 			return ChatComponents.ACCENT;
 		}
-	}
-
-	private JComponent activityCard()
-	{
-		Surface c = listCard();
-		JPanel top = new JPanel();
-		top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
-		top.setOpaque(false);
-		top.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
-		top.add(header("Activity", null));
-		top.add(Box.createVerticalStrut(10));
-
-		double total = today == null ? 0 : num(today, "totalMinutes");
-		double xpToday = today == null ? 0 : num(today, "totalXp");
-		JLabel big = bold(duration(total));
-		big.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
-		JLabel xpLabel = null;
-		if (xpToday > 0)
-		{
-			xpLabel = bold("+" + shortNumber(xpToday) + " XP");
-			xpLabel.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
-			xpLabel.setForeground(ChatComponents.ACCENT);
-		}
-		top.add(row(big, xpLabel));
-		top.add(row(text(today == null ? "Loading..." : total > 0 ? "played today" : "Nothing tracked yet today", ChatComponents.MUTED),
-			xpToday > 0 ? text("gained today", ChatComponents.MUTED) : null));
-
-		List<Part> parts = new ArrayList<>();
-		if (today != null && total > 0)
-		{
-			JsonArray acts = today.getAsJsonArray("activities");
-			for (int i = 0; i < acts.size(); i++)
-			{
-				JsonObject a = acts.get(i).getAsJsonObject();
-				parts.add(new Part(str(a, "name"), num(a, "minutes"), Ui.activityColor(i, str(a, "name"))));
-			}
-			top.add(Box.createVerticalStrut(10));
-			ActivityCharts.ShareBar bar = new ActivityCharts.ShareBar(parts);
-			bar.setAlignmentX(LEFT_ALIGNMENT);
-			top.add(bar);
-		}
-		clickableRow(top, actions::openActivity);
-		top.setAlignmentX(LEFT_ALIGNMENT);
-		c.add(top);
-
-		for (int i = 0; i < Math.min(3, parts.size()); i++)
-		{
-			Part p = parts.get(i);
-			if (i > 0)
-			{
-				c.add(divider());
-			}
-			c.add(listRow(dotIcon(p.color), p.name, text(duration(p.value), Color.WHITE), actions::openActivity));
-		}
-		c.add(divider());
-		c.add(listRow(SvgIcon.load("progress", 16, null), "Gains", text("XP, kills, loot", ChatComponents.MUTED), actions::openGained));
-		c.add(divider());
-		c.add(listRow(SvgIcon.load("more", 16, null), "See more", null, actions::openActivity));
-		return c;
-	}
-
-	private JComponent chatCard()
-	{
-		Surface c = listCard();
-		JPanel top = new JPanel(new BorderLayout());
-		top.setOpaque(false);
-		top.setBorder(BorderFactory.createEmptyBorder(10, 12, 4, 12));
-		top.add(header("Chat", null), BorderLayout.CENTER);
-		clickableRow(top, actions::openChats);
-		top.setAlignmentX(LEFT_ALIGNMENT);
-		top.setMaximumSize(new Dimension(Integer.MAX_VALUE, top.getPreferredSize().height));
-		c.add(top);
-
-		javax.swing.Icon bubble = SvgIcon.load("chat-bubble", 16, null);
-		int shown = 0;
-		// Recent conversations first, with what they're doing
-		List<ChatSessions.Chat> chats = sessions.chats();
-		for (ChatSessions.Chat chat : chats.subList(0, Math.min(RECENT_CHATS, chats.size())))
-		{
-			JComponent status = chat.running() ? ChatTraceViews.spinner(ChatComponents.ACCENT)
-				: chat.unread ? text("New", ChatComponents.ACCENT) : null;
-			if (shown > 0)
-			{
-				c.add(divider());
-			}
-			c.add(listRow(bubble, chat.title, status, () -> actions.openChat(chat.id)));
-			shown++;
-		}
-
-		// Then conversation starters: what they're doing right now, then ideas from their account
-		List<String[]> prompts = new ArrayList<>();
-		for (Scenarios.Prompt p : livePrompts.get())
-		{
-			prompts.add(new String[]{p.title, p.prompt});
-		}
-		JsonArray fromServer = overview == null ? null : overview.getAsJsonArray("chatPrompts");
-		if (fromServer != null)
-		{
-			for (JsonElement e : fromServer)
-			{
-				JsonObject p = e.getAsJsonObject();
-				prompts.add(new String[]{str(p, "title"), str(p, "prompt")});
-			}
-		}
-		if (prompts.isEmpty())
-		{
-			for (String p : FALLBACK_PROMPTS)
-			{
-				prompts.add(new String[]{p, p});
-			}
-		}
-		javax.swing.Icon spark = SvgIcon.load("new-chat", 16, null);
-		for (String[] p : prompts)
-		{
-			if (shown >= CHAT_CARD_ROWS)
-			{
-				break;
-			}
-			if (shown > 0)
-			{
-				c.add(divider());
-			}
-			c.add(listRow(spark, p[0], null, () -> actions.startChat(p[1])));
-			shown++;
-		}
-		c.add(divider());
-		c.add(listRow(SvgIcon.load("chats", 16, null), chats.isEmpty() ? "New chat" : "All chats", null,
-			chats.isEmpty() ? actions::newChat : actions::openChats));
-		return c;
 	}
 
 	/** A Home card whose rows run edge to edge (Activity, Chat). */
@@ -1058,7 +1014,12 @@ class HomeView extends JPanel
 
 	private static JComponent note(String markdown)
 	{
-		Bubble b = new Bubble(null, ChatComponents.MUTED, false, false, new java.awt.Insets(0, 0, 0, 0));
+		return note(markdown, ChatComponents.MUTED);
+	}
+
+	private static JComponent note(String markdown, Color color)
+	{
+		Bubble b = new Bubble(null, color, false, false, new java.awt.Insets(0, 0, 0, 0));
 		b.setHtml(MarkdownLite.toHtml(markdown));
 		JPanel wrap = new JPanel(new BorderLayout())
 		{

@@ -29,16 +29,17 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 
 /**
- * The plugin's single sidebar entry. Pages form a stack under Home: Progress, Activity, Settings and Chats, with a
- * chat under Chats. Every page but Home has an iOS-style bar: back to the page above (right-click or long-press it
- * for the whole stack), the page's title centred, its actions on the right. The floating "Ask anything..." composer
- * sits over every page except the chats, and settles into the chat's composer when used. Drag the left edge to resize.
+ * The plugin's single sidebar entry. Now, Activity, Account, a chat, all chats and Settings are top-level: the menu
+ * button beside every composer goes to any of them (and the recent chats). The pages under them (Gained, a progress
+ * detail, a boss, the plan, the profile) get an iOS-style bar with back to the page above. The "Ask anything..."
+ * composer is docked along the bottom of every page but the chats, and settles into the chat's composer when used.
+ * Drag the left edge to resize.
  */
 class SquireSidebar extends PluginPanel
 {
 	private enum Page
 	{
-		HOME("Squire"), PROGRESS("Progress"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), GAINED("Gained"),
+		HOME("Now"), PROGRESS("Account"), ACTIVITY("Activity"), CHATS("Chats"), CHAT("Chat"), SETTINGS("Settings"), CONNECT("Connect an AI app"), SYNC("What's synced"), PLAN("Plan"), GAINED("Gained"),
 		PROGRESS_DETAIL("Progress"), BOSS("Boss"), WELCOME("Squire"), SETUP("Set up"), PROFILE("Profile");
 
 		final String title;
@@ -53,11 +54,17 @@ class SquireSidebar extends PluginPanel
 		{
 			switch (this)
 			{
+				// Top-level: reached from the menu, not a stack
 				case HOME:
 				case WELCOME:
-					return null;
+				case PROGRESS:
+				case ACTIVITY:
 				case CHAT:
-					return CHATS;
+				case CHATS:
+				case SETTINGS:
+					return null;
+				case GAINED:
+					return ACTIVITY;
 				case CONNECT:
 				case SYNC:
 					return SETTINGS;
@@ -204,6 +211,8 @@ class SquireSidebar extends PluginPanel
 				}
 			}
 		});
+		// The menu beside every composer
+		Ui.openMenu = this::showNavMenu;
 		// "Ask Squire" lines on the Progress and Activity cards start a chat with their question
 		Ui.askSquire = message ->
 		{
@@ -462,7 +471,7 @@ class SquireSidebar extends PluginPanel
 		for (Page p = next.parent(); p != null; p = p.parent())
 		{
 			Page target = p;
-			ancestors.add(new NavBar.Crumb(p == Page.HOME ? "Home" : p.title, () -> show(target)));
+			ancestors.add(new NavBar.Crumb(p.title, () -> show(target)));
 		}
 		List<JButton> actions = new ArrayList<>();
 		if (next == Page.CHAT)
@@ -544,6 +553,8 @@ class SquireSidebar extends PluginPanel
 				return "For fun".equals(progressDetail.pageTitle()) ? "Ask about how you play..." : "Ask about your " + progressDetail.pageTitle().toLowerCase() + "...";
 			case BOSS:
 				return "Ask about " + boss.pageTitle() + "...";
+			case HOME:
+				return home.placeholder();
 			default:
 				return "Ask anything...";
 		}
@@ -609,6 +620,60 @@ class SquireSidebar extends PluginPanel
 	FloatingAsk floatingAsk()
 	{
 		return ask;
+	}
+
+	private static final int MENU_CHATS = 3;
+
+	/**
+	 * The menu beside the composer, opening upward: Now, Activity and Account; the recent chats, a new chat and all
+	 * chats; Settings. The page on screen is ticked.
+	 */
+	private void showNavMenu(java.awt.Component anchor)
+	{
+		JPopupMenu menu = new JPopupMenu();
+		// The page on screen is in the accent colour and bold (the game's fonts have no tick)
+		java.util.function.BiFunction<String, Boolean, JMenuItem> item = (label, current) ->
+		{
+			JMenuItem i = new JMenuItem(label);
+			i.setFont(current ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeFont());
+			if (current)
+			{
+				i.setForeground(ChatComponents.ACCENT.brighter());
+			}
+			menu.add(i);
+			return i;
+		};
+		item.apply("Now", page == Page.HOME).addActionListener(e -> show(Page.HOME));
+		item.apply("Activity", page == Page.ACTIVITY || page == Page.GAINED).addActionListener(e -> show(Page.ACTIVITY));
+		item.apply("Account", page == Page.PROGRESS || page == Page.PROGRESS_DETAIL || page == Page.BOSS).addActionListener(e -> show(Page.PROGRESS));
+		menu.addSeparator();
+		JMenuItem recent = new JMenuItem("Recent chats");
+		recent.setFont(FontManager.getRunescapeSmallFont());
+		recent.setEnabled(false);
+		menu.add(recent);
+		List<ChatSessions.Chat> chats = sessions.chats();
+		for (ChatSessions.Chat chat : chats.subList(0, Math.min(MENU_CHATS, chats.size())))
+		{
+			String title = chat.title.length() > 32 ? chat.title.substring(0, 31) + "..." : chat.title;
+			boolean open = page == Page.CHAT && chat.id.equals(sessions.current().id());
+			item.apply(title + (chat.running() ? "  ..." : chat.unread ? "  (new)" : ""), open).addActionListener(e ->
+			{
+				sessions.open(chat.id);
+				show(Page.CHAT);
+			});
+		}
+		item.apply("New chat", false).addActionListener(e ->
+		{
+			sessions.newChat();
+			show(Page.CHAT);
+		});
+		if (!chats.isEmpty())
+		{
+			item.apply("All chats", page == Page.CHATS).addActionListener(e -> show(Page.CHATS));
+		}
+		menu.addSeparator();
+		item.apply("Settings", page == Page.SETTINGS || page == Page.CONNECT || page == Page.SYNC).addActionListener(e -> show(Page.SETTINGS));
+		menu.show(anchor, 0, -menu.getPreferredSize().height - 4);
 	}
 
 	/** The chat's "..." menu: copy its ID or the whole conversation, or delete it. */

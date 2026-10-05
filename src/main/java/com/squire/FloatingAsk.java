@@ -27,21 +27,22 @@ import javax.swing.event.DocumentListener;
 import net.runelite.client.ui.FontManager;
 
 /**
- * The floating "Ask anything..." composer over the non-chat pages: a quick way into a new chat. It starts compact,
- * grows sideways as the text gets longer until it reaches the panel's width, then wraps onto more lines upward, like
- * the chat's own composer. Enter sends (Shift+Enter for a new line); with nothing typed it opens the chat.
+ * The "Ask anything..." composer docked at the bottom of the non-chat pages: a quick way into a new chat, with the
+ * menu button beside it (the way to every page). It spans the panel and wraps onto more lines upward as the text
+ * grows, like the chat's own composer. Enter sends (Shift+Enter for a new line); with nothing typed it opens the chat.
  */
 class FloatingAsk extends JPanel
 {
 	static final int MIN_WIDTH = 200;
-	static final int BOTTOM = 20;
-	static final int SIDE = 12;
-	/** Bottom padding pages need so their last content can scroll clear of the composer. */
-	static final int CLEARANCE = 40 + BOTTOM + 12;
+	static final int BOTTOM = 0;
+	static final int SIDE = 0;
+	/** Bottom padding under pages' last content (the composer is docked below them, not over them). */
+	static final int CLEARANCE = 8;
 	private static final int ROW_HEIGHT_MIN = 40;
 	private static final int MAX_ROWS = 6;
-	/** Shadow margin around the box (the shadow paints outside it). */
-	static final int PAD = 16;
+	/** Margin around the box. */
+	static final int PAD = 0;
+	private final JComponent menu = Ui.menuButton(ChatComponents.CARD_BG);
 
 	private final Surface box = new Surface(ChatComponents.CARD_BG, 8, false).border(ChatComponents.BORDER).sunken();
 	private final ChatView.PlaceholderTextArea input = new ChatView.PlaceholderTextArea("Ask anything...");
@@ -75,6 +76,11 @@ class FloatingAsk extends JPanel
 		sendWrap.add(send, BorderLayout.SOUTH);
 		box.add(sendWrap, BorderLayout.EAST);
 		add(box, BorderLayout.CENTER);
+		JPanel menuWrap = new JPanel(new BorderLayout());
+		menuWrap.setOpaque(false);
+		menuWrap.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
+		menuWrap.add(menu, BorderLayout.SOUTH);
+		add(menuWrap, BorderLayout.WEST);
 
 		Runnable submit = () ->
 		{
@@ -167,7 +173,7 @@ class FloatingAsk extends JPanel
 	private int chrome()
 	{
 		Insets b = box.getInsets();
-		return b.left + b.right + 8 + send.getPreferredSize().width + 4;
+		return b.left + b.right + 8 + send.getPreferredSize().width + 4 + menu.getPreferredSize().width + 4;
 	}
 
 	/** What the box says when empty; it changes with the page ("Ask about or change this plan..."). */
@@ -192,7 +198,8 @@ class FloatingAsk extends JPanel
 		{
 			longest = Math.max(longest, fm.stringWidth(line));
 		}
-		return Math.max(Math.min(MIN_WIDTH, max), Math.min(max, longest + chrome()));
+		// Docked: always the panel's width
+		return max;
 	}
 
 	/** Height for the text at this width: one line, then more as it wraps, up to MAX_ROWS (then it scrolls). */
@@ -232,22 +239,12 @@ class FloatingAsk extends JPanel
 	@Override
 	protected void paintComponent(Graphics g)
 	{
-		// A soft layered drop shadow under the box
-		Graphics2D g2 = (Graphics2D) g.create();
-		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		int x = PAD, w = getWidth() - PAD * 2, h = getHeight() - PAD;
-		for (int i = 1; i <= 6; i++)
-		{
-			g2.setColor(new Color(0, 0, 0, 22));
-			int grow = i - 2;
-			Pixel.fill(g2, x - grow, i * 2 - grow, w + grow * 2, h + grow * 2, (16 + grow * 2) / 2.0);
-		}
-		g2.dispose();
+		// Docked: no shadow, it sits on the panel
 	}
 
 	/**
-	 * Lays a page out full size with the composer floating centred near its bottom. Hides the composer (and gives
-	 * the page the whole area) when it isn't wanted.
+	 * Lays a page out above the composer, which is docked along the bottom. When the composer isn't wanted (the chat
+	 * pages have their own) the page gets the whole area.
 	 */
 	static final class Overlay implements LayoutManager
 	{
@@ -286,10 +283,15 @@ class FloatingAsk extends JPanel
 		public void layoutContainer(Container parent)
 		{
 			int w = parent.getWidth(), h = parent.getHeight();
-			back.setBounds(0, 0, w, h);
+			if (!front.isVisible())
+			{
+				back.setBounds(0, 0, w, h);
+				return;
+			}
 			Dimension f = front.sizeFor(w);
-			int fw = Math.min(f.width, w + 2 * PAD);
-			front.setBounds((w - fw) / 2, h - BOTTOM - f.height + PAD, fw, f.height);
+			int gap = 4;
+			back.setBounds(0, 0, w, Math.max(0, h - f.height - gap));
+			front.setBounds(0, h - f.height, w, f.height);
 		}
 	}
 }

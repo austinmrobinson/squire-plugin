@@ -54,6 +54,18 @@ class AccountApi
 		get("api/overview", Map.of(), callback);
 	}
 
+	/** The Now page: the run in progress, or a briefing on the last session. */
+	void now(Consumer<Result> callback)
+	{
+		get("api/now", Map.of(), callback);
+	}
+
+	/** Questions worth asking now ("Squire noticed"); slower than the rest, so fetched on its own. */
+	void nowPrompts(Consumer<Result> callback)
+	{
+		get("api/now/prompts", Map.of(), callback);
+	}
+
 	/** Time played for a day, week or month (offset 0 = the current one), in this computer's timezone. */
 	void activity(String range, int offset, Consumer<Result> callback)
 	{

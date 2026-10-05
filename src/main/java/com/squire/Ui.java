@@ -103,6 +103,54 @@ final class Ui
 
 	/** Starts a new chat with a question; set by the sidebar. */
 	static java.util.function.Consumer<String> askSquire = q -> {};
+	/** Open the menu that gets anywhere (Now, Activity, Account, chats, Settings), from the button beside a composer. */
+	static java.util.function.Consumer<java.awt.Component> openMenu = c -> {};
+
+	/** Height of a one-line composer, which the menu button matches. */
+	static final int COMPOSER_HEIGHT = 40;
+
+	/**
+	 * The menu button that sits beside every composer: a square in the composer's own style (its fill, border and
+	 * sunken edge), with the menu icon. Click it for Now, Activity, Account, the chats and Settings.
+	 */
+	static JComponent menuButton(Color fill)
+	{
+		ChatComponents.Surface box = new ChatComponents.Surface(fill, 8, false).border(ChatComponents.BORDER).sunken();
+		box.setLayout(new java.awt.BorderLayout());
+		JLabel icon = new JLabel(SvgIcon.load("menu", 16, null), JLabel.CENTER);
+		box.add(icon, java.awt.BorderLayout.CENTER);
+		Dimension size = new Dimension(COMPOSER_HEIGHT, COMPOSER_HEIGHT);
+		box.setPreferredSize(size);
+		box.setMinimumSize(size);
+		box.setMaximumSize(size);
+		box.setToolTipText("Go to...");
+		box.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		box.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseReleased(MouseEvent e)
+			{
+				// On release rather than click: Swing drops a click if the pointer moves a pixel while pressed
+				if (javax.swing.SwingUtilities.isLeftMouseButton(e) && box.contains(e.getPoint()))
+				{
+					openMenu.accept(box);
+				}
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent e)
+			{
+				icon.setIcon(SvgIcon.load("menu", 16, Color.WHITE));
+			}
+
+			@Override
+			public void mouseExited(MouseEvent e)
+			{
+				icon.setIcon(SvgIcon.load("menu", 16, null));
+			}
+		});
+		return box;
+	}
 
 	/**
 	 * A card with a small chat-plus button in its top-right corner that asks Squire a question about it (the
