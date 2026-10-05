@@ -630,19 +630,25 @@ class SquireSidebar extends PluginPanel
 	 */
 	private void showNavMenu(java.awt.Component anchor)
 	{
-		JPopupMenu menu = navMenu();
-		menu.show(anchor, 0, -menu.getPreferredSize().height - 4);
+		// The panel's width less a margin each side, opening upward from just above the button
+		JPopupMenu menu = navMenu(getWidth() - 2 * MENU_MARGIN);
+		java.awt.Point at = javax.swing.SwingUtilities.convertPoint(anchor, 0, 0, this);
+		menu.show(this, MENU_MARGIN, at.y - menu.getPreferredSize().height - 4);
 	}
 
+	private static final int MENU_MARGIN = 8;
+
 	/** The menu itself, styled to match the panel rather than the look and feel (also for previews). */
-	JPopupMenu navMenu()
+	JPopupMenu navMenu(int width)
 	{
 		JPopupMenu menu = new JPopupMenu();
 		menu.setBackground(ChatComponents.CARD_BG);
 		menu.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(ChatComponents.BORDER), BorderFactory.createEmptyBorder(4, 0, 4, 0)));
+		// Every item has its icon; the page on screen has it in the accent colour, like its text
 		java.util.function.BiFunction<String, Boolean, JMenuItem> item = (label, current) ->
 		{
 			JMenuItem i = new JMenuItem(label);
+			i.setIconTextGap(8);
 			i.setFont(current ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeFont());
 			i.setForeground(current ? ChatComponents.ACCENT.brighter() : net.runelite.client.ui.ColorScheme.LIGHT_GRAY_COLOR);
 			i.setBackground(ChatComponents.CARD_BG);
@@ -667,9 +673,17 @@ class SquireSidebar extends PluginPanel
 			line.setPreferredSize(new Dimension(10, 9));
 			menu.add(line);
 		};
-		item.apply("Now", page == Page.HOME).addActionListener(e -> show(Page.HOME));
-		item.apply("Activity", page == Page.ACTIVITY || page == Page.GAINED).addActionListener(e -> show(Page.ACTIVITY));
-		item.apply("Account", page == Page.PROGRESS || page == Page.PROGRESS_DETAIL || page == Page.BOSS).addActionListener(e -> show(Page.PROGRESS));
+		java.util.function.BiConsumer<JMenuItem, String> icon = (i, name) ->
+			i.setIcon(SvgIcon.load(name, 16, i.getFont() == FontManager.getRunescapeBoldFont() ? ChatComponents.ACCENT.brighter() : null));
+		JMenuItem nowItem = item.apply("Now", page == Page.HOME);
+		icon.accept(nowItem, "home");
+		nowItem.addActionListener(e -> show(Page.HOME));
+		JMenuItem activityItem = item.apply("Activity", page == Page.ACTIVITY || page == Page.GAINED);
+		icon.accept(activityItem, "progress");
+		activityItem.addActionListener(e -> show(Page.ACTIVITY));
+		JMenuItem accountItem = item.apply("Account", page == Page.PROGRESS || page == Page.PROGRESS_DETAIL || page == Page.BOSS);
+		icon.accept(accountItem, "shield");
+		accountItem.addActionListener(e -> show(Page.PROGRESS));
 		separator.run();
 		List<ChatSessions.Chat> chats = sessions.chats();
 		if (!chats.isEmpty())
@@ -677,23 +691,23 @@ class SquireSidebar extends PluginPanel
 			javax.swing.JLabel recent = new javax.swing.JLabel("Recent chats");
 			recent.setFont(FontManager.getRunescapeSmallFont());
 			recent.setForeground(ChatComponents.MUTED);
-			// In line with the items' text, which sits after the menu's icon gutter
-			recent.setBorder(BorderFactory.createEmptyBorder(2, 29, 2, 12));
+			recent.setBorder(BorderFactory.createEmptyBorder(2, 12, 2, 12));
 			menu.add(recent);
 		}
 		for (ChatSessions.Chat chat : chats.subList(0, Math.min(MENU_CHATS, chats.size())))
 		{
 			String title = chat.title.length() > 28 ? chat.title.substring(0, 27) + "..." : chat.title;
 			boolean open = page == Page.CHAT && chat.id.equals(sessions.current().id());
-			item.apply(title + (chat.running() ? "  · working" : chat.unread ? "  · new" : ""), open).addActionListener(e ->
+			JMenuItem chatItem = item.apply(title + (chat.running() ? "  · working" : chat.unread ? "  · new" : ""), open);
+			icon.accept(chatItem, "chat-bubble");
+			chatItem.addActionListener(e ->
 			{
 				sessions.open(chat.id);
 				show(Page.CHAT);
 			});
 		}
 		JMenuItem fresh = item.apply("New chat", false);
-		fresh.setIcon(SvgIcon.load("new-chat", 16, ChatComponents.ACCENT.brighter()));
-		fresh.setIconTextGap(6);
+		icon.accept(fresh, "new-chat");
 		fresh.addActionListener(e ->
 		{
 			sessions.newChat();
@@ -701,10 +715,15 @@ class SquireSidebar extends PluginPanel
 		});
 		if (!chats.isEmpty())
 		{
-			item.apply("All chats", page == Page.CHATS).addActionListener(e -> show(Page.CHATS));
+			JMenuItem all = item.apply("All chats", page == Page.CHATS);
+			icon.accept(all, "chats");
+			all.addActionListener(e -> show(Page.CHATS));
 		}
 		separator.run();
-		item.apply("Settings", page == Page.SETTINGS || page == Page.CONNECT || page == Page.SYNC).addActionListener(e -> show(Page.SETTINGS));
+		JMenuItem settingsItem = item.apply("Settings", page == Page.SETTINGS || page == Page.CONNECT || page == Page.SYNC);
+		icon.accept(settingsItem, "settings");
+		settingsItem.addActionListener(e -> show(Page.SETTINGS));
+		menu.setPreferredSize(new Dimension(Math.max(160, width), menu.getPreferredSize().height));
 		return menu;
 	}
 
