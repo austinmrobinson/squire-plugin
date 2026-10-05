@@ -626,43 +626,75 @@ class SquireSidebar extends PluginPanel
 
 	/**
 	 * The menu beside the composer, opening upward: Now, Activity and Account; the recent chats, a new chat and all
-	 * chats; Settings. The page on screen is ticked.
+	 * chats; Settings. The page on screen is bold in the accent colour.
 	 */
 	private void showNavMenu(java.awt.Component anchor)
 	{
+		JPopupMenu menu = navMenu();
+		menu.show(anchor, 0, -menu.getPreferredSize().height - 4);
+	}
+
+	/** The menu itself, styled to match the panel rather than the look and feel (also for previews). */
+	JPopupMenu navMenu()
+	{
 		JPopupMenu menu = new JPopupMenu();
-		// The page on screen is in the accent colour and bold (the game's fonts have no tick)
+		menu.setBackground(ChatComponents.CARD_BG);
+		menu.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(ChatComponents.BORDER), BorderFactory.createEmptyBorder(4, 0, 4, 0)));
 		java.util.function.BiFunction<String, Boolean, JMenuItem> item = (label, current) ->
 		{
 			JMenuItem i = new JMenuItem(label);
 			i.setFont(current ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeFont());
-			if (current)
-			{
-				i.setForeground(ChatComponents.ACCENT.brighter());
-			}
+			i.setForeground(current ? ChatComponents.ACCENT.brighter() : net.runelite.client.ui.ColorScheme.LIGHT_GRAY_COLOR);
+			i.setBackground(ChatComponents.CARD_BG);
+			i.setOpaque(true);
+			i.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 16));
+			// Hover in the panel's own colour (the look and feel's selection colour doesn't match it)
+			i.getModel().addChangeListener(e -> i.setBackground(i.isArmed() ? ChatComponents.HOVER_BG : ChatComponents.CARD_BG));
 			menu.add(i);
 			return i;
+		};
+		Runnable separator = () ->
+		{
+			javax.swing.JComponent line = new javax.swing.JComponent()
+			{
+				@Override
+				protected void paintComponent(java.awt.Graphics g)
+				{
+					g.setColor(ChatComponents.BORDER);
+					g.fillRect(8, 4, getWidth() - 16, 1);
+				}
+			};
+			line.setPreferredSize(new Dimension(10, 9));
+			menu.add(line);
 		};
 		item.apply("Now", page == Page.HOME).addActionListener(e -> show(Page.HOME));
 		item.apply("Activity", page == Page.ACTIVITY || page == Page.GAINED).addActionListener(e -> show(Page.ACTIVITY));
 		item.apply("Account", page == Page.PROGRESS || page == Page.PROGRESS_DETAIL || page == Page.BOSS).addActionListener(e -> show(Page.PROGRESS));
-		menu.addSeparator();
-		JMenuItem recent = new JMenuItem("Recent chats");
-		recent.setFont(FontManager.getRunescapeSmallFont());
-		recent.setEnabled(false);
-		menu.add(recent);
+		separator.run();
 		List<ChatSessions.Chat> chats = sessions.chats();
+		if (!chats.isEmpty())
+		{
+			javax.swing.JLabel recent = new javax.swing.JLabel("Recent chats");
+			recent.setFont(FontManager.getRunescapeSmallFont());
+			recent.setForeground(ChatComponents.MUTED);
+			// In line with the items' text, which sits after the menu's icon gutter
+			recent.setBorder(BorderFactory.createEmptyBorder(2, 29, 2, 12));
+			menu.add(recent);
+		}
 		for (ChatSessions.Chat chat : chats.subList(0, Math.min(MENU_CHATS, chats.size())))
 		{
-			String title = chat.title.length() > 32 ? chat.title.substring(0, 31) + "..." : chat.title;
+			String title = chat.title.length() > 28 ? chat.title.substring(0, 27) + "..." : chat.title;
 			boolean open = page == Page.CHAT && chat.id.equals(sessions.current().id());
-			item.apply(title + (chat.running() ? "  ..." : chat.unread ? "  (new)" : ""), open).addActionListener(e ->
+			item.apply(title + (chat.running() ? "  · working" : chat.unread ? "  · new" : ""), open).addActionListener(e ->
 			{
 				sessions.open(chat.id);
 				show(Page.CHAT);
 			});
 		}
-		item.apply("New chat", false).addActionListener(e ->
+		JMenuItem fresh = item.apply("New chat", false);
+		fresh.setIcon(SvgIcon.load("new-chat", 16, ChatComponents.ACCENT.brighter()));
+		fresh.setIconTextGap(6);
+		fresh.addActionListener(e ->
 		{
 			sessions.newChat();
 			show(Page.CHAT);
@@ -671,9 +703,9 @@ class SquireSidebar extends PluginPanel
 		{
 			item.apply("All chats", page == Page.CHATS).addActionListener(e -> show(Page.CHATS));
 		}
-		menu.addSeparator();
+		separator.run();
 		item.apply("Settings", page == Page.SETTINGS || page == Page.CONNECT || page == Page.SYNC).addActionListener(e -> show(Page.SETTINGS));
-		menu.show(anchor, 0, -menu.getPreferredSize().height - 4);
+		return menu;
 	}
 
 	/** The chat's "..." menu: copy its ID or the whole conversation, or delete it. */

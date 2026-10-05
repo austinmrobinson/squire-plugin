@@ -229,6 +229,7 @@ public class PanelPreview
 				homeRef[0].showNow(new Gson().fromJson("{\"live\": null, \"briefing\": \"7 Moons of Peril runs at 5 an hour, and a new collection log slot: the Blue Moon helm. You hit 82 Smithing.\"}", JsonObject.class),
 					new Gson().fromJson("[{\"id\": \"level:Smithing:82\", \"question\": \"What does 82 Smithing unlock for me?\", \"why\": \"You hit 82 Smithing\"}, {\"id\": \"clog:Blue Moon helm\", \"question\": \"How lucky was my Blue Moon helm?\", \"why\": \"New collection log slot\"}]", com.google.gson.JsonArray.class));
 				render(sidebar, new File(out, "0-home-briefing.png"));
+				renderWithMenu(sidebar, sidebar.navMenu(), new File(out, "0-menu.png"));
 				// Item sprites from RuneLite's icon CDN, so gear previews show real items
 				Crest.setIconSource(id ->
 				{
@@ -576,6 +577,8 @@ public class PanelPreview
 				sessions.newChat().sendMessage("Is Vorkath worth it for me?");
 				sidebar.showPage("chats");
 				render(sidebar, new File(out, "8-chats.png"));
+				sidebar.showPage("home");
+				renderWithMenu(sidebar, sidebar.navMenu(), new File(out, "0-menu-chats.png"));
 
 				live[0] = java.util.List.of(
 					new Scenarios.Prompt("What does 80 Slayer unlock?", "x"),
@@ -729,6 +732,46 @@ public class PanelPreview
 		ImageIO.write(img, "png", file);
 		frame.setContentPane(new javax.swing.JPanel());
 		frame.dispose();
+	}
+
+	/** The panel with a popup menu open over its bottom-left corner, as from the menu button beside the composer. */
+	private static void renderWithMenu(Component c, javax.swing.JPopupMenu menu, File file) throws Exception
+	{
+		int w = c.getPreferredSize().width, h = 620, scale = 2;
+		JFrame frame = new JFrame();
+		frame.setUndecorated(true);
+		frame.setContentPane((Container) c);
+		frame.setSize(w, h);
+		frame.addNotify();
+		frame.validate();
+		for (int i = 0; i < 3; i++)
+		{
+			validateTree((Container) c);
+		}
+		JFrame holder = new JFrame();
+		holder.setUndecorated(true);
+		javax.swing.JPanel pane = new javax.swing.JPanel(null);
+		holder.setContentPane(pane);
+		java.awt.Dimension m = menu.getPreferredSize();
+		pane.add(menu);
+		menu.setBounds(0, 0, m.width, m.height);
+		holder.setSize(m.width, m.height);
+		holder.addNotify();
+		holder.validate();
+		validateTree(menu);
+		BufferedImage img = new BufferedImage(w * scale, h * scale, BufferedImage.TYPE_INT_RGB);
+		Graphics2D g = img.createGraphics();
+		g.scale(scale, scale);
+		g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+		c.paint(g);
+		Graphics2D mg = (Graphics2D) g.create(8, h - 48 - m.height, m.width, m.height);
+		menu.paint(mg);
+		mg.dispose();
+		g.dispose();
+		ImageIO.write(img, "png", file);
+		frame.setContentPane(new javax.swing.JPanel());
+		frame.dispose();
+		holder.dispose();
 	}
 
 	private static void renderSized(Component c, File file, int w, int h) throws Exception
