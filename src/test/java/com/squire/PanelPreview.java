@@ -229,7 +229,7 @@ public class PanelPreview
 				homeRef[0].showNow(new Gson().fromJson("{\"live\": null, \"briefing\": \"7 Moons of Peril runs at 5 an hour, and a new collection log slot: the Blue Moon helm. You hit 82 Smithing.\"}", JsonObject.class),
 					new Gson().fromJson("[{\"id\": \"level:Smithing:82\", \"question\": \"What does 82 Smithing unlock for me?\", \"why\": \"You hit 82 Smithing\"}, {\"id\": \"clog:Blue Moon helm\", \"question\": \"How lucky was my Blue Moon helm?\", \"why\": \"New collection log slot\"}]", com.google.gson.JsonArray.class));
 				render(sidebar, new File(out, "0-home-briefing.png"));
-				renderWithMenu(sidebar, sidebar.navMenu(SquireSidebar.DEFAULT_WIDTH - 16), new File(out, "0-menu.png"));
+				renderWithMenu(sidebar, sidebar.navMenu(SquireSidebar.DEFAULT_WIDTH - 8), new File(out, "0-menu.png"));
 				// Item sprites from RuneLite's icon CDN, so gear previews show real items
 				Crest.setIconSource(id ->
 				{
@@ -578,7 +578,7 @@ public class PanelPreview
 				sidebar.showPage("chats");
 				render(sidebar, new File(out, "8-chats.png"));
 				sidebar.showPage("home");
-				renderWithMenu(sidebar, sidebar.navMenu(SquireSidebar.DEFAULT_WIDTH - 16), new File(out, "0-menu-chats.png"));
+				renderWithMenu(sidebar, sidebar.navMenu(SquireSidebar.DEFAULT_WIDTH - 8), new File(out, "0-menu-chats.png"));
 
 				live[0] = java.util.List.of(
 					new Scenarios.Prompt("What does 80 Slayer unlock?", "x"),
@@ -764,7 +764,7 @@ public class PanelPreview
 		g.scale(scale, scale);
 		g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		c.paint(g);
-		Graphics2D mg = (Graphics2D) g.create(8, h - 48 - m.height, m.width, m.height);
+		Graphics2D mg = (Graphics2D) g.create(4, h - 48 - m.height, m.width, m.height);
 		menu.paint(mg);
 		mg.dispose();
 		g.dispose();

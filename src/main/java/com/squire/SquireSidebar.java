@@ -636,14 +636,31 @@ class SquireSidebar extends PluginPanel
 		menu.show(this, MENU_MARGIN, at.y - menu.getPreferredSize().height - 4);
 	}
 
-	private static final int MENU_MARGIN = 8;
+	private static final int MENU_MARGIN = 4;
+	private static final int MENU_RADIUS = 8;
 
 	/** The menu itself, styled to match the panel rather than the look and feel (also for previews). */
 	JPopupMenu navMenu(int width)
 	{
-		JPopupMenu menu = new JPopupMenu();
-		menu.setBackground(ChatComponents.CARD_BG);
-		menu.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(ChatComponents.BORDER), BorderFactory.createEmptyBorder(4, 0, 4, 0)));
+		// A card like the rest of the panel: dark outline, stepped pixel corners, lit from the top left
+		JPopupMenu menu = new JPopupMenu()
+		{
+			@Override
+			protected void paintComponent(java.awt.Graphics g)
+			{
+				java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+				int w = getWidth(), h = getHeight(), r = MENU_RADIUS;
+				g2.setColor(ChatComponents.OUTLINE);
+				Pixel.fill(g2, 0, 0, w, h, r + 1);
+				g2.setColor(ChatComponents.CARD_BG);
+				Pixel.fill(g2, 1, 1, w - 2, h - 2, r);
+				Pixel.bevel(g2, 1, 1, w - 2, h - 2, r, ChatComponents.CARD_LIGHT, ChatComponents.CARD_DARK);
+				g2.dispose();
+			}
+		};
+		menu.setOpaque(false);
+		menu.setBackground(new java.awt.Color(0, 0, 0, 0));
+		menu.setBorder(BorderFactory.createEmptyBorder(6, 2, 6, 2));
 		// Every item has its icon; the page on screen has it in the accent colour, like its text
 		java.util.function.BiFunction<String, Boolean, JMenuItem> item = (label, current) ->
 		{
@@ -651,11 +668,15 @@ class SquireSidebar extends PluginPanel
 			i.setIconTextGap(8);
 			i.setFont(current ? FontManager.getRunescapeBoldFont() : FontManager.getRunescapeFont());
 			i.setForeground(current ? ChatComponents.ACCENT.brighter() : net.runelite.client.ui.ColorScheme.LIGHT_GRAY_COLOR);
-			i.setBackground(ChatComponents.CARD_BG);
-			i.setOpaque(true);
+			i.setBackground(ChatComponents.HOVER_BG);
+			i.setOpaque(false);
 			i.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 16));
-			// Hover in the panel's own colour (the look and feel's selection colour doesn't match it)
-			i.getModel().addChangeListener(e -> i.setBackground(i.isArmed() ? ChatComponents.HOVER_BG : ChatComponents.CARD_BG));
+			// Only the hovered row is filled, in the panel's own hover colour; the card shows through the rest
+			i.getModel().addChangeListener(e ->
+			{
+				i.setOpaque(i.isArmed());
+				i.repaint();
+			});
 			menu.add(i);
 			return i;
 		};
