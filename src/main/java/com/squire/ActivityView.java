@@ -349,9 +349,108 @@ class ActivityView extends JPanel
 			right.setOpaque(false);
 			right.add(amount, BorderLayout.CENTER);
 			right.add(pct, BorderLayout.EAST);
-			c.add(row(name, right));
+			JsonArray runParts = act.has("parts") && act.get("parts").isJsonArray() ? act.getAsJsonArray("parts") : null;
+			if (runParts == null)
+			{
+				// In line with the runs' names, which sit after their open/close arrow
+				if (acts.stream().anyMatch(x -> x.has("parts")))
+				{
+					name.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 0));
+				}
+				c.add(row(name, right));
+				continue;
+			}
+			// A run (Moons of Peril, a herb run): opens to what was in it, each boss or skill and the time between
+			int runs = (int) num(act, "runs");
+			if (runs > 1)
+			{
+				name.setText(str(act, "name") + "  ×" + runs);
+			}
+			List<JComponent> rows = new ArrayList<>();
+			for (JsonElement pe : runParts)
+			{
+				JsonObject part = pe.getAsJsonObject();
+				if (xp && num(part, "xp") <= 0)
+				{
+					continue;
+				}
+				rows.add(row(small(str(part, "name")), small(xp ? "+" + shortNumber(num(part, "xp")) : duration(num(part, "minutes")))));
+			}
+			c.add(expandable("time:" + str(act, "name"), row(name, right), rows));
 		}
 		return c;
+	}
+
+	/** Runs the player has opened, by card and name, so a refresh keeps them open. */
+	private final java.util.Set<String> opened = new java.util.HashSet<>();
+
+	/** Open a run's parts before rendering (for previews). */
+	void open(String key)
+	{
+		opened.add(key);
+	}
+
+	/**
+	 * A row that opens to show what it's made of: the bosses of a run, the time between them, the sources of its kills
+	 * or loot. Click to open or close.
+	 */
+	private JComponent expandable(String key, JComponent head, List<JComponent> parts)
+	{
+		JPanel box = new JPanel();
+		box.setOpaque(false);
+		box.setLayout(new javax.swing.BoxLayout(box, javax.swing.BoxLayout.Y_AXIS));
+		box.setAlignmentX(LEFT_ALIGNMENT);
+		JPanel inner = new JPanel();
+		inner.setOpaque(false);
+		inner.setLayout(new javax.swing.BoxLayout(inner, javax.swing.BoxLayout.Y_AXIS));
+		inner.setAlignmentX(LEFT_ALIGNMENT);
+		inner.setBorder(BorderFactory.createEmptyBorder(2, 16, 0, 0));
+		for (JComponent part : parts)
+		{
+			part.setAlignmentX(LEFT_ALIGNMENT);
+			inner.add(Box.createVerticalStrut(3));
+			inner.add(part);
+		}
+		inner.setVisible(opened.contains(key));
+		JLabel chevron = new JLabel(SvgIcon.load(inner.isVisible() ? "chevron-down" : "chevron-right", 10, ChatComponents.MUTED));
+		chevron.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
+		JPanel top = new JPanel(new BorderLayout(0, 0));
+		top.setOpaque(false);
+		top.setAlignmentX(LEFT_ALIGNMENT);
+		top.add(chevron, BorderLayout.WEST);
+		top.add(head, BorderLayout.CENTER);
+		top.setMaximumSize(new Dimension(Integer.MAX_VALUE, top.getPreferredSize().height));
+		top.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+		top.setToolTipText("Show what's in it");
+		java.awt.event.MouseAdapter toggle = new java.awt.event.MouseAdapter()
+		{
+			@Override
+			public void mouseReleased(java.awt.event.MouseEvent e)
+			{
+				if (!javax.swing.SwingUtilities.isLeftMouseButton(e))
+				{
+					return;
+				}
+				boolean open = !inner.isVisible();
+				inner.setVisible(open);
+				chevron.setIcon(SvgIcon.load(open ? "chevron-down" : "chevron-right", 10, ChatComponents.MUTED));
+				if (open)
+				{
+					opened.add(key);
+				}
+				else
+				{
+					opened.remove(key);
+				}
+				box.revalidate();
+				relayout();
+			}
+		};
+		top.addMouseListener(toggle);
+		head.addMouseListener(toggle);
+		box.add(top);
+		box.add(inner);
+		return box;
 	}
 
 	private void addIf(JComponent card, String ask)
@@ -485,8 +584,26 @@ class ActivityView extends JPanel
 			{
 				bits.add(duration(num(k, "minutes")));
 			}
-			c.add(tappable(new ActivityCharts.HBar(str(k, "boss"), fmt(num(k, "kills")), bits.isEmpty() ? null : String.join("  ·  ", bits),
-				num(k, "kills") / top, ChatComponents.ACCENT, null), str(k, "boss")));
+			boolean runs = "runs".equals(str(k, "unit")) && k.has("parts");
+			ActivityCharts.HBar bar = new ActivityCharts.HBar(str(k, "boss"), fmt(num(k, "kills")) + (runs ? " runs" : ""), bits.isEmpty() ? null : String.join("  ·  ", bits),
+				num(k, "kills") / top, ChatComponents.ACCENT, null);
+			JsonArray parts = k.has("parts") && k.get("parts").isJsonArray() ? k.getAsJsonArray("parts") : null;
+			if (parts == null)
+			{
+				c.add(tappable(bar, str(k, "boss")));
+			}
+			else
+			{
+				// A run: opens to the counts it's made of (the chest, each boss)
+				List<JComponent> rows = new ArrayList<>();
+				for (JsonElement pe : parts)
+				{
+					JsonObject part = pe.getAsJsonObject();
+					rows.add(row(small(str(part, "boss")), small(fmt(num(part, "kills")))));
+				}
+				bar.setAlignmentX(LEFT_ALIGNMENT);
+				c.add(expandable("kills:" + str(k, "boss"), bar, rows));
+			}
 			c.add(Box.createVerticalStrut(6));
 		}
 		return c;
@@ -519,7 +636,21 @@ class ActivityView extends JPanel
 			ActivityCharts.HBar bar = new ActivityCharts.HBar(str(src, "source"), shortNumber(num(src, "value")) + " gp",
 				fmt(num(src, "drops")) + " drops", num(src, "value") / Math.max(1, top), GOLD, null);
 			bar.setAlignmentX(LEFT_ALIGNMENT);
-			c.add(bar);
+			JsonArray parts = src.has("parts") && src.get("parts").isJsonArray() ? src.getAsJsonArray("parts") : null;
+			if (parts == null)
+			{
+				c.add(bar);
+			}
+			else
+			{
+				List<JComponent> rows = new ArrayList<>();
+				for (JsonElement pe : parts)
+				{
+					JsonObject part = pe.getAsJsonObject();
+					rows.add(row(small(str(part, "source")), small(shortNumber(num(part, "value")) + " gp  ·  " + fmt(num(part, "drops")) + " drops")));
+				}
+				c.add(expandable("loot:" + str(src, "source"), bar, rows));
+			}
 			c.add(Box.createVerticalStrut(6));
 		}
 		JsonArray items = loot.getAsJsonArray("items");

@@ -52,7 +52,7 @@ public class PanelPreview
 
 	static JsonObject sampleActivity(String range)
 	{
-		String[] names = {"Kraken", "Farming", "Cerberus", "Hunter", "Other"};
+		String[] names = {"Moons of Peril", "Herb run", "Cerberus", "Hunter", "Other"};
 		String[] cats = {"combat", "skilling", "combat", "skilling", "other"};
 		int columns = range.equals("day") ? 24 : range.equals("week") ? 7 : 30;
 		int current = range.equals("day") ? 19 : range.equals("week") ? 3 : 12;
@@ -108,6 +108,17 @@ public class PanelPreview
 			a.addProperty("xp", xpTotals[k]);
 			a.addProperty("pct", Math.round(totals[k] / total * 100));
 			a.addProperty("xpPct", Math.round(xpTotals[k] / java.util.Arrays.stream(xpTotals).sum() * 100));
+			// Runs open to their parts
+			if (k == 0)
+			{
+				a.addProperty("runs", 7);
+				a.add("parts", new Gson().fromJson("[{\"name\":\"Blood Moon\",\"minutes\":" + Math.round(totals[k] * 0.3) + ",\"xp\":27536},{\"name\":\"Blue Moon\",\"minutes\":" + Math.round(totals[k] * 0.28) + ",\"xp\":21059},{\"name\":\"Eclipse Moon\",\"minutes\":" + Math.round(totals[k] * 0.24) + ",\"xp\":17289},{\"name\":\"Hunter\",\"minutes\":" + Math.round(totals[k] * 0.1) + ",\"xp\":2366},{\"name\":\"Other\",\"minutes\":" + Math.round(totals[k] * 0.08) + ",\"xp\":0}]", com.google.gson.JsonArray.class));
+			}
+			if (k == 1)
+			{
+				a.addProperty("runs", 2);
+				a.add("parts", new Gson().fromJson("[{\"name\":\"Farming\",\"minutes\":" + Math.round(totals[k] * 0.7) + ",\"xp\":9000},{\"name\":\"Magic\",\"minutes\":" + Math.round(totals[k] * 0.1) + ",\"xp\":300},{\"name\":\"Other\",\"minutes\":" + Math.round(totals[k] * 0.2) + ",\"xp\":0}]", com.google.gson.JsonArray.class));
+			}
 			acts.add(a);
 		}
 		JsonObject o = new JsonObject();
@@ -409,8 +420,9 @@ public class PanelPreview
 				sidebar.showPage("activity");
 				activity.render(sampleActivity("week"), null);
 				render(sidebar, new File(out, "0c-activity-week.png"));
+				activity.open("time:Moons of Peril");
 				activity.render(sampleActivity("day"), null);
-				render(sidebar, new File(out, "0d-activity-day.png"));
+				renderSized(sidebar, new File(out, "0d-activity-day.png"), SquireSidebar.DEFAULT_WIDTH, 1300);
 				activity.render(sampleActivity("month"), null);
 				render(sidebar, new File(out, "0e-activity-month.png"));
 				activity.render(sampleActivity("week"), null);

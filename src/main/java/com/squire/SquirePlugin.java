@@ -868,9 +868,13 @@ public class SquirePlugin extends Plugin
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
-		if (recorder != null && event.getContainerId() == net.runelite.api.gameval.InventoryID.INV)
+		if (event.getContainerId() == net.runelite.api.gameval.InventoryID.INV)
 		{
-			recorder.onInventoryChanged(event.getItemContainer());
+			if (recorder != null)
+			{
+				recorder.onInventoryChanged(event.getItemContainer());
+			}
+			activityTracker.onInventory(client, event.getItemContainer());
 		}
 		String name = CONTAINERS.get(event.getContainerId());
 		if (name == null)

@@ -37,6 +37,9 @@ class ActivityTracker
 	private final Map<String, Integer> weaponTicks = new HashMap<>();
 	private final Map<Skill, Integer> xp = new EnumMap<>(Skill.class);
 	private int activeTicks;
+	// Grimy herbs in the inventory, to tell a herb run from other Farming (-1 until first seen)
+	private int grimyHerbs = -1;
+	private boolean pickedHerbs;
 
 	/** Call on every game tick while logged in; returns the finished minute's record when a minute rolls over. */
 	Map<String, Object> tick(Client client)
@@ -51,6 +54,7 @@ class ActivityTracker
 			weaponTicks.clear();
 			xp.clear();
 			activeTicks = 0;
+			pickedHerbs = false;
 		}
 
 		Player local = client.getLocalPlayer();
@@ -93,6 +97,28 @@ class ActivityTracker
 		}
 	}
 
+	/** Inventory changes: more grimy herbs than before means herbs were picked (a herb run, not other Farming). */
+	void onInventory(Client client, ItemContainer inventory)
+	{
+		int count = 0;
+		for (Item item : inventory.getItems())
+		{
+			if (item.getId() > 0)
+			{
+				String name = client.getItemDefinition(item.getId()).getName();
+				if (name != null && name.startsWith("Grimy "))
+				{
+					count += item.getQuantity();
+				}
+			}
+		}
+		if (grimyHerbs >= 0 && count > grimyHerbs && xp.containsKey(Skill.FARMING))
+		{
+			pickedHerbs = true;
+		}
+		grimyHerbs = count;
+	}
+
 	/** Forget XP baselines and the partial minute (e.g. on logout or hopping accounts). */
 	void reset()
 	{
@@ -102,6 +128,8 @@ class ActivityTracker
 		weaponTicks.clear();
 		xp.clear();
 		activeTicks = 0;
+		grimyHerbs = -1;
+		pickedHerbs = false;
 	}
 
 	/** What this minute looks like so far ("Vorkath", "Woodcutting", "Other"), or null if idle. */
@@ -152,6 +180,10 @@ class ActivityTracker
 		record.put("activity", activity);
 		record.put("category", category);
 		record.put("xp", totalXp);
+		if ("Farming".equals(activity) && pickedHerbs)
+		{
+			record.put("detail", "herbs");
+		}
 		if ("combat".equals(category))
 		{
 			weaponTicks.entrySet().stream().max(Map.Entry.comparingByValue()).ifPresent(w -> record.put("weapon", w.getKey()));
