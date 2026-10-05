@@ -128,3 +128,9 @@ tasks.register('portraitTune', JavaExec) {
 	// e.g. ./gradlew portraitTune -PportraitModel=~/.runelite/squire/Name/portrait-model.json
 	if (project.hasProperty('portraitModel')) args([project.property('portraitModel')] + (project.hasProperty('portraitOut') ? [project.property('portraitOut')] : []))
 }
+
+tasks.register('chatReconnect', JavaExec) {
+	description = 'Checks the chat stream reconnect logic against a fake server'
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.squire.ChatReconnectCheck'
+}

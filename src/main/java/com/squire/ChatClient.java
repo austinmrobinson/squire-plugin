@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -69,7 +68,9 @@ class ChatClient
 	}
 
 	private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-	private static final int MAX_STREAM_RECONNECTS = 5;
+	/** Reconnects in a row that get no new events before the turn is given up as lost (progress resets the count). */
+	private static final int MAX_STREAM_RECONNECTS = 6;
+	private static final long MAX_RECONNECT_DELAY_MS = 4_000;
 	private static final long NOT_READY_RETRY_MS = 20_000;
 
 	private final OkHttpClient http;
@@ -207,14 +208,82 @@ class ChatClient
 					backoff, TimeUnit.MILLISECONDS);
 				return;
 			}
-			followTurn(listener);
 		}
 		catch (Exception e)
 		{
 			log.warn("Squire chat failed", e);
 			listener.onError(e.getMessage() != null ? e.getMessage() : e.toString());
+			done.run();
+			return;
 		}
-		done.run();
+		follow(listener, new Turn(sessionId), done);
+	}
+
+	/** One turn's progress across stream connections. */
+	private static final class Turn
+	{
+		final String session;
+		boolean started;
+		// One failure is reported as both turn.failed and session.failed: show it once, and don't reconnect after it
+		boolean failed;
+		/** Connections in a row that brought no new events. */
+		int stalled;
+		IOException lastError;
+
+		Turn(String session)
+		{
+			this.session = session;
+		}
+	}
+
+	/**
+	 * Follow the turn's stream to the end. A long answer spans several connections (the server renews the stream), so
+	 * only connections that bring nothing new count toward giving up, and those reconnect after a growing pause
+	 * (scheduled on the worker, never blocking it).
+	 */
+	private void follow(Listener listener, Turn turn, Runnable done)
+	{
+		if (turn.session == null || !turn.session.equals(sessionId))
+		{
+			// The chat was reset (New chat) while a reconnect was waiting
+			done.run();
+			return;
+		}
+		int before = streamIndex;
+		boolean finished;
+		try
+		{
+			finished = readStream(listener, turn);
+		}
+		catch (IOException e)
+		{
+			if (e instanceof HttpError && ((HttpError) e).status < 500 && ((HttpError) e).status != 429)
+			{
+				// The server refused the stream (expired session, auth): retrying won't help
+				log.warn("Squire chat stream failed", e);
+				listener.onError(e.getMessage() != null ? e.getMessage() : e.toString());
+				done.run();
+				return;
+			}
+			turn.lastError = e;
+			finished = false;
+		}
+		if (finished)
+		{
+			done.run();
+			return;
+		}
+		turn.stalled = streamIndex > before ? 0 : turn.stalled + 1;
+		if (turn.stalled > MAX_STREAM_RECONNECTS)
+		{
+			log.warn("Squire chat stream lost", turn.lastError);
+			listener.onError("Lost connection to the chat stream");
+			done.run();
+			return;
+		}
+		long delay = turn.stalled == 0 ? 0 : Math.min(250L << (turn.stalled - 1), MAX_RECONNECT_DELAY_MS);
+		log.debug("Chat stream reconnecting from {} in {}ms", streamIndex, delay);
+		worker.schedule(() -> follow(listener, turn, done), delay, TimeUnit.MILLISECONDS);
 	}
 
 	/** Stops the in-flight turn; the stream then reports turn.cancelled and the session waits again. */
@@ -329,138 +398,116 @@ class ChatClient
 		}
 	}
 
-	private void followTurn(Listener listener) throws IOException
+	/** Read one connection of the turn's stream. True when the turn is over (or cancelled); false to reconnect. */
+	private boolean readStream(Listener listener, Turn turn) throws IOException
 	{
-		boolean turnStarted = false;
-		// One failure is reported as both turn.failed and session.failed: show it once, and don't reconnect after it
-		boolean failed = false;
-		for (int attempt = 0; attempt <= MAX_STREAM_RECONNECTS; attempt++)
+		HttpUrl url = url("eve/v1/session/" + sessionId + "/stream").newBuilder()
+			.addQueryParameter("startIndex", Integer.toString(streamIndex))
+			.build();
+		Call call = http.newCall(authed(url).get().build());
+		activeStream = call;
+		try (Response response = call.execute())
 		{
-			HttpUrl url = url("eve/v1/session/" + sessionId + "/stream").newBuilder()
-				.addQueryParameter("startIndex", Integer.toString(streamIndex))
-				.build();
-			Call call = http.newCall(authed(url).get().build());
-			activeStream = call;
-			try (Response response = call.execute())
+			if (!response.isSuccessful())
 			{
-				if (!response.isSuccessful())
+				throw new HttpError(response.code(), bodyText(response));
+			}
+			ResponseBody body = response.body();
+			if (body == null)
+			{
+				throw new IOException("Empty stream response");
+			}
+			BufferedReader reader = new BufferedReader(body.charStream());
+			String line;
+			while ((line = reader.readLine()) != null)
+			{
+				if (line.isBlank())
 				{
-					throw new HttpError(response.code(), bodyText(response));
+					continue;
 				}
-				ResponseBody body = response.body();
-				if (body == null)
-				{
-					throw new IOException("Empty stream response");
-				}
-				BufferedReader reader = new BufferedReader(body.charStream());
-				String line;
-				while ((line = reader.readLine()) != null)
-				{
-					if (line.isBlank())
-					{
-						continue;
-					}
-					streamIndex++;
-					JsonObject event = gson.fromJson(line, JsonObject.class);
-					String type = event.get("type").getAsString();
-					JsonObject data = event.has("data") && event.get("data").isJsonObject() ? event.getAsJsonObject("data") : new JsonObject();
+				streamIndex++;
+				JsonObject event = gson.fromJson(line, JsonObject.class);
+				String type = event.get("type").getAsString();
+				JsonObject data = event.has("data") && event.get("data").isJsonObject() ? event.getAsJsonObject("data") : new JsonObject();
 
-					switch (type)
-					{
-						case "turn.started":
-							turnStarted = true;
-							break;
-						case "message.appended":
-							listener.onDelta(string(data, "messageDelta"));
-							break;
-						case "message.completed":
-							listener.onBlockCompleted();
-							break;
-						case "actions.requested":
-							listener.onToolUse(describeActions(data));
-							if (data.has("actions") && data.get("actions").isJsonArray())
-							{
-								listener.onActions(data.getAsJsonArray("actions"));
-							}
-							break;
-						case "reasoning.appended":
-							listener.onReasoning(string(data, "reasoningDelta"));
-							break;
-						case "reasoning.completed":
-							listener.onReasoningDone();
-							break;
-						case "action.result":
+				switch (type)
+				{
+					case "turn.started":
+						turn.started = true;
+						break;
+					case "message.appended":
+						listener.onDelta(string(data, "messageDelta"));
+						break;
+					case "message.completed":
+						listener.onBlockCompleted();
+						break;
+					case "actions.requested":
+						listener.onToolUse(describeActions(data));
+						if (data.has("actions") && data.get("actions").isJsonArray())
 						{
-							JsonObject result = data.has("result") && data.get("result").isJsonObject() ? data.getAsJsonObject("result") : new JsonObject();
-							listener.onActionResult(string(result, "callId"), result.get("output"), "completed".equals(string(data, "status")) || !data.has("status"));
-							break;
+							listener.onActions(data.getAsJsonArray("actions"));
 						}
-						case "turn.failed":
-						case "session.failed":
-							if (!failed)
-							{
-								failed = true;
-								listener.onError(string(data, "message"));
-							}
-							if ("session.failed".equals(type))
-							{
-								// The session can't take more turns; the next message starts a new one
-								sessionId = null;
-								return;
-							}
-							break;
-						case "session.waiting":
-						case "session.completed":
-							// A waiting event before our turn began belongs to an earlier turn
-							if (turnStarted || "session.completed".equals(type))
-							{
-								if ("session.completed".equals(type))
-								{
-									sessionId = null;
-								}
-								listener.onDone();
-								return;
-							}
-							break;
-						default:
-							break;
+						break;
+					case "reasoning.appended":
+						listener.onReasoning(string(data, "reasoningDelta"));
+						break;
+					case "reasoning.completed":
+						listener.onReasoningDone();
+						break;
+					case "action.result":
+					{
+						JsonObject result = data.has("result") && data.get("result").isJsonObject() ? data.getAsJsonObject("result") : new JsonObject();
+						listener.onActionResult(string(result, "callId"), result.get("output"), "completed".equals(string(data, "status")) || !data.has("status"));
+						break;
 					}
+					case "turn.failed":
+					case "session.failed":
+						if (!turn.failed)
+						{
+							turn.failed = true;
+							listener.onError(string(data, "message"));
+						}
+						if ("session.failed".equals(type))
+						{
+							// The session can't take more turns; the next message starts a new one
+							sessionId = null;
+							return true;
+						}
+						break;
+					case "session.waiting":
+					case "session.completed":
+						// A waiting event before our turn began belongs to an earlier turn
+						if (turn.started || "session.completed".equals(type))
+						{
+							if ("session.completed".equals(type))
+							{
+								sessionId = null;
+							}
+							listener.onDone();
+							return true;
+						}
+						break;
+					default:
+						break;
 				}
 			}
-			catch (InterruptedIOException e)
-			{
-				// Read timeout or stream lease ended; reconnect from our cursor
-				if (call.isCanceled())
-				{
-					return;
-				}
-				log.debug("Chat stream interrupted, reconnecting from {}", streamIndex);
-				continue;
-			}
-			catch (IOException e)
-			{
-				if (call.isCanceled())
-				{
-					return;
-				}
-				if (attempt == MAX_STREAM_RECONNECTS)
-				{
-					throw e;
-				}
-				continue;
-			}
-			finally
-			{
-				activeStream = null;
-			}
-			if (failed)
-			{
-				// The turn already ended in an error the player has seen
-				return;
-			}
-			// Server closed the stream cleanly mid-turn (lease renewal): reconnect
 		}
-		throw new IOException("Lost connection to the chat stream");
+		catch (IOException e)
+		{
+			// Read timeout, stream lease ended or a dropped connection: reconnect from our cursor
+			if (call.isCanceled())
+			{
+				return true;
+			}
+			throw e;
+		}
+		finally
+		{
+			activeStream = null;
+		}
+		// After an error the player has seen, the turn is over; otherwise the server closed the stream cleanly
+		// mid-turn (lease renewal): reconnect
+		return turn.failed;
 	}
 
 	private static String describeActions(JsonObject data)
