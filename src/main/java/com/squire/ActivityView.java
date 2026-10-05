@@ -367,14 +367,27 @@ class ActivityView extends JPanel
 				name.setText(str(act, "name") + "  ×" + runs);
 			}
 			List<JComponent> rows = new ArrayList<>();
-			for (JsonElement pe : runParts)
+			JsonArray runSkills = act.has("skills") && act.get("skills").isJsonArray() ? act.getAsJsonArray("skills") : null;
+			if (xp && runSkills != null && runSkills.size() > 0)
 			{
-				JsonObject part = pe.getAsJsonObject();
-				if (xp && num(part, "xp") <= 0)
+				// XP view: the run's XP by skill
+				for (JsonElement se : runSkills)
 				{
-					continue;
+					JsonObject sk = se.getAsJsonObject();
+					rows.add(row(small(str(sk, "skill")), small("+" + shortNumber(num(sk, "xp")))));
 				}
-				rows.add(row(small(str(part, "name")), small(xp ? "+" + shortNumber(num(part, "xp")) : duration(num(part, "minutes")))));
+			}
+			else
+			{
+				for (JsonElement pe : runParts)
+				{
+					JsonObject part = pe.getAsJsonObject();
+					if (xp ? num(part, "xp") <= 0 : num(part, "minutes") < 0.5)
+					{
+						continue;
+					}
+					rows.add(row(small(str(part, "name")), small(xp ? "+" + shortNumber(num(part, "xp")) : duration(num(part, "minutes")))));
+				}
 			}
 			c.add(expandable("time:" + str(act, "name"), row(name, right), rows));
 		}

@@ -720,6 +720,17 @@ public class SquirePlugin extends Plugin
 		Map<String, Object> minute = activityTracker.tick(client);
 		if (minute != null)
 		{
+			// What the player was on: a Slayer task, a clue (so the server can group a task's or a clue's minutes)
+			String task = slayerTaskName();
+			if (task != null)
+			{
+				minute.put("task", task);
+			}
+			String clue = clueTier();
+			if (clue != null)
+			{
+				minute.put("clue", clue);
+			}
 			synchronized (lock)
 			{
 				if (pendingActivity.size() < MAX_PENDING_ACTIVITY)
@@ -1630,6 +1641,14 @@ public class SquirePlugin extends Plugin
 				}
 			});
 		}
+	}
+
+	/** The current Slayer task's name ("Abyssal demons"), or null with no task. */
+	private String slayerTaskName()
+	{
+		Scenarios.Snapshot s = new Scenarios.Snapshot();
+		readSlayerTask(s);
+		return s.slayerTask;
 	}
 
 	/** The current slayer task and (for Konar) its area, as RuneLite's Slayer plugin reads them. */

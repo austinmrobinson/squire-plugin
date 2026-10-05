@@ -13,30 +13,39 @@ import net.runelite.api.ItemContainer;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Skill;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.InventoryID;
 
 /**
- * Works out what the player spent each minute doing, for the Activity page.
- * A minute goes to the monster they were fighting, else the skill that gained the most XP, else "Other"
- * (questing, banking, running around). Idle minutes aren't counted. Client thread only.
+ * Works out what the player is doing on every game tick, for the Activity page, and sends one record per minute.
+ * A tick goes to the monster they're fighting, else the skill they're training (one that gained XP in the last few
+ * ticks), else "Other" when they're active (questing, banking, running around); idle ticks aren't counted. The minute
+ * keeps the count of ticks for each, so time is split accurately (a minute of a boss fight with a walk at the end is
+ * mostly the boss), and is labelled by the biggest. It also notes where the player was (the map region they spent most
+ * of the minute in) and the XP per skill, so the server can group minutes into runs. Client thread only.
  */
 class ActivityTracker
 {
-	/** Minutes with any NPC fighting at least this many ticks (of 100) count as fighting it. */
-	private static final int FIGHT_TICKS = 5;
-	/** Minutes with input on at least this many ticks count as "Other" when nothing else happened. */
-	private static final int ACTIVE_TICKS = 10;
+	/** A skill that gained XP this many ticks ago or less is what the player is doing (skilling XP comes in bursts). */
+	private static final int SKILL_TICKS = 8;
 	/** 5 minutes, in client ticks (20ms). */
 	private static final int IDLE_CLIENT_TICKS = 15_000;
-	private static final Set<Skill> MELEE_RANGED = Set.of(Skill.ATTACK, Skill.STRENGTH, Skill.DEFENCE, Skill.RANGED);
+	/** XP from these without a fight (a cannon, an NPC we couldn't see) is "Combat"; alongside a gathering skill it's that skill. */
+	private static final Set<Skill> COMBAT_SKILLS = Set.of(Skill.ATTACK, Skill.STRENGTH, Skill.DEFENCE, Skill.RANGED, Skill.HITPOINTS);
+	/** A monster needs at least this many ticks in a minute to name it (one stray click isn't a fight). */
+	private static final int FIGHT_TICKS = 5;
 
 	private final Map<Skill, Integer> lastXp = new EnumMap<>(Skill.class);
+	private final Map<Skill, Integer> lastXpTick = new EnumMap<>(Skill.class);
+	private int tickCount;
 	private long minute = -1;
-	private final Map<String, Integer> npcTicks = new HashMap<>();
+	private final Map<String, Integer> labelTicks = new HashMap<>();
+	private final Map<String, String> labelCategory = new HashMap<>();
 	// Ticks spent fighting with each weapon this minute, for the favourite weapon on the Progress page
 	private final Map<String, Integer> weaponTicks = new HashMap<>();
+	private final Map<Integer, Integer> regionTicks = new HashMap<>();
 	private final Map<Skill, Integer> xp = new EnumMap<>(Skill.class);
-	private int activeTicks;
 	// Grimy herbs in the inventory, to tell a herb run from other Farming (-1 until first seen)
 	private int grimyHerbs = -1;
 	private boolean pickedHerbs;
@@ -44,35 +53,109 @@ class ActivityTracker
 	/** Call on every game tick while logged in; returns the finished minute's record when a minute rolls over. */
 	Map<String, Object> tick(Client client)
 	{
+		tickCount++;
 		long now = System.currentTimeMillis() / 60_000;
 		Map<String, Object> finished = null;
 		if (now != minute)
 		{
 			finished = minute >= 0 ? classify(minute) : null;
 			minute = now;
-			npcTicks.clear();
+			labelTicks.clear();
+			labelCategory.clear();
 			weaponTicks.clear();
+			regionTicks.clear();
 			xp.clear();
-			activeTicks = 0;
 			pickedHerbs = false;
 		}
 
 		Player local = client.getLocalPlayer();
-		Actor target = local == null ? null : local.getInteracting();
+		if (local == null)
+		{
+			return finished;
+		}
+		Integer region = regionOf(client, local);
+		if (region != null)
+		{
+			regionTicks.merge(region, 1, Integer::sum);
+		}
+
+		// This tick: the fight, else the skill being trained, else Other if they're at the keyboard
+		Actor target = local.getInteracting();
 		if (target instanceof NPC && ((NPC) target).getCombatLevel() > 0 && target.getName() != null)
 		{
-			npcTicks.merge(target.getName(), 1, Integer::sum);
+			count(target.getName(), "combat");
 			String weapon = wieldedWeapon(client);
 			if (weapon != null)
 			{
 				weaponTicks.merge(weapon, 1, Integer::sum);
 			}
+			return finished;
+		}
+		Skill skill = recentSkill();
+		if (skill != null)
+		{
+			if (COMBAT_SKILLS.contains(skill))
+			{
+				count("Combat", "combat");
+			}
+			else
+			{
+				count(skill.getName(), "skilling");
+			}
+			return finished;
 		}
 		if (Math.min(client.getKeyboardIdleTicks(), client.getMouseIdleTicks()) < IDLE_CLIENT_TICKS)
 		{
-			activeTicks++;
+			count("Other", "other");
 		}
 		return finished;
+	}
+
+	private void count(String label, String category)
+	{
+		labelTicks.merge(label, 1, Integer::sum);
+		labelCategory.putIfAbsent(label, category);
+	}
+
+	/**
+	 * The skill that gained XP most recently, within the last few ticks. A gathering or production skill beats combat
+	 * skills gained at the same time (Barbarian fishing gives Strength too, and is fishing).
+	 */
+	private Skill recentSkill()
+	{
+		Skill best = null;
+		int bestTick = Integer.MIN_VALUE;
+		Skill combat = null;
+		for (Map.Entry<Skill, Integer> e : lastXpTick.entrySet())
+		{
+			if (tickCount - e.getValue() > SKILL_TICKS)
+			{
+				continue;
+			}
+			if (COMBAT_SKILLS.contains(e.getKey()))
+			{
+				combat = e.getKey();
+				continue;
+			}
+			if (e.getValue() > bestTick)
+			{
+				best = e.getKey();
+				bestTick = e.getValue();
+			}
+		}
+		return best != null ? best : combat;
+	}
+
+	/** The map region the player is in; inside an instance, the region it was copied from (a raid room, a boss arena). */
+	private static Integer regionOf(Client client, Player local)
+	{
+		LocalPoint lp = local.getLocalLocation();
+		if (lp == null)
+		{
+			return null;
+		}
+		WorldPoint wp = client.getTopLevelWorldView().isInstance() ? WorldPoint.fromLocalInstance(client, lp) : local.getWorldLocation();
+		return wp == null ? null : wp.getRegionID();
 	}
 
 	/** The weapon in the weapon slot, by name, or null when unarmed. */
@@ -94,6 +177,7 @@ class ActivityTracker
 		if (previous != null && total > previous)
 		{
 			xp.merge(skill, total - previous, Integer::sum);
+			lastXpTick.put(skill, tickCount);
 		}
 	}
 
@@ -112,7 +196,7 @@ class ActivityTracker
 				}
 			}
 		}
-		if (grimyHerbs >= 0 && count > grimyHerbs && xp.containsKey(Skill.FARMING))
+		if (grimyHerbs >= 0 && count > grimyHerbs && tickCount - lastXpTick.getOrDefault(Skill.FARMING, Integer.MIN_VALUE / 2) <= SKILL_TICKS)
 		{
 			pickedHerbs = true;
 		}
@@ -123,11 +207,13 @@ class ActivityTracker
 	void reset()
 	{
 		lastXp.clear();
+		lastXpTick.clear();
 		minute = -1;
-		npcTicks.clear();
+		labelTicks.clear();
+		labelCategory.clear();
 		weaponTicks.clear();
+		regionTicks.clear();
 		xp.clear();
-		activeTicks = 0;
 		grimyHerbs = -1;
 		pickedHerbs = false;
 	}
@@ -141,45 +227,32 @@ class ActivityTracker
 
 	private Map<String, Object> classify(long minuteIndex)
 	{
-		int totalXp = xp.values().stream().mapToInt(Integer::intValue).sum();
-		String activity;
-		String category;
-
-		Map.Entry<String, Integer> npc = npcTicks.entrySet().stream().max(Map.Entry.comparingByValue()).orElse(null);
-		Map.Entry<Skill, Integer> skill = xp.entrySet().stream()
-			.filter(e -> e.getKey() != Skill.HITPOINTS)
-			.max(Map.Entry.comparingByValue())
-			.orElse(null);
-		if (npc != null && npc.getValue() >= FIGHT_TICKS)
-		{
-			activity = npc.getKey();
-			category = "combat";
-		}
-		else if (skill != null && MELEE_RANGED.contains(skill.getKey()))
-		{
-			activity = "Combat";
-			category = "combat";
-		}
-		else if (skill != null)
-		{
-			activity = skill.getKey().getName();
-			category = "skilling";
-		}
-		else if (activeTicks >= ACTIVE_TICKS)
-		{
-			activity = "Other";
-			category = "other";
-		}
-		else
+		if (labelTicks.isEmpty())
 		{
 			return null; // idle
 		}
+		// The label: the biggest share, but a real fight or skill beats Other (a fight with a walk after it is the fight)
+		Map.Entry<String, Integer> top = labelTicks.entrySet().stream()
+			.filter(e -> !"Other".equals(e.getKey()) && (!"combat".equals(labelCategory.get(e.getKey())) || e.getValue() >= FIGHT_TICKS))
+			.max(Map.Entry.comparingByValue())
+			.orElse(null);
+		String activity = top != null ? top.getKey() : "Other";
+		String category = top != null ? labelCategory.get(activity) : "other";
 
 		Map<String, Object> record = new LinkedHashMap<>();
 		record.put("ts", minuteIndex * 60_000);
 		record.put("activity", activity);
 		record.put("category", category);
-		record.put("xp", totalXp);
+		record.put("xp", xp.values().stream().mapToInt(Integer::intValue).sum());
+		// The minute split by what each tick was, for accurate time (and the parts of a run)
+		record.put("ticks", new LinkedHashMap<>(labelTicks));
+		Map<String, Integer> skills = new LinkedHashMap<>();
+		xp.forEach((s, v) -> skills.put(s.getName(), v));
+		if (!skills.isEmpty())
+		{
+			record.put("skills", skills);
+		}
+		regionTicks.entrySet().stream().max(Map.Entry.comparingByValue()).ifPresent(r -> record.put("region", r.getKey()));
 		if ("Farming".equals(activity) && pickedHerbs)
 		{
 			record.put("detail", "herbs");
