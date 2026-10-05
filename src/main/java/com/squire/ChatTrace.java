@@ -540,6 +540,16 @@ class ChatTrace
 				return "Ranked gear upgrades";
 			case "evaluate_upgrades":
 				return "Evaluated gear upgrades";
+			case "how_to_get":
+				return "Worked out how to get it";
+			case "slayer_task":
+				return "Checked Slayer tasks";
+			case "money_making":
+				return "Checked money makers";
+			case "game_notes":
+				return "Read its game notes";
+			case "check_facts":
+				return "Checked its facts";
 			// The agent framework's own sandbox tools: Squire reading its guides (skills) and scratch notes
 			case "Bash":
 			case "bash":
