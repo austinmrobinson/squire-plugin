@@ -691,10 +691,11 @@ class SquireSidebar extends PluginPanel
 				protected void paintComponent(java.awt.Graphics g)
 				{
 					g.setColor(ChatComponents.BORDER);
-					g.fillRect(0, 0, getWidth(), 1);
+					g.fillRect(0, 2, getWidth(), 1);
 				}
 			};
-			line.setPreferredSize(new Dimension(10, 1));
+			// 2px above and below the line
+			line.setPreferredSize(new Dimension(10, 5));
 			menu.add(line);
 		};
 		java.util.function.BiConsumer<JMenuItem, String> icon = (i, name) ->
