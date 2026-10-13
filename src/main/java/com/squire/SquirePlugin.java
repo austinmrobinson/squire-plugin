@@ -2567,6 +2567,26 @@ public class SquirePlugin extends Plugin
 				String type = String.valueOf(((Map<String, Object>) o).get("type"));
 				return type.equals("loot") && !config.syncLoot() || type.equals("collection_log") && !config.syncClog();
 			});
+			// A death's region is location
+			if (!config.syncLocation())
+			{
+				for (int i = 0; i < events.size(); i++)
+				{
+					Object o = events.get(i);
+					if (o instanceof Map && "death".equals(String.valueOf(((Map<String, Object>) o).get("type"))))
+					{
+						Map<String, Object> e = new LinkedHashMap<>((Map<String, Object>) o);
+						e.put("summary", "Died");
+						if (e.get("data") instanceof Map)
+						{
+							Map<String, Object> data = new LinkedHashMap<>((Map<String, Object>) e.get("data"));
+							data.remove("regionId");
+							e.put("data", data);
+						}
+						events.set(i, e);
+					}
+				}
+			}
 			// Hidden items out of loot drops
 			for (Object o : events)
 			{
@@ -2583,6 +2603,25 @@ public class SquirePlugin extends Plugin
 		if (!config.syncActivity())
 		{
 			payload.remove("activity");
+		}
+		else if (!config.syncLocation() && payload.get("activity") instanceof List)
+		{
+			// Activity minutes carry the region they were played in (for grouping runs by place): that's location
+			List<Object> minutes = new ArrayList<>();
+			for (Object o : (List<Object>) payload.get("activity"))
+			{
+				if (o instanceof Map)
+				{
+					Map<String, Object> m = new LinkedHashMap<>((Map<String, Object>) o);
+					m.remove("region");
+					minutes.add(m);
+				}
+				else
+				{
+					minutes.add(o);
+				}
+			}
+			payload.put("activity", minutes);
 		}
 		if (!config.syncClog())
 		{
